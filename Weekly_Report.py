@@ -1,4 +1,4 @@
-# Adjusted script with ChatGPT insights integration using OpenAI v1.x and SendGrid
+# Adjusted script with ChatGPT insights integration using OpenAI v1.x and SendGrid API (not SMTP)
 
 import gspread
 from google.oauth2.service_account import Credentials
@@ -10,9 +10,10 @@ from matplotlib.backends.backend_pdf import PdfPages
 import os, re
 from shutil import copyfile
 import textwrap
-import smtplib
 from email.message import EmailMessage
 from openai import OpenAI
+import requests
+import base64
 
 # === Set local output folder ===
 output_folder = os.path.join(os.getcwd(), 'Reports')
@@ -34,25 +35,49 @@ sheet = gc.open_by_url(SPREADSHEET_URL).worksheet("Airtable Data")
 df = pd.DataFrame(sheet.get_all_records())
 df.columns = [c.strip() for c in df.columns]
 
-# === Define email sending function using SendGrid ===
+# === Define email sending function using SendGrid API ===
 def send_email(subject, body, to_emails, attachment_path):
-    msg = EmailMessage()
-    msg["Subject"] = subject
-    msg["From"] = "Dan Amit <danamit@isotopia-global.com>"  # Replace with your verified SendGrid sender
-    msg["To"] = ", ".join(to_emails)
-    msg.set_content(body)
-
     with open(attachment_path, "rb") as f:
-        file_data = f.read()
-        file_name = os.path.basename(attachment_path)
-        msg.add_attachment(file_data, maintype="application", subtype="pdf", filename=file_name)
+        encoded_file = base64.b64encode(f.read()).decode()
 
-    with smtplib.SMTP("smtp.sendgrid.net", 587) as smtp:
-        smtp.starttls()
-        smtp.login("apikey", os.getenv("SENDGRID_API_KEY"))
-        smtp.send_message(msg)
+    data = {
+        "personalizations": [
+            {
+                "to": [{"email": email} for email in to_emails],
+                "subject": subject
+            }
+        ],
+        "from": {
+            "email": "danamit@isotopia-global.com",
+            "name": "Dan Amit"
+        },
+        "content": [
+            {
+                "type": "text/plain",
+                "value": body
+            }
+        ],
+        "attachments": [
+            {
+                "content": encoded_file,
+                "type": "application/pdf",
+                "filename": os.path.basename(attachment_path),
+                "disposition": "attachment"
+            }
+        ]
+    }
 
-    print(f"📧 Email sent to: {', '.join(to_emails)} via SendGrid")
+    headers = {
+        "Authorization": f"Bearer {os.getenv('SENDGRID_API_KEY')}",
+        "Content-Type": "application/json"
+    }
+
+    response = requests.post("https://api.sendgrid.com/v3/mail/send", json=data, headers=headers)
+
+    if response.status_code >= 200 and response.status_code < 300:
+        print(f"📧 Email sent to: {', '.join(to_emails)} via SendGrid API")
+    else:
+        print("❌ Failed to send email:", response.status_code, response.text)
 
 # === Define report date values ===
 today = datetime.today()
@@ -221,4 +246,4 @@ send_email(
     attachment_path=latest_pdf
 )
 
-print("✅ Report generated and emailed via SendGrid.")
+print("✅ Report generated and emailed via SendGrid API.")
