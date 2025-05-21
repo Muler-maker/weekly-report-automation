@@ -1,12 +1,14 @@
 import gspread
-# === Set global font style ===
-plt.rcParams["font.family"] = "DejaVu Sans"
 from google.oauth2.service_account import Credentials
 from datetime import datetime, timedelta
 import pandas as pd
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt  # This must come first
 import seaborn as sns
 from matplotlib.backends.backend_pdf import PdfPages
+
+# === Set global font style ===
+plt.rcParams["font.family"] = "DejaVu Sans"
+
 import os, re
 from shutil import copyfile
 import textwrap
