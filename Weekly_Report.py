@@ -1,5 +1,3 @@
-# Adjusted script with ChatGPT insights integration using OpenAI v1.x and Resend API
-
 import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime, timedelta
@@ -81,7 +79,6 @@ df = df.rename(columns={
     "Catalogue description (sold as)": "Product"
 })
 
-# Filter relevant shipping statuses
 valid_statuses = ["Shipped", "Partially shipped", "Shipped and arrived late", "Order being processed"]
 df = df[df["ShippingStatus"].isin(valid_statuses)]
 df = df.dropna(subset=["Customer", "Total_mCi", "Year", "Week", "ShippingStatus", "Product"])
@@ -126,10 +123,8 @@ inactive_recent_4 = sorted(active_previous_4 - active_recent_4)
 
 # Format summary
 format_row = lambda name, prev, curr: (f"{name:<30} | {curr - prev:+7.0f} mCi | {(curr - prev) / prev * 100 if prev else 100:+6.1f}%", (curr - prev) / prev * 100 if prev else 100)
-
 increased_formatted = [format_row(*x) for x in increased]
 decreased_formatted = [format_row(*x) for x in decreased]
-
 increased_formatted.sort(key=lambda x: x[1], reverse=True)
 decreased_formatted.sort(key=lambda x: x[1])
 
@@ -168,14 +163,13 @@ summary_lines += [
 ]
 summary_lines += inactive_recent_4 if inactive_recent_4 else ["- None"]
 
-# Save summary as text for ChatGPT
+# Save summary as text
 summary_path = os.path.join(output_folder, "summary.txt")
 with open(summary_path, "w") as f:
     f.write("\n".join(summary_lines))
 
-# === ChatGPT integration using OpenAI v1.x ===
+# === ChatGPT insights ===
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
 with open(summary_path, "r") as f:
     report_text = f.read()
 
@@ -186,26 +180,25 @@ response = client.chat.completions.create(
         {"role": "user", "content": report_text}
     ]
 )
-
 insights = response.choices[0].message.content
 insights_path = os.path.join(output_folder, "insights.txt")
 with open(insights_path, "w") as f:
     f.write(insights)
 
-# === Generate the PDF with summary, insights, and charts ===
+# === Generate PDF with summary, insights, and charts ===
 latest_pdf = os.path.join(output_folder, f"Weekly_Orders_Report_Week_{week_num}_{year}.pdf")
 with PdfPages(latest_pdf) as pdf:
-    # Cover page
+    # Cover
     fig = plt.figure(figsize=(9.5, 11))
     plt.axis("off")
     fig.text(0.5, 0.5, f"Weekly Orders Report – Week {week_num}, {year}", fontsize=22, ha="center", va="center", weight='bold')
     pdf.savefig(fig)
     plt.close(fig)
 
-    # Summary pages
+    # Summary
     wrapped_lines = []
     for line in summary_lines:
-        wrapped_lines.extend(textwrap.wrap(line, 90) if len(line) > 90 else [line])
+        wrapped_lines.extend(textwrap.wrap(line, width=100, break_long_words=False) if len(line) > 100 else [line])
     for p in range(0, len(wrapped_lines), 40):
         fig = plt.figure(figsize=(9.5, 11))
         plt.axis("off")
@@ -215,20 +208,55 @@ with PdfPages(latest_pdf) as pdf:
         pdf.savefig(fig)
         plt.close(fig)
 
-    # Insights page
+    # Insights
     insight_lines = insights.split("\n")
+    wrapped_insights = []
+    for line in insight_lines:
+        wrapped_insights.extend(textwrap.wrap(line, width=100, break_long_words=False) if len(line) > 100 else [line])
     fig = plt.figure(figsize=(9.5, 11))
     plt.axis("off")
-    for i, line in enumerate(insight_lines):
+    for i, line in enumerate(wrapped_insights):
         y = 1 - (i + 1) * 0.03
         fig.text(0.06, y, line, fontsize=10, ha="left", va="top")
     pdf.savefig(fig)
     plt.close(fig)
 
-# === Send the email ===
+    # Charts
+    products = {
+        "Lutetium  (177Lu) chloride N.C.A.": "Top 5 N.C.A. Customers",
+        "Lutetium (177Lu) chloride C.A": "Top 5 C.A. Customers",
+        "Terbium-161 chloride n.c.a": "Top 5 Terbium Customers"
+    }
+
+    for product, title in products.items():
+        product_df = recent_df[recent_df["Product"] == product]
+        top_customers = (
+            product_df.groupby("Customer")["Total_mCi"]
+            .sum()
+            .sort_values(ascending=False)
+            .head(5)
+        )
+
+        if not top_customers.empty:
+            fig, ax = plt.subplots(figsize=(9.5, 6))
+            bars = ax.barh(top_customers.index[::-1], top_customers.values[::-1])
+            ax.set_title(title)
+            ax.set_xlabel("Total mCi Ordered (Last 8 Weeks)")
+            ax.set_ylabel("Customer")
+            ax.grid(True, axis='x', linestyle='--', alpha=0.6)
+            pdf.savefig(fig)
+            plt.close(fig)
+
+# === Send Email ===
 send_email(
     subject=f"Weekly Orders Report – Week {week_num}, {year}",
-    body="Dear team,\n\nAttached is the weekly orders report including trends and insights.\n\nBest,\nDan",
+    body=f"""Dear team,
+
+Attached is the weekly orders report for week {week_num}, {year}, including key trends and insights on customer ordering behavior.
+
+Best regards,
+Dan
+""",
     to_emails=["danamit@isotopia-global.com"],
     attachment_path=latest_pdf
 )
