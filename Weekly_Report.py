@@ -1,4 +1,4 @@
-# Adjusted script with ChatGPT insights integration using OpenAI v1.x
+# Adjusted script with ChatGPT insights integration using OpenAI v1.x and SendGrid
 
 import gspread
 from google.oauth2.service_account import Credentials
@@ -34,16 +34,11 @@ sheet = gc.open_by_url(SPREADSHEET_URL).worksheet("Airtable Data")
 df = pd.DataFrame(sheet.get_all_records())
 df.columns = [c.strip() for c in df.columns]
 
-# === Define email sending function ===
+# === Define email sending function using SendGrid ===
 def send_email(subject, body, to_emails, attachment_path):
-    smtp_server = "smtp.gmail.com"
-    smtp_port = 587
-    sender_email = "isotopiadan@gmail.com"
-    app_password = "nrsrroyqenqtgzgj"  # <-- Replace with your valid Gmail App Password
-
     msg = EmailMessage()
     msg["Subject"] = subject
-    msg["From"] = sender_email
+    msg["From"] = "Dan Amit <your_verified_email@domain.com>"  # Replace with your verified SendGrid sender
     msg["To"] = ", ".join(to_emails)
     msg.set_content(body)
 
@@ -52,12 +47,12 @@ def send_email(subject, body, to_emails, attachment_path):
         file_name = os.path.basename(attachment_path)
         msg.add_attachment(file_data, maintype="application", subtype="pdf", filename=file_name)
 
-    with smtplib.SMTP(smtp_server, smtp_port) as smtp:
+    with smtplib.SMTP("smtp.sendgrid.net", 587) as smtp:
         smtp.starttls()
-        smtp.login(sender_email, app_password)
+        smtp.login("apikey", os.getenv("SENDGRID_API_KEY"))
         smtp.send_message(msg)
 
-    print(f"\U0001F4E7 Email sent to: {', '.join(to_emails)}")
+    print(f"📧 Email sent to: {', '.join(to_emails)} via SendGrid")
 
 # === Define report date values ===
 today = datetime.today()
@@ -210,3 +205,20 @@ with PdfPages(latest_pdf) as pdf:
 
     # Insights page
     insight_lines = insights.split("\n")
+    fig = plt.figure(figsize=(9.5, 11))
+    plt.axis("off")
+    for i, line in enumerate(insight_lines):
+        y = 1 - (i + 1) * 0.03
+        fig.text(0.06, y, line, fontsize=10, ha="left", va="top")
+    pdf.savefig(fig)
+    plt.close(fig)
+
+# === Send the email ===
+send_email(
+    subject=f"Weekly Orders Report – Week {week_num}, {year}",
+    body="Dear team,\n\nAttached is the weekly orders report including trends and insights.\n\nBest,\nDan",
+    to_emails=["danamit@isotopia-global.com"],
+    attachment_path=latest_pdf
+)
+
+print("✅ Report generated and emailed via SendGrid.")
