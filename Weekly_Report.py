@@ -222,30 +222,48 @@ with PdfPages(latest_pdf) as pdf:
     plt.close(fig)
 
     # Charts
-    products = {
-        "Lutetium  (177Lu) chloride N.C.A.": "Top 5 N.C.A. Customers",
-        "Lutetium (177Lu) chloride C.A": "Top 5 C.A. Customers",
-        "Terbium-161 chloride n.c.a": "Top 5 Terbium Customers"
-    }
+# === Product-Specific Line Graphs Over Time (Top 5 Customers) ===
+products = {
+    "Lutetium  (177Lu) chloride N.C.A.": "Top 5 N.C.A. Customers",
+    "Lutetium (177Lu) chloride C.A": "Top 5 C.A. Customers",
+    "Terbium-161 chloride n.c.a": "Top 5 Terbium Customers"
+}
 
-    for product, title in products.items():
-        product_df = recent_df[recent_df["Product"] == product]
-        top_customers = (
-            product_df.groupby("Customer")["Total_mCi"]
-            .sum()
-            .sort_values(ascending=False)
-            .head(5)
-        )
+for product_name, title in products.items():
+    product_df = recent_df[recent_df["Product"] == product_name]
 
-        if not top_customers.empty:
-            fig, ax = plt.subplots(figsize=(9.5, 6))
-            bars = ax.barh(top_customers.index[::-1], top_customers.values[::-1])
-            ax.set_title(title)
-            ax.set_xlabel("Total mCi Ordered (Last 8 Weeks)")
-            ax.set_ylabel("Customer")
-            ax.grid(True, axis='x', linestyle='--', alpha=0.6)
-            pdf.savefig(fig)
-            plt.close(fig)
+    if product_df.empty:
+        continue
+
+    # Get top 5 customers
+    top_customers = (
+        product_df.groupby("Customer")["Total_mCi"]
+        .sum()
+        .sort_values(ascending=False)
+        .head(5)
+        .index
+    )
+
+    # Prepare weekly data for line plot
+    plot_df = product_df[product_df["Customer"].isin(top_customers)].copy()
+    plot_df["WeekLabel"] = plot_df["Year"].astype(str) + "-W" + plot_df["Week"].astype(str).str.zfill(2)
+    pivot_df = plot_df.pivot_table(index="WeekLabel", columns="Customer", values="Total_mCi", aggfunc="sum").fillna(0)
+
+    # Sort week labels chronologically
+    pivot_df = pivot_df.reindex(sorted(pivot_df.index, key=lambda x: (int(x.split("-W")[0]), int(x.split("-W")[1]))))
+
+    # Plot
+    fig, ax = plt.subplots(figsize=(9.5, 6))
+    pivot_df.plot(ax=ax, marker='o')
+    ax.set_title(title)
+    ax.set_xlabel("Production Week")
+    ax.set_ylabel("Total mCi Ordered")
+    ax.grid(True, linestyle='--', alpha=0.5)
+    ax.legend(title="Customer", bbox_to_anchor=(1.02, 1), loc='upper left')
+    plt.tight_layout()
+    pdf.savefig(fig)
+    plt.close(fig)
+
 
 # === Send Email ===
 send_email(
