@@ -185,7 +185,7 @@ insights_path = os.path.join(output_folder, "insights.txt")
 with open(insights_path, "w") as f:
     f.write(insights)
 
-# === Generate the PDF with summary and insights ===
+# === Generate the PDF with summary, insights, and charts ===
 latest_pdf = os.path.join(output_folder, f"Weekly_Orders_Report_Week_{week_num}_{year}.pdf")
 with PdfPages(latest_pdf) as pdf:
     # Cover page
@@ -209,7 +209,8 @@ with PdfPages(latest_pdf) as pdf:
         plt.close(fig)
 
     # Insights page
-    insight_lines = insights.split("\n")
+    insight_lines = insights.split("
+")
     wrapped_insights = []
     for line in insight_lines:
         wrapped_insights.extend(textwrap.wrap(line, 90) if len(line) > 90 else [line])
@@ -222,15 +223,34 @@ with PdfPages(latest_pdf) as pdf:
         pdf.savefig(fig)
         plt.close(fig)
 
-# === Send the email ===
+    # Charts by product
+    product_graphs = {
+        "Lutetium  (177Lu) chloride N.C.A.": "Top Lutetium-177 N.C.A Customers",
+        "Lutetium (177Lu) chloride C.A": "Top Lutetium-177 C.A Customers",
+        "Terbium-161 chloride n.c.a": "Top Terbium-161 Customers"
+    }
+    for product, title in product_graphs.items():
+        filtered = recent_df[recent_df["Product"] == product]
+        grouped = filtered.groupby(["Customer", "Week"]).agg({"Total_mCi": "sum"}).reset_index()
+        top_customers = grouped.groupby("Customer")["Total_mCi"].sum().nlargest(5).index
+        data = grouped[grouped["Customer"].isin(top_customers)]
+        if not data.empty:
+            fig, ax = plt.subplots(figsize=(10, 6))
+            sns.lineplot(data=data, x="Week", y="Total_mCi", hue="Customer", marker="o", ax=ax)
+            ax.set_title(title)
+            ax.set_xlabel("Week Number")
+            ax.set_ylabel("Total Ordered (mCi)")
+            ax.grid(True)
+            ax.legend(title="Customer", loc="upper left", bbox_to_anchor=(1.02, 1))
+            pdf.savefig(fig)
+            plt.close(fig)
+
+
 send_email(
     subject=f"Weekly Orders Report – Week {week_num}, {year}",
     body=f"""Dear team,
 
 Attached is the weekly orders report for week {week_num}, {year}, including key trends and insights on customer ordering behavior.
-
-ChatGPT Analysis:
-{insights}
 
 Please review at your convenience. Let me know if you have any questions or would like to discuss the data in more detail.
 
