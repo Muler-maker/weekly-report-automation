@@ -27,6 +27,5 @@ jobs:
       - name: Run the report script
         run: python Weekly_Report.py
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-
-
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}    
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
