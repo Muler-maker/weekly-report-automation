@@ -1,0 +1,8 @@
+gspread
+oauth2client
+pandas
+matplotlib
+seaborn
+openpyxl
+reportlab
+google-api-python-client
