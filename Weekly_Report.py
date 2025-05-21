@@ -173,7 +173,7 @@ with open(summary_path, "r") as f:
     report_text = f.read()
 
 response = client.chat.completions.create(
-    model="gpt-3.5",
+    model="gpt-3.5-turbo",
     messages=[
         {"role": "system", "content": "You're an expert analyst. Provide 3 insights and 1 recommendation based on the weekly report."},
         {"role": "user", "content": report_text}
