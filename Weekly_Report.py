@@ -41,7 +41,7 @@ def send_email(subject, body, to_emails, attachment_path):
         encoded_file = base64.b64encode(f.read()).decode()
 
     data = {
-        "from": "Dan Amit <danamit@isotopia-global.com>",
+        "from": "Dan Amit <onboarding@resend.dev>",
         "to": to_emails,
         "subject": subject,
         "text": body,
@@ -62,7 +62,7 @@ def send_email(subject, body, to_emails, attachment_path):
     response = requests.post("https://api.resend.com/emails", json=data, headers=headers)
 
     if response.status_code >= 200 and response.status_code < 300:
-        print(f"📧 Email sent to: {', '.join(to_emails)} via Resend API")
+        print(f"\U0001F4E7 Email sent to: {', '.join(to_emails)} via Resend API")
     else:
         print("❌ Failed to send email:", response.status_code, response.text)
 
