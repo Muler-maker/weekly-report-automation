@@ -2,7 +2,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime, timedelta
 import pandas as pd
-import matplotlib.pyplot as plt  # This must come first
+import matplotlib.pyplot as plt  # Must be before rcParams setting
 import seaborn as sns
 from matplotlib.backends.backend_pdf import PdfPages
 
@@ -66,7 +66,7 @@ def send_email(subject, body, to_emails, attachment_path):
     if response.status_code >= 200 and response.status_code < 300:
         print(f"\U0001F4E7 Email sent to: {', '.join(to_emails)} via Resend API")
     else:
-        print("❌ Failed to send email:", response.status_code, response.text)
+        print("\u274C Failed to send email:", response.status_code, response.text)
 
 # === Define report date values ===
 today = datetime.today()
@@ -137,8 +137,7 @@ summary_lines = [
     "Customers who stopped ordering in the last 4 weeks but did order in the 4 weeks before.",
     "Customer Name",
     "-------------------------------"
-]
-summary_lines += [x[0] for x in stopped] if stopped else ["- None"]
+] + [x[0] for x in stopped] if stopped else ["- None"]
 
 summary_lines += [
     "",
@@ -146,8 +145,7 @@ summary_lines += [
     "These customers ordered less in the last 8 weeks compared to the 8 weeks prior.",
     "Customer Name                   | Change   | % Change",
     "-----------------------------------------------------"
-]
-summary_lines += [x[0] for x in decreased_formatted] if decreased_formatted else ["- None"]
+] + [x[0] for x in decreased_formatted] if decreased_formatted else ["- None"]
 
 summary_lines += [
     "",
@@ -155,8 +153,7 @@ summary_lines += [
     "These customers increased their order amounts in the last 8 weeks compared to the 8 weeks prior.",
     "Customer Name                   | Change   | % Change",
     "-----------------------------------------------------"
-]
-summary_lines += [x[0] for x in increased_formatted] if increased_formatted else ["- None"]
+] + [x[0] for x in increased_formatted] if increased_formatted else ["- None"]
 
 summary_lines += [
     "",
@@ -164,15 +161,14 @@ summary_lines += [
     "Customers who ordered in the previous 4 weeks but not in the most recent 4.",
     "Customer Name",
     "-------------------------------"
-]
-summary_lines += inactive_recent_4 if inactive_recent_4 else ["- None"]
+] + inactive_recent_4 if inactive_recent_4 else ["- None"]
 
-# Save summary as text
+# Save summary
 summary_path = os.path.join(output_folder, "summary.txt")
 with open(summary_path, "w") as f:
     f.write("\n".join(summary_lines))
 
-# === ChatGPT insights ===
+# === ChatGPT Insights ===
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 with open(summary_path, "r") as f:
     report_text = f.read()
@@ -185,21 +181,16 @@ response = client.chat.completions.create(
     ]
 )
 insights = response.choices[0].message.content
-insights_path = os.path.join(output_folder, "insights.txt")
-with open(insights_path, "w") as f:
-    f.write(insights)
 
-# === Generate PDF with summary, insights, and charts ===
+# === PDF Generation ===
 latest_pdf = os.path.join(output_folder, f"Weekly_Orders_Report_Week_{week_num}_{year}.pdf")
 with PdfPages(latest_pdf) as pdf:
-    # === Cover Page ===
     fig = plt.figure(figsize=(9.5, 11))
     plt.axis("off")
-    fig.text(0.5, 0.5, f"Weekly Orders Report – Week {week_num}, {year}", fontsize=22, ha="center", va="center", weight='bold')
+    fig.text(0.5, 0.5, f"Weekly Orders Report – Week {week_num}, {year}", fontsize=26, ha="center", va="center", weight='bold')
     pdf.savefig(fig)
     plt.close(fig)
 
-    # === Summary Pages ===
     wrapped_lines = []
     for line in summary_lines:
         wrapped_lines.extend(textwrap.wrap(line, width=100, break_long_words=False) if len(line) > 100 else [line])
@@ -208,11 +199,13 @@ with PdfPages(latest_pdf) as pdf:
         plt.axis("off")
         for i, line in enumerate(wrapped_lines[p:p + 40]):
             y = 1 - (i + 1) * 0.028
-            fig.text(0.06, y, line, fontsize=10, ha="left", va="top", family="DejaVu Sans")
+            style = {"fontsize": 10, "ha": "left", "va": "top", "family": "DejaVu Sans"}
+            if line.isupper() and ":" in line:
+                style.update({"fontsize": 12, "weight": "bold"})
+            fig.text(0.06, y, line, **style)
         pdf.savefig(fig)
         plt.close(fig)
 
-    # === Insights Page ===
     insight_lines = insights.split("\n")
     wrapped_insights = []
     for line in insight_lines:
@@ -225,35 +218,23 @@ with PdfPages(latest_pdf) as pdf:
     pdf.savefig(fig)
     plt.close(fig)
 
-    # === Graphs per Product ===
     products = {
         "Lutetium  (177Lu) chloride N.C.A.": "Top 5 N.C.A. Customers",
         "Lutetium (177Lu) chloride C.A": "Top 5 C.A. Customers",
         "Terbium-161 chloride n.c.a": "Top 5 Terbium Customers"
     }
-
     for product_name, title in products.items():
         product_df = recent_df[recent_df["Product"] == product_name]
-
         if product_df.empty:
             continue
-
-        top_customers = (
-            product_df.groupby("Customer")["Total_mCi"]
-            .sum()
-            .sort_values(ascending=False)
-            .head(5)
-            .index
-        )
-
+        top_customers = product_df.groupby("Customer")["Total_mCi"].sum().sort_values(ascending=False).head(5).index
         plot_df = product_df[product_df["Customer"].isin(top_customers)].copy()
         plot_df["WeekLabel"] = plot_df["Year"].astype(str) + "-W" + plot_df["Week"].astype(str).str.zfill(2)
         pivot_df = plot_df.pivot_table(index="WeekLabel", columns="Customer", values="Total_mCi", aggfunc="sum").fillna(0)
         pivot_df = pivot_df.reindex(sorted(pivot_df.index, key=lambda x: (int(x.split("-W")[0]), int(x.split("-W")[1]))))
-
         fig, ax = plt.subplots(figsize=(9.5, 6))
         pivot_df.plot(ax=ax, marker='o')
-        ax.set_title(title, fontsize=14, weight='bold')
+        ax.set_title(title, fontsize=16, weight='bold')
         ax.set_xlabel("Production Week", fontsize=10)
         ax.set_ylabel("Total mCi Ordered", fontsize=10)
         ax.grid(True, linestyle='--', alpha=0.5)
@@ -276,4 +257,4 @@ Dan
     attachment_path=latest_pdf
 )
 
-print("✅ Report generated and emailed via Resend API.")
+print("\u2705 Report generated and emailed via Resend API.")
