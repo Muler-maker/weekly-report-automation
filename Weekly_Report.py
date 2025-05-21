@@ -206,5 +206,57 @@ with PdfPages(latest_pdf) as pdf:
         pdf.savefig(fig)
         plt.close(fig)
 
-    insight_lines = insights.split("
-")
+    # --------- FIXED BLOCK STARTS HERE -----------
+    insight_lines = insights.split("\n")
+    wrapped_insights = []
+    for line in insight_lines:
+        wrapped_insights.extend(textwrap.wrap(line, width=100, break_long_words=False) if len(line) > 100 else [line])
+    fig = plt.figure(figsize=(9.5, 11))
+    plt.axis("off")
+    for i, line in enumerate(wrapped_insights):
+        y = 1 - (i + 1) * 0.028
+        fig.text(0.06, y, line, fontsize=10, ha="left", va="top", family="DejaVu Sans")
+    pdf.savefig(fig)
+    plt.close(fig)
+    # --------- FIXED BLOCK ENDS HERE -----------
+
+    products = {
+        "Lutetium  (177Lu) chloride N.C.A.": "Top 5 N.C.A. Customers",
+        "Lutetium (177Lu) chloride C.A": "Top 5 C.A. Customers",
+        "Terbium-161 chloride n.c.a": "Top 5 Terbium Customers"
+    }
+    for product_name, title in products.items():
+        product_df = recent_df[recent_df["Product"] == product_name]
+        if product_df.empty:
+            continue
+        top_customers = product_df.groupby("Customer")["Total_mCi"].sum().sort_values(ascending=False).head(5).index
+        plot_df = product_df[product_df["Customer"].isin(top_customers)].copy()
+        plot_df["WeekLabel"] = plot_df["Year"].astype(str) + "-W" + plot_df["Week"].astype(str).str.zfill(2)
+        pivot_df = plot_df.pivot_table(index="WeekLabel", columns="Customer", values="Total_mCi", aggfunc="sum").fillna(0)
+        pivot_df = pivot_df.reindex(sorted(pivot_df.index, key=lambda x: (int(x.split("-W")[0]), int(x.split("-W")[1]))))
+        fig, ax = plt.subplots(figsize=(9.5, 6))
+        pivot_df.plot(ax=ax, marker='o')
+        ax.set_title(title, fontsize=16, weight='bold')
+        ax.set_xlabel("Production Week", fontsize=10)
+        ax.set_ylabel("Total mCi Ordered", fontsize=10)
+        ax.grid(True, linestyle='--', alpha=0.5)
+        ax.legend(title="Customer", bbox_to_anchor=(1.02, 1), loc='upper left')
+        plt.tight_layout()
+        pdf.savefig(fig)
+        plt.close(fig)
+
+# === Send Email ===
+send_email(
+    subject=f"Weekly Orders Report – Week {week_num}, {year}",
+    body=f"""Dear team,
+
+Attached is the weekly orders report for week {week_num}, {year}, including key trends and insights on customer ordering behavior.
+
+Best regards,
+Dan
+""",
+    to_emails=["danamit@isotopia-global.com"],
+    attachment_path=latest_pdf
+)
+
+print("✅ Report generated and emailed via Resend API.")
