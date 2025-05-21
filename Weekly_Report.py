@@ -240,6 +240,6 @@ Please review at your convenience. Let me know if you have any questions or woul
 
 Best regards,
 Dan""",
-    to_emails=["danamit@isotopia-global.com"],
+    to_emails=["danamit@isotopia-global.com","gbader@isotopia-global.com","mmansur@isotopia-global.com","iyeshua@isotopia-global.com","egimshi@isotopia-global.com","vbeillis@isotopia-global.com","naricha@isotopia-global.com","ndellus@isotopia-global.com"],
     attachment_path=latest_pdf
 )
