@@ -184,7 +184,7 @@ insights = response.choices[0].message.content
 
 # === PDF Generation ===
 # [... same as before ...]
-
+latest_pdf = os.path.join(output_folder, f"Weekly_Orders_Report_Week_{week_num}_{year}.pdf")
 # === Send Email ===
 send_email(
     subject=f"Weekly Orders Report – Week {week_num}, {year}",
