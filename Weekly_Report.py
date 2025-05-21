@@ -1,4 +1,4 @@
-# Adjusted script with ChatGPT insights integration
+# Adjusted script with ChatGPT insights integration using OpenAI v1.x
 
 import gspread
 from google.oauth2.service_account import Credentials
@@ -12,7 +12,7 @@ from shutil import copyfile
 import textwrap
 import smtplib
 from email.message import EmailMessage
-import openai
+from openai import OpenAI
 
 # === Set local output folder ===
 output_folder = os.path.join(os.getcwd(), 'Reports')
@@ -166,12 +166,13 @@ summary_path = os.path.join(output_folder, "summary.txt")
 with open(summary_path, "w") as f:
     f.write("\n".join(summary_lines))
 
-# === ChatGPT integration ===
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# === ChatGPT integration using OpenAI v1.x ===
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
 with open(summary_path, "r") as f:
     report_text = f.read()
 
-response = openai.ChatCompletion.create(
+response = client.chat.completions.create(
     model="gpt-4",
     messages=[
         {"role": "system", "content": "You're an expert analyst. Provide 3 insights and 1 recommendation based on the weekly report."},
@@ -179,7 +180,7 @@ response = openai.ChatCompletion.create(
     ]
 )
 
-insights = response["choices"][0]["message"]["content"]
+insights = response.choices[0].message.content
 insights_path = os.path.join(output_folder, "insights.txt")
 with open(insights_path, "w") as f:
     f.write(insights)
