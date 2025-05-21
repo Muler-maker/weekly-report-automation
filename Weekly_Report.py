@@ -38,7 +38,7 @@ df.columns = [c.strip() for c in df.columns]
 def send_email(subject, body, to_emails, attachment_path):
     msg = EmailMessage()
     msg["Subject"] = subject
-    msg["From"] = "Dan Amit <your_verified_email@domain.com>"  # Replace with your verified SendGrid sender
+    msg["From"] = "Dan Amit <danamit@isotopia-global.com>"  # Replace with your verified SendGrid sender
     msg["To"] = ", ".join(to_emails)
     msg.set_content(body)
 
