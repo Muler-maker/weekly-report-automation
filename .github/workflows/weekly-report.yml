@@ -1,0 +1,24 @@
+name: Weekly Report
+
+on:
+  schedule:
+    - cron: '0 6 * * 0'  # every Sunday at 06:00 UTC (09:00 Israel time)
+  workflow_dispatch:      # allows manual run for testing
+
+jobs:
+  run-report:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run the report script
+        run: python Weekly_Report.py
