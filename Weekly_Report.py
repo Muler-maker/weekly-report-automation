@@ -35,21 +35,7 @@ df = pd.DataFrame(sheet.get_all_records())
 df.columns = [c.strip() for c in df.columns]
 
 # === Define email sending function ===
-def send_email(
-    subject=f"Weekly Orders Report – Week {week_num}, {year}",
-    body=f"""Dear team,
-
-Attached is the weekly orders report for week {week_num}, {year}, including key trends and insights on customer ordering behavior.
-
-Please review at your convenience. Let me know if you have any questions or would like to discuss the data in more detail.
-
-Best regards,
-Dan""",
-    to_emails=[
-        "danamit@isotopia-global.com"
-    ],
-    attachment_path=latest_pdf
-):
+def send_email(subject, body, to_emails, attachment_path):
     smtp_server = "smtp.gmail.com"
     smtp_port = 587
     sender_email = "isotopiadan@gmail.com"
