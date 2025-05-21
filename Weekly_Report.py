@@ -255,8 +255,16 @@ Attached is the weekly orders report for week {week_num}, {year}, including key 
 Best regards,
 Dan
 """,
-    to_emails=["danamit@isotopia-global.com"],
-    attachment_path=latest_pdf
+to_emails=[
+    "danamit@isotopia-global.com",
+    "gbader@isotopia-global.com",
+    "mmansur@isotopia-global.com",
+    "iyeshua@isotopia-global.com",
+    "egimshi@isotopia-global.com",
+    "vbeillis@isotopia-global.com",
+    "naricha@isotopia-global.com",
+    "ndellus@isotopia-global.com"
+],
+attachment_path=latest_pdf
 )
-
 print("✅ Report generated and emailed via Resend API.")
