@@ -20,5 +20,10 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Write Google credentials file
+        run: |
+          echo "${{ secrets.GOOGLE_CREDENTIALS }}" | tr -d '\r' > $GITHUB_WORKSPACE/credentials.json
+
       - name: Run the report script
         run: python Weekly_Report.py
+
