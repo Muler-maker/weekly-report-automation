@@ -185,6 +185,43 @@ insights_path = os.path.join(output_folder, "insights.txt")
 with open(insights_path, "w") as f:
     f.write(insights)
 
+# === Generate the PDF with summary and insights ===
+latest_pdf = os.path.join(output_folder, f"Weekly_Orders_Report_Week_{week_num}_{year}.pdf")
+with PdfPages(latest_pdf) as pdf:
+    # Cover page
+    fig = plt.figure(figsize=(9.5, 11))
+    plt.axis("off")
+    fig.text(0.5, 0.5, f"Weekly Orders Report – Week {week_num}, {year}", fontsize=22, ha="center", va="center", weight='bold')
+    pdf.savefig(fig)
+    plt.close(fig)
+
+    # Summary pages
+    wrapped_lines = []
+    for line in summary_lines:
+        wrapped_lines.extend(textwrap.wrap(line, 90) if len(line) > 90 else [line])
+    for p in range(0, len(wrapped_lines), 40):
+        fig = plt.figure(figsize=(9.5, 11))
+        plt.axis("off")
+        for i, line in enumerate(wrapped_lines[p:p + 40]):
+            y = 1 - (i + 1) * 0.025
+            fig.text(0.06, y, line, fontsize=9, ha="left", va="top", family="monospace")
+        pdf.savefig(fig)
+        plt.close(fig)
+
+    # Insights page
+    insight_lines = insights.split("\n")
+    wrapped_insights = []
+    for line in insight_lines:
+        wrapped_insights.extend(textwrap.wrap(line, 90) if len(line) > 90 else [line])
+    for p in range(0, len(wrapped_insights), 40):
+        fig = plt.figure(figsize=(9.5, 11))
+        plt.axis("off")
+        for i, line in enumerate(wrapped_insights[p:p + 40]):
+            y = 1 - (i + 1) * 0.025
+            fig.text(0.06, y, line, fontsize=10, ha="left", va="top")
+        pdf.savefig(fig)
+        plt.close(fig)
+
 # === Send the email ===
 send_email(
     subject=f"Weekly Orders Report – Week {week_num}, {year}",
