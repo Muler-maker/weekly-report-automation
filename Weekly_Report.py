@@ -1,4 +1,4 @@
-# Adjusted script with ChatGPT insights integration using OpenAI v1.x and SendGrid API (not SMTP)
+# Adjusted script with ChatGPT insights integration using OpenAI v1.x and Resend API
 
 import gspread
 from google.oauth2.service_account import Credentials
@@ -35,47 +35,34 @@ sheet = gc.open_by_url(SPREADSHEET_URL).worksheet("Airtable Data")
 df = pd.DataFrame(sheet.get_all_records())
 df.columns = [c.strip() for c in df.columns]
 
-# === Define email sending function using SendGrid API ===
+# === Define email sending function using Resend API ===
 def send_email(subject, body, to_emails, attachment_path):
     with open(attachment_path, "rb") as f:
         encoded_file = base64.b64encode(f.read()).decode()
 
     data = {
-        "personalizations": [
-            {
-                "to": [{"email": email} for email in to_emails],
-                "subject": subject
-            }
-        ],
-        "from": {
-            "email": "danamit@isotopia-global.com",
-            "name": "Dan Amit"
-        },
-        "content": [
-            {
-                "type": "text/plain",
-                "value": body
-            }
-        ],
+        "from": "Dan Amit <danamit@isotopia-global.com>",
+        "to": to_emails,
+        "subject": subject,
+        "text": body,
         "attachments": [
             {
-                "content": encoded_file,
-                "type": "application/pdf",
                 "filename": os.path.basename(attachment_path),
-                "disposition": "attachment"
+                "content": encoded_file,
+                "contentType": "application/pdf"
             }
         ]
     }
 
     headers = {
-        "Authorization": f"Bearer {os.getenv('SENDGRID_API_KEY')}",
+        "Authorization": f"Bearer {os.getenv('RESEND_API_KEY')}",
         "Content-Type": "application/json"
     }
 
-    response = requests.post("https://api.sendgrid.com/v3/mail/send", json=data, headers=headers)
+    response = requests.post("https://api.resend.com/emails", json=data, headers=headers)
 
     if response.status_code >= 200 and response.status_code < 300:
-        print(f"📧 Email sent to: {', '.join(to_emails)} via SendGrid API")
+        print(f"📧 Email sent to: {', '.join(to_emails)} via Resend API")
     else:
         print("❌ Failed to send email:", response.status_code, response.text)
 
@@ -246,4 +233,4 @@ send_email(
     attachment_path=latest_pdf
 )
 
-print("✅ Report generated and emailed via SendGrid API.")
+print("✅ Report generated and emailed via Resend API.")
