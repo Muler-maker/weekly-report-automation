@@ -101,10 +101,14 @@ df["Week"] = df["Week"].astype(int)
 df = df.dropna(subset=["Total_mCi", "Year", "Week"])
 df["YearWeek"] = list(zip(df["Year"], df["Week"]))
 
-# === Trends Analysis ===
+# === Define 16-week window ===
+current = today - timedelta(days=today.weekday())
+week_pairs = [(d.isocalendar().year, d.isocalendar().week) for d in [current - timedelta(weeks=(15 - i)) for i in range(16)]]
+previous_8, recent_8 = week_pairs[:8], week_pairs[8:]
 recent_df = df[df["YearWeek"].isin(recent_8)]
 previous_df = df[df["YearWeek"].isin(previous_8)]
 
+# === Trends Analysis ===
 recent_totals = recent_df.groupby("Customer")["Total_mCi"].sum()
 previous_totals = previous_df.groupby("Customer")["Total_mCi"].sum()
 customer_to_manager = df.set_index("Customer")["Account Manager"].to_dict()
@@ -173,8 +177,7 @@ summary_lines += [
 # === Save summary ===
 summary_path = os.path.join(output_folder, "summary.txt")
 with open(summary_path, "w") as f:
-    f.write("
-".join(summary_lines))
+    f.write("\n".join(summary_lines))
 
 # === ChatGPT Insights with memory ===
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -185,9 +188,7 @@ insight_history_path = os.path.join(output_folder, "insight_history.txt")
 if os.path.exists(insight_history_path):
     with open(insight_history_path, "r") as f:
         past_insights = f.read()
-    report_text = past_insights + "
-
-" + report_text
+    report_text = past_insights + "\n\n" + report_text
 
 response = client.chat.completions.create(
     model="gpt-4o",
@@ -200,10 +201,7 @@ insights = response.choices[0].message.content
 
 # === Save new insight to history ===
 with open(insight_history_path, "a") as f:
-    f.write(f"
-
-===== Week {week_num}, {year} =====
-")
+    f.write(f"\n\n===== Week {week_num}, {year} =====\n")
     f.write(insights)
 
 # === PDF Generation and email sending follow ===
