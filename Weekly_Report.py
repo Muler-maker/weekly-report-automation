@@ -50,10 +50,14 @@ df["Account Manager"] = df["Account Manager Email"].map(account_manager_map).fil
 
 # === Define email sending function using Resend API ===
 def send_email(subject, body, to_emails, attachment_path):
+    if not os.path.exists(attachment_path):
+        print(f"❌ Attachment file not found: {attachment_path}")
+        return
+
     with open(attachment_path, "rb") as f:
         encoded_file = base64.b64encode(f.read()).decode()
 
-    data = {
+    payload = {
         "from": "Dan Amit <onboarding@resend.dev>",
         "to": to_emails,
         "subject": subject,
@@ -62,10 +66,22 @@ def send_email(subject, body, to_emails, attachment_path):
             {
                 "filename": os.path.basename(attachment_path),
                 "content": encoded_file,
-                "contentType": "application/pdf"
+                "content_type": "application/pdf"  # <-- important fix here!
             }
         ]
     }
+
+    headers = {
+        "Authorization": f"Bearer {os.getenv('RESEND_API_KEY')}",
+        "Content-Type": "application/json"
+    }
+
+    response = requests.post("https://api.resend.com/emails", json=payload, headers=headers)
+
+    if 200 <= response.status_code < 300:
+        print(f"📨 Email successfully sent to: {', '.join(to_emails)}")
+    else:
+        print("❌ Failed to send email:", response.status_code, response.text)
 
     headers = {
         "Authorization": f"Bearer {os.getenv('RESEND_API_KEY')}",
