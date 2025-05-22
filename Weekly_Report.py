@@ -295,8 +295,8 @@ with PdfPages(latest_pdf) as pdf:
                 else:
                     cell.set_width(0.15)
 
-            ax.set_title("STOPPED ORDERING", fontsize=12, weight="bold", pad=2)
-            fig.text(0.06, 0.87, "Customers who stopped ordering in the last 4 weeks but did order in the 4 weeks before.", fontsize=9)
+            ax.set_title("STOPPED ORDERING", fontsize=12, weight="bold", pad=50)
+            fig.text(0.06, 0.85, "Customers who stopped ordering in the last 4 weeks but did order in the 4 weeks before.", fontsize=9)
 
             pdf.savefig(fig, bbox_inches="tight")
             plt.close(fig)
@@ -335,8 +335,8 @@ with PdfPages(latest_pdf) as pdf:
                 else:
                     cell.set_width(0.15)
 
-            ax.set_title("DECREASED ORDERS", fontsize=12, weight="bold", pad=2, y=1.05)
-            fig.text(0.06, 0.87, "These customers ordered less in the last 8 weeks compared to the 8 weeks prior.", fontsize=9)
+            ax.set_title("DECREASED ORDERS", fontsize=12, weight="bold", pad=50, y=1.05)
+            fig.text(0.06, 0.85, "These customers ordered less in the last 8 weeks compared to the 8 weeks prior.", fontsize=9)
             pdf.savefig(fig, bbox_inches="tight")
             plt.close(fig)
 
@@ -376,8 +376,8 @@ with PdfPages(latest_pdf) as pdf:
                 else:
                     cell.set_width(0.15)
 
-            ax.set_title("INCREASED ORDERS", fontsize=12, weight="bold", pad=2)
-            fig.text(0.06, 0.87, "These customers increased their order amounts in the last 8 weeks compared to the 8 weeks prior.", fontsize=9)
+            ax.set_title("INCREASED ORDERS", fontsize=12, weight="bold", pad=50)
+            fig.text(0.06, 0.85, "These customers increased their order amounts in the last 8 weeks compared to the 8 weeks prior.", fontsize=9)
             pdf.savefig(fig, bbox_inches="tight")
             plt.close(fig)
 
@@ -409,8 +409,8 @@ with PdfPages(latest_pdf) as pdf:
                 else:
                     cell.set_width(0.15)
 
-            ax.set_title("INACTIVE IN PAST 4 WEEKS", fontsize=12, weight="bold", pad=2)
-            fig.text(0.06, 0.87, "Customers who were active 4–8 weeks ago but not in the most recent 4 weeks.", fontsize=9)
+            ax.set_title("INACTIVE IN PAST 4 WEEKS", fontsize=12, weight="bold", pad=50)
+            fig.text(0.06, 0.85, "Customers who were active 4–8 weeks ago but not in the most recent 4 weeks.", fontsize=9)
             pdf.savefig(fig, bbox_inches="tight")
             plt.close(fig)
                     # === Add ChatGPT insights page ===
