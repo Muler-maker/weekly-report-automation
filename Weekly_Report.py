@@ -273,12 +273,31 @@ send_email(
     subject=f"Weekly Orders Report – Week {week_num}, {year}",
     body=f"""Dear team,
 
-Attached is the weekly orders report for week {week_num}, {year}, including key trends and insights on customer ordering behavior.
+Attached is the weekly orders report for Week {week_num}, {year}. The report outlines key changes in customer activity, including:
+
+Customers who increased or decreased their orders
+
+Customers who stopped ordering entirely
+
+Customers who were inactive in the past 4 weeks but had ordered in the 4 weeks prior
+
+The top 5 customers for each product category: NCA, CA, and Terbium
+
+Please let me know if you have any questions or if you'd like to add someone to the mailing list.
 
 Best regards,
 Dan
 """,
-    to_emails=["danamit@isotopia-global.com"],
+    to_emails=[
+    "danamit@isotopia-global.com",
+    "gbader@isotopia-global.com",
+    "mmansur@isotopia-global.com",
+    "iyeshua@isotopia-global.com",
+    "egimshi@isotopia-global.com",
+    "vbeillis@isotopia-global.com",
+    "naricha@isotopia-global.com",
+    "ndellus@isotopia-global.com"
+],
     attachment_path=latest_pdf
 )
 print("✅ Report generated and emailed via Resend API.")
