@@ -36,6 +36,14 @@ sheet = gc.open_by_url(SPREADSHEET_URL).worksheet("Airtable Data")
 df = pd.DataFrame(sheet.get_all_records())
 df.columns = [c.strip() for c in df.columns]
 
+# === Add Account Manager mapping ===
+account_manager_map = {
+    "vbeillis@isotopia-global.com": "Vicki Beillis",
+    "naricha@isotopia-global.com": "Noam Aricha",
+    "ndellus@isotopia-global.com": "Noam Dellus"
+}
+df["Account Manager"] = df["Account Manager Email"].map(account_manager_map).fillna("Other")
+
 # === Define email sending function using Resend API ===
 def send_email(subject, body, to_emails, attachment_path):
     with open(attachment_path, "rb") as f:
@@ -93,65 +101,65 @@ df["Week"] = df["Week"].astype(int)
 df = df.dropna(subset=["Total_mCi", "Year", "Week"])
 df["YearWeek"] = list(zip(df["Year"], df["Week"]))
 
-# Define 16-week range (8 + 8 weeks)
-current = today - timedelta(days=today.weekday())
-week_pairs = [(d.isocalendar().year, d.isocalendar().week) for d in [current - timedelta(weeks=(15 - i)) for i in range(16)]]
-previous_8, recent_8 = week_pairs[:8], week_pairs[8:]
+# === Trends Analysis ===
 recent_df = df[df["YearWeek"].isin(recent_8)]
 previous_df = df[df["YearWeek"].isin(previous_8)]
 
-# Trends
 recent_totals = recent_df.groupby("Customer")["Total_mCi"].sum()
 previous_totals = previous_df.groupby("Customer")["Total_mCi"].sum()
+customer_to_manager = df.set_index("Customer")["Account Manager"].to_dict()
+
 all_customers = set(df["Customer"])
 increased, decreased, stopped = [], [], []
 for customer in all_customers:
     prev = previous_totals.get(customer, 0)
     curr = recent_totals.get(customer, 0)
+    manager = customer_to_manager.get(customer, "Other")
     if prev == 0 and curr > 0:
-        increased.append((customer, prev, curr))
+        increased.append((customer, prev, curr, manager))
     elif curr == 0 and prev > 0:
-        stopped.append((customer,))
+        stopped.append((customer, manager))
     elif curr > prev:
-        increased.append((customer, prev, curr))
+        increased.append((customer, prev, curr, manager))
     elif curr < prev:
-        decreased.append((customer, prev, curr))
+        decreased.append((customer, prev, curr, manager))
 
-# Inactive in last 4 weeks (but active before)
+# === Inactive recent 4 weeks ===
 last_8_weeks = week_pairs[-8:]
 previous_4_weeks, recent_4_weeks = last_8_weeks[:4], last_8_weeks[4:]
 active_previous_4 = set(df[df["YearWeek"].isin(previous_4_weeks)]["Customer"])
 active_recent_4 = set(df[df["YearWeek"].isin(recent_4_weeks)]["Customer"])
 inactive_recent_4 = sorted(active_previous_4 - active_recent_4)
 
-# Format summary
-format_row = lambda name, prev, curr: (f"{name:<30} | {curr - prev:+7.0f} mCi | {(curr - prev) / prev * 100 if prev else 100:+6.1f}%", (curr - prev) / prev * 100 if prev else 100)
-increased_formatted = [format_row(*x) for x in increased]
-decreased_formatted = [format_row(*x) for x in decreased]
-increased_formatted.sort(key=lambda x: x[1], reverse=True)
-decreased_formatted.sort(key=lambda x: x[1])
+# === Format summary text ===
+format_row = lambda name, prev, curr, mgr: (
+    f"{name:<30} | {curr - prev:+7.0f} mCi | {(curr - prev) / prev * 100 if prev else 100:+6.1f}% | {mgr}",
+    (curr - prev) / prev * 100 if prev else 100
+)
+increased_formatted = sorted([format_row(*x) for x in increased], key=lambda x: x[1], reverse=True)
+decreased_formatted = sorted([format_row(*x) for x in decreased], key=lambda x: x[1])
 
 summary_lines = [
     "STOPPED ORDERING:",
     "Customers who stopped ordering in the last 4 weeks but did order in the 4 weeks before.",
-    "Customer Name",
-    "-------------------------------"
-] + [x[0] for x in stopped] if stopped else ["- None"]
+    "Customer Name                     | Account Manager",
+    "---------------------------------------------------"
+] + [f"{x[0]:<35} | {x[1]}" for x in stopped] if stopped else ["- None"]
 
 summary_lines += [
     "",
     "DECREASED ORDERS:",
     "These customers ordered less in the last 8 weeks compared to the 8 weeks prior.",
-    "Customer Name                   | Change   | % Change",
-    "-----------------------------------------------------"
+    "Customer Name                     | Change   | % Change | Account Manager",
+    "--------------------------------------------------------------------------"
 ] + [x[0] for x in decreased_formatted] if decreased_formatted else ["- None"]
 
 summary_lines += [
     "",
     "INCREASED ORDERS:",
     "These customers increased their order amounts in the last 8 weeks compared to the 8 weeks prior.",
-    "Customer Name                   | Change   | % Change",
-    "-----------------------------------------------------"
+    "Customer Name                     | Change   | % Change | Account Manager",
+    "--------------------------------------------------------------------------"
 ] + [x[0] for x in increased_formatted] if increased_formatted else ["- None"]
 
 summary_lines += [
@@ -162,10 +170,11 @@ summary_lines += [
     "-------------------------------"
 ] + inactive_recent_4 if inactive_recent_4 else ["- None"]
 
-# Save summary
+# === Save summary ===
 summary_path = os.path.join(output_folder, "summary.txt")
 with open(summary_path, "w") as f:
-    f.write("\n".join(summary_lines))
+    f.write("
+".join(summary_lines))
 
 # === ChatGPT Insights with memory ===
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -176,23 +185,28 @@ insight_history_path = os.path.join(output_folder, "insight_history.txt")
 if os.path.exists(insight_history_path):
     with open(insight_history_path, "r") as f:
         past_insights = f.read()
-    report_text = past_insights + "\n\n" + report_text
+    report_text = past_insights + "
+
+" + report_text
 
 response = client.chat.completions.create(
     model="gpt-4o",
     messages=[
-        {"role": "system", "content": "You are a senior business analyst. Based on the weekly report, provide 3 data-driven insights and 1 clear recommendation, each highlighting specific customers, trends, or changes in behavior that should be acted upon. Prioritize actionable items that could guide follow-up by the commercial or support teams."},
+        {"role": "system", "content": "You are a senior business analyst. Based on the weekly report, provide 3 data-driven insights and 1 clear recommendation. Include the responsible account manager for each customer mentioned so the sales team can follow up effectively."},
         {"role": "user", "content": report_text}
     ]
 )
 insights = response.choices[0].message.content
 
-# Save new insight to history
+# === Save new insight to history ===
 with open(insight_history_path, "a") as f:
-    f.write(f"\n\n===== Week {week_num}, {year} =====\n")
+    f.write(f"
+
+===== Week {week_num}, {year} =====
+")
     f.write(insights)
 
-# === PDF Generation ===
+# === PDF Generation and email sending follow ===
 latest_pdf = os.path.join(output_folder, f"Weekly_Orders_Report_Week_{week_num}_{year}.pdf")
 with PdfPages(latest_pdf) as pdf:
     fig = plt.figure(figsize=(9.5, 11))
@@ -217,8 +231,8 @@ with PdfPages(latest_pdf) as pdf:
         plt.close(fig)
 
     # === GPT Insight Page ===
-    insight_lines = insights.split("\n")
-
+    insight_lines = insights.split("
+")
     wrapped_insights = []
     for line in insight_lines:
         wrapped_insights.extend(textwrap.wrap(line, width=100, break_long_words=False) if len(line) > 100 else [line])
@@ -266,9 +280,7 @@ Attached is the weekly orders report for week {week_num}, {year}, including key 
 Best regards,
 Dan
 """,
-    to_emails=[
-        "danamit@isotopia-global.com"
-    ],
+    to_emails=["danamit@isotopia-global.com"],
     attachment_path=latest_pdf
 )
 print("✅ Report generated and emailed via Resend API.")
