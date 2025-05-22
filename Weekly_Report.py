@@ -252,6 +252,14 @@ with PdfPages(latest_pdf) as pdf:
             colLabels=stopped_df.columns,
             loc="upper left",
             cellLoc="left"
+            # Manually widen the "Customer" column (column index 0)
+    for key, cell in table.get_celld().items():
+    row, col = key
+    if col == 0:  # Customer column
+        cell.set_width(0.4)  # Wider
+    else:
+        cell.set_width(0.15)  # Narrower for other columns
+
         )
         table.auto_set_font_size(False)
         table.set_fontsize(7)
@@ -280,6 +288,14 @@ with PdfPages(latest_pdf) as pdf:
             colLabels=decreased_df.columns,
             loc="upper left",
             cellLoc="left"
+            # Manually widen the "Customer" column (column index 0)
+    for key, cell in table.get_celld().items():
+    row, col = key
+    if col == 0:  # Customer column
+        cell.set_width(0.4)  # Wider
+    else:
+        cell.set_width(0.15)  # Narrower for other columns
+
         )
         table.auto_set_column_width(col=list(range(len(decreased_df.columns))))
         table.auto_set_font_size(False)
@@ -309,6 +325,14 @@ with PdfPages(latest_pdf) as pdf:
             colLabels=increased_df.columns,
             loc="upper left",
             cellLoc="left"
+            # Manually widen the "Customer" column (column index 0)
+    for key, cell in table.get_celld().items():
+    row, col = key
+    if col == 0:  # Customer column
+        cell.set_width(0.4)  # Wider
+    else:
+        cell.set_width(0.15)  # Narrower for other columns
+
         )
         table.auto_set_font_size(False)
         table.set_fontsize(7)
@@ -331,6 +355,14 @@ with PdfPages(latest_pdf) as pdf:
             colLabels=inactive_df.columns,
             loc="upper left",
             cellLoc="left"
+            # Manually widen the "Customer" column (column index 0)
+    for key, cell in table.get_celld().items():
+    row, col = key
+    if col == 0:  # Customer column
+        cell.set_width(0.4)  # Wider
+    else:
+        cell.set_width(0.15)  # Narrower for other columns
+
         )
         table.auto_set_font_size(False)
         table.set_fontsize(7)
