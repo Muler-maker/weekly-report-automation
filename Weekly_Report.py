@@ -246,7 +246,7 @@ with PdfPages(latest_pdf) as pdf:
             columns=["Customer", "Account Manager"])
 
     fig_height = max(4.5, 0.4 + 0.3 * len(stopped_df))
-    fig, ax = plt.subplots(figsize=(8, fig_height))
+    fig, ax = plt.subplots(figsize=(10, fig_height))
     ax.axis("off")
 
     table = ax.table(
@@ -256,14 +256,14 @@ with PdfPages(latest_pdf) as pdf:
         cellLoc="left"
     )
     table.auto_set_font_size(False)
-    table.set_fontsize(7)
+    table.set_fontsize(6.5)
     table.scale(1.0, 2.0)
 
     # Manually widen the "Customer" column (column index 0)
     for key, cell in table.get_celld().items():
         row, col = key
         if col == 0:
-            cell.set_width(0.4)
+            cell.set_width(0.6)
         else:
             cell.set_width(0.15)
 
@@ -286,7 +286,7 @@ with PdfPages(latest_pdf) as pdf:
          columns=["Customer", "Change (mCi)", "% Change", "Account Manager"])
 
     fig_height = max(4.5, 0.4 + 0.3 * len(decreased_df))
-    fig, ax = plt.subplots(figsize=(8, fig_height))
+    fig, ax = plt.subplots(figsize=(10, fig_height))
     ax.axis("off")
 
     table = ax.table(
@@ -296,13 +296,13 @@ with PdfPages(latest_pdf) as pdf:
         cellLoc="left"
     )
     table.auto_set_font_size(False)
-    table.set_fontsize(7)
+    table.set_fontsize(6.5)
     table.scale(1.0, 2.0)
 
     for key, cell in table.get_celld().items():
         row, col = key
         if col == 0:
-            cell.set_width(0.4)
+            cell.set_width(0.6)
         else:
             cell.set_width(0.15)
 
@@ -326,7 +326,7 @@ with PdfPages(latest_pdf) as pdf:
          )
 
     fig_height = max(4.5, 0.4 + 0.3 * len(increased_df))
-    fig, ax = plt.subplots(figsize=(8, fig_height))
+    fig, ax = plt.subplots(figsize=(10, fig_height))
     ax.axis("off")
 
     table = ax.table(
@@ -336,13 +336,13 @@ with PdfPages(latest_pdf) as pdf:
         cellLoc="left"
     )
     table.auto_set_font_size(False)
-    table.set_fontsize(7)
+    table.set_fontsize(6.5)
     table.scale(1.0, 2.0)
 
     for key, cell in table.get_celld().items():
         row, col = key
         if col == 0:
-            cell.set_width(0.4)
+            cell.set_width(0.6)
         else:
             cell.set_width(0.15)
 
@@ -359,7 +359,7 @@ with PdfPages(latest_pdf) as pdf:
             columns=["Customer"]
         )
     fig_height = max(4.5, 0.4 + 0.3 * len(inactive_df))
-    fig, ax = plt.subplots(figsize=(8, fig_height))
+    fig, ax = plt.subplots(figsize=(10, fig_height))
     ax.axis("off")
 
     table = ax.table(
@@ -369,13 +369,13 @@ with PdfPages(latest_pdf) as pdf:
         cellLoc="left"
     )
     table.auto_set_font_size(False)
-    table.set_fontsize(7)
+    table.set_fontsize(6.5)
     table.scale(1.0, 2.0)
 
     for key, cell in table.get_celld().items():
         row, col = key
         if col == 0:
-            cell.set_width(0.4)
+            cell.set_width(0.6)
         else:
             cell.set_width(0.15)
 
