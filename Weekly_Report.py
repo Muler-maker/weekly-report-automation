@@ -211,188 +211,185 @@ with open(insight_history_path, "a") as f:
 # === PDF Generation and email sending follow ===
 latest_pdf = os.path.join(output_folder, f"Weekly_Orders_Report_Week_{week_num}_{year}.pdf")
 with PdfPages(latest_pdf) as pdf:
-        if not any([stopped, decreased, increased, inactive_recent_4]):
-            fig = plt.figure(figsize=(8.5, 11))
-            plt.axis("off")
-            fig.text(
-                0.5, 0.5,
-                "No data available for this week's report.",
-                ha="center", va="center", fontsize=18
+    if not any([stopped, decreased, increased, inactive_recent_4]):
+        fig = plt.figure(figsize=(8.5, 11))
+        plt.axis("off")
+        fig.text(
+            0.5, 0.5,
+            "No data available for this week's report.",
+            ha="center", va="center", fontsize=18
+        )
+        pdf.savefig(fig)
+        plt.close(fig)
+        print("⚠️ No data available. Generated fallback PDF with message page only.")
+    else:
+        # --- Cover Page ---
+        fig = plt.figure(figsize=(9.5, 11))
+        plt.axis("off")
+
+        fig.text(0.5, 0.78, f"Weekly Orders Report – Week {week_num}, {year}",
+                fontsize=26, ha="center", va="center", weight='bold')
+
+        logo_path = os.path.join(script_dir, "Isotopia.jpg")
+        logo = mpimg.imread(logo_path)
+
+        logo_width = 0.25
+        logo_height = 0.12
+        logo_x = (1 - logo_width) / 2
+        logo_y = 0.60
+
+        ax_logo = fig.add_axes([logo_x, logo_y, logo_width, logo_height])
+        ax_logo.imshow(logo)
+        ax_logo.axis("off")
+
+        pdf.savefig(fig, bbox_inches="tight")
+        plt.close(fig)
+
+        # --- STOPPED ORDERING TABLE ---
+        if stopped:
+            stopped_df = pd.DataFrame(
+                [
+                    [name, wrap_text(mgr)]
+                    for name, mgr in stopped
+                ],
+                columns=["Customer", "Account Manager"]
             )
-            pdf.savefig(fig)
+
+            fig_height = max(4.5, 0.4 + 0.3 * len(stopped_df))
+            fig, ax = plt.subplots(figsize=(10, fig_height))
+            ax.axis("off")
+
+            table = ax.table(
+                cellText=stopped_df.values,
+                colLabels=stopped_df.columns,
+                loc="upper left",
+                cellLoc="left"
+            )
+            table.auto_set_font_size(False)
+            table.set_fontsize(6.5)
+            table.scale(1.0, 2.0)
+
+            for key, cell in table.get_celld().items():
+                row, col = key
+                if col == 0:
+                    cell.set_width(0.6)
+                else:
+                    cell.set_width(0.15)
+
+            ax.set_title("STOPPED ORDERING", fontsize=12, weight="bold", pad=10)
+            pdf.savefig(fig, bbox_inches="tight")
             plt.close(fig)
-            print("⚠️ No data available. Generated fallback PDF with message page only.")
-    # --- Cover Page ---
-    fig = plt.figure(figsize=(9.5, 11))
-    plt.axis("off")
 
-    # Centered report title
-    fig.text(0.5, 0.78, f"Weekly Orders Report – Week {week_num}, {year}",
-             fontsize=26, ha="center", va="center", weight='bold')
-
-    # Load and center the logo below the title
-    logo_path = os.path.join(script_dir, "Isotopia.jpg")
-    logo = mpimg.imread(logo_path)
-
-    logo_width = 0.25  # 25% of the figure width
-    logo_height = 0.12  # 12% of the figure height
-    logo_x = (1 - logo_width) / 2  # centered horizontally
-    logo_y = 0.60  # vertical placement under title
-
-    ax_logo = fig.add_axes([logo_x, logo_y, logo_width, logo_height])
-    ax_logo.imshow(logo)
-    ax_logo.axis("off")
-
-    # Save the cover page
-    pdf.savefig(fig, bbox_inches="tight")
-    plt.close(fig)
-
-    # --- STOPPED ORDERING TABLE ---
-    if stopped:
-        stopped_df = pd.DataFrame(
-            [
-                [name, wrap_text(mgr)]
-                for name, mgr in stopped
-            ], 
-            columns=["Customer", "Account Manager"])
-
-    fig_height = max(4.5, 0.4 + 0.3 * len(stopped_df))
-    fig, ax = plt.subplots(figsize=(10, fig_height))
-    ax.axis("off")
-
-    table = ax.table(
-        cellText=stopped_df.values,
-        colLabels=stopped_df.columns,
-        loc="upper left",
-        cellLoc="left"
-    )
-    table.auto_set_font_size(False)
-    table.set_fontsize(6.5)
-    table.scale(1.0, 2.0)
-
-    # Manually widen the "Customer" column (column index 0)
-    for key, cell in table.get_celld().items():
-        row, col = key
-        if col == 0:
-            cell.set_width(0.6)
-        else:
-            cell.set_width(0.15)
-
-    ax.set_title("STOPPED ORDERING", fontsize=12, weight="bold", pad=10)
-    pdf.savefig(fig, bbox_inches="tight")
-    plt.close(fig)
-
-
-    # --- DECREASED ORDERS TABLE ---
-    if decreased:
-        decreased_df = pd.DataFrame([
-            [
-                name,
-                f"{curr - prev:+.0f}",
-                f"{(curr - prev) / prev * 100:+.1f}%" if prev else "+100%",
-                wrap_text(mgr)
-            ]
-            for name, prev, curr, mgr in decreased
-         ], 
-         columns=["Customer", "Change (mCi)", "% Change", "Account Manager"])
-
-    fig_height = max(4.5, 0.4 + 0.3 * len(decreased_df))
-    fig, ax = plt.subplots(figsize=(10, fig_height))
-    ax.axis("off")
-
-    table = ax.table(
-        cellText=decreased_df.values,
-        colLabels=decreased_df.columns,
-        loc="upper left",
-        cellLoc="left"
-    )
-    table.auto_set_font_size(False)
-    table.set_fontsize(6.5)
-    table.scale(1.0, 2.0)
-
-    for key, cell in table.get_celld().items():
-        row, col = key
-        if col == 0:
-            cell.set_width(0.6)
-        else:
-            cell.set_width(0.15)
-
-    ax.set_title("DECREASED ORDERS", fontsize=12, weight="bold", pad=30, y=1.05)
-    pdf.savefig(fig, bbox_inches="tight")
-    plt.close(fig)
-
-    # --- INCREASED ORDERS TABLE ---
-    if increased:
-        increased_df = pd.DataFrame(
-            [
+        # --- DECREASED ORDERS TABLE ---
+        if decreased:
+            decreased_df = pd.DataFrame([
                 [
                     name,
                     f"{curr - prev:+.0f}",
                     f"{(curr - prev) / prev * 100:+.1f}%" if prev else "+100%",
                     wrap_text(mgr)
                 ]
-                for name, prev, curr, mgr in increased
-            ], 
+                for name, prev, curr, mgr in decreased
+            ],
             columns=["Customer", "Change (mCi)", "% Change", "Account Manager"]
-         )
+            )
 
-    fig_height = max(4.5, 0.4 + 0.3 * len(increased_df))
-    fig, ax = plt.subplots(figsize=(10, fig_height))
-    ax.axis("off")
+            fig_height = max(4.5, 0.4 + 0.3 * len(decreased_df))
+            fig, ax = plt.subplots(figsize=(10, fig_height))
+            ax.axis("off")
 
-    table = ax.table(
-        cellText=increased_df.values,
-        colLabels=increased_df.columns,
-        loc="upper left",
-        cellLoc="left"
-    )
-    table.auto_set_font_size(False)
-    table.set_fontsize(6.5)
-    table.scale(1.0, 2.0)
+            table = ax.table(
+                cellText=decreased_df.values,
+                colLabels=decreased_df.columns,
+                loc="upper left",
+                cellLoc="left"
+            )
+            table.auto_set_font_size(False)
+            table.set_fontsize(6.5)
+            table.scale(1.0, 2.0)
 
-    for key, cell in table.get_celld().items():
-        row, col = key
-        if col == 0:
-            cell.set_width(0.6)
-        else:
-            cell.set_width(0.15)
+            for key, cell in table.get_celld().items():
+                row, col = key
+                if col == 0:
+                    cell.set_width(0.6)
+                else:
+                    cell.set_width(0.15)
 
-    ax.set_title("INCREASED ORDERS", fontsize=12, weight="bold", pad=10)
-    pdf.savefig(fig, bbox_inches="tight")
-    plt.close(fig)
+            ax.set_title("DECREASED ORDERS", fontsize=12, weight="bold", pad=30, y=1.05)
+            pdf.savefig(fig, bbox_inches="tight")
+            plt.close(fig)
 
-# --- INACTIVE IN PAST 4 WEEKS TABLE ---
-if inactive_recent_4:
-    inactive_df = pd.DataFrame(
-        [[name] for name in inactive_recent_4], 
-        columns=["Customer"]
-    )
+        # --- INCREASED ORDERS TABLE ---
+        if increased:
+            increased_df = pd.DataFrame(
+                [
+                    [
+                        name,
+                        f"{curr - prev:+.0f}",
+                        f"{(curr - prev) / prev * 100:+.1f}%" if prev else "+100%",
+                        wrap_text(mgr)
+                    ]
+                    for name, prev, curr, mgr in increased
+                ],
+                columns=["Customer", "Change (mCi)", "% Change", "Account Manager"]
+            )
 
-    fig_height = max(4.5, 0.4 + 0.3 * len(inactive_df))
-    fig, ax = plt.subplots(figsize=(10, fig_height))
-    ax.axis("off")
+            fig_height = max(4.5, 0.4 + 0.3 * len(increased_df))
+            fig, ax = plt.subplots(figsize=(10, fig_height))
+            ax.axis("off")
 
-    table = ax.table(
-        cellText=inactive_df.values,
-        colLabels=inactive_df.columns,
-        loc="upper left",
-        cellLoc="left"
-    )
-    table.auto_set_font_size(False)
-    table.set_fontsize(6.5)
-    table.scale(1.0, 2.0)
+            table = ax.table(
+                cellText=increased_df.values,
+                colLabels=increased_df.columns,
+                loc="upper left",
+                cellLoc="left"
+            )
+            table.auto_set_font_size(False)
+            table.set_fontsize(6.5)
+            table.scale(1.0, 2.0)
 
-    for key, cell in table.get_celld().items():
-        row, col = key
-        if col == 0:
-            cell.set_width(0.6)
-        else:
-            cell.set_width(0.15)
+            for key, cell in table.get_celld().items():
+                row, col = key
+                if col == 0:
+                    cell.set_width(0.6)
+                else:
+                    cell.set_width(0.15)
 
-    ax.set_title("INACTIVE IN PAST 4 WEEKS", fontsize=12, weight="bold", pad=10)
-    pdf.savefig(fig, bbox_inches="tight")
-    plt.close(fig)
+            ax.set_title("INCREASED ORDERS", fontsize=12, weight="bold", pad=10)
+            pdf.savefig(fig, bbox_inches="tight")
+            plt.close(fig)
 
+        # --- INACTIVE IN PAST 4 WEEKS TABLE ---
+        if inactive_recent_4:
+            inactive_df = pd.DataFrame(
+                [[name] for name in inactive_recent_4],
+                columns=["Customer"]
+            )
+
+            fig_height = max(4.5, 0.4 + 0.3 * len(inactive_df))
+            fig, ax = plt.subplots(figsize=(10, fig_height))
+            ax.axis("off")
+
+            table = ax.table(
+                cellText=inactive_df.values,
+                colLabels=inactive_df.columns,
+                loc="upper left",
+                cellLoc="left"
+            )
+            table.auto_set_font_size(False)
+            table.set_fontsize(6.5)
+            table.scale(1.0, 2.0)
+
+            for key, cell in table.get_celld().items():
+                row, col = key
+                if col == 0:
+                    cell.set_width(0.6)
+                else:
+                    cell.set_width(0.15)
+
+            ax.set_title("INACTIVE IN PAST 4 WEEKS", fontsize=12, weight="bold", pad=10)
+            pdf.savefig(fig, bbox_inches="tight")
+            plt.close(fig)
     # === Top 5 Charts by Product ===
     products = {
         "Lutetium  (177Lu) chloride N.C.A.": "Top 5 N.C.A. Customers",
