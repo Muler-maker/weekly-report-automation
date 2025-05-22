@@ -77,7 +77,7 @@ def send_email(subject, body, to_emails, attachment_path):
         print("\u274C Failed to send email:", response.status_code, response.text)
 
 # === Define report date values (simulate 11 days ahead) ===
-today = datetime.today() + timedelta(days=1)
+today = datetime.today() + timedelta(days=5)
 week_num = today.isocalendar().week
 year = today.isocalendar().year
 
@@ -255,8 +255,10 @@ with PdfPages(latest_pdf) as pdf:
             continue
         top_customers = product_df.groupby("Customer")["Total_mCi"].sum().sort_values(ascending=False).head(5).index
         plot_df = product_df[product_df["Customer"].isin(top_customers)].copy()
+        plot_df["WrappedCustomer"] = plot_df["Customer"].apply(lambda x: '\n'.join(textwrap.wrap(x, 12)))
         plot_df["WeekLabel"] = plot_df["Year"].astype(str) + "-W" + plot_df["Week"].astype(str).str.zfill(2)
-        pivot_df = plot_df.pivot_table(index="WeekLabel", columns="Customer", values="Total_mCi", aggfunc="sum").fillna(0)
+
+        pivot_df = plot_df.pivot_table(index="WeekLabel", columns="WrappedCustomer", values="Total_mCi", aggfunc="sum").fillna(0)
         pivot_df = pivot_df.reindex(sorted(pivot_df.index, key=lambda x: (int(x.split("-W")[0]), int(x.split("-W")[1]))))
         fig, ax = plt.subplots(figsize=(8, 4.5))  # Increased size for better clarity
         pivot_df.plot(ax=ax, marker='o')
