@@ -240,7 +240,7 @@ with PdfPages(latest_pdf) as pdf:
     if stopped:
         stopped_df = pd.DataFrame(
             [
-                [wrap_text(name), wrap_text(mgr)]
+                [name, wrap_text(mgr)]
                 for name, mgr in stopped
             ], 
             columns=["Customer", "Account Manager"])
@@ -276,7 +276,7 @@ with PdfPages(latest_pdf) as pdf:
     if decreased:
         decreased_df = pd.DataFrame([
             [
-                wrap_text(name),
+                name,
                 f"{curr - prev:+.0f}",
                 f"{(curr - prev) / prev * 100:+.1f}%" if prev else "+100%",
                 wrap_text(mgr)
@@ -315,7 +315,7 @@ with PdfPages(latest_pdf) as pdf:
         increased_df = pd.DataFrame(
             [
                 [
-                    wrap_text(name),
+                    name,
                     f"{curr - prev:+.0f}",
                     f"{(curr - prev) / prev * 100:+.1f}%" if prev else "+100%",
                     wrap_text(mgr)
@@ -350,14 +350,13 @@ with PdfPages(latest_pdf) as pdf:
     pdf.savefig(fig, bbox_inches="tight")
     plt.close(fig)
 
-    # --- INACTIVE IN PAST 4 WEEKS TABLE ---
-    if inactive_recent_4:
-        inactive_df = pd.DataFrame(
-            [
-                [wrap_text(name)] for name in inactive_recent_4
-            ], 
-            columns=["Customer"]
-        )
+# --- INACTIVE IN PAST 4 WEEKS TABLE ---
+if inactive_recent_4:
+    inactive_df = pd.DataFrame(
+        [[name] for name in inactive_recent_4], 
+        columns=["Customer"]
+    )
+
     fig_height = max(4.5, 0.4 + 0.3 * len(inactive_df))
     fig, ax = plt.subplots(figsize=(10, fig_height))
     ax.axis("off")
