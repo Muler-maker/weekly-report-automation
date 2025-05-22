@@ -2,13 +2,9 @@ import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime, timedelta
 import pandas as pd
-import matplotlib.pyplot as plt  # Must be before rcParams setting
+import matplotlib.pyplot as plt
 import seaborn as sns
 from matplotlib.backends.backend_pdf import PdfPages
-
-# === Set global font style ===
-plt.rcParams["font.family"] = "DejaVu Sans"
-
 import os, re
 from shutil import copyfile
 import textwrap
@@ -16,6 +12,9 @@ from email.message import EmailMessage
 from openai import OpenAI
 import requests
 import base64
+
+# === Set global font style ===
+plt.rcParams["font.family"] = "DejaVu Sans"
 
 # === Set local output folder ===
 output_folder = os.path.join(os.getcwd(), 'Reports')
@@ -78,7 +77,7 @@ df = df.rename(columns={
     "The customer": "Customer",
     "Total amount ordered (mCi)": "Total_mCi",
     "Year": "Year",
-    "Week number for Activity vs Projection": "Week",
+    "Week of supply": "Week",
     "Shipping Status": "ShippingStatus",
     "Catalogue description (sold as)": "Product"
 })
@@ -168,10 +167,16 @@ summary_path = os.path.join(output_folder, "summary.txt")
 with open(summary_path, "w") as f:
     f.write("\n".join(summary_lines))
 
-# === ChatGPT Insights ===
+# === ChatGPT Insights with memory ===
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 with open(summary_path, "r") as f:
     report_text = f.read()
+
+insight_history_path = os.path.join(output_folder, "insight_history.txt")
+if os.path.exists(insight_history_path):
+    with open(insight_history_path, "r") as f:
+        past_insights = f.read()
+    report_text = past_insights + "\n\n" + report_text
 
 response = client.chat.completions.create(
     model="gpt-4o",
@@ -181,6 +186,11 @@ response = client.chat.completions.create(
     ]
 )
 insights = response.choices[0].message.content
+
+# Save new insight to history
+with open(insight_history_path, "a") as f:
+    f.write(f"\n\n===== Week {week_num}, {year} =====\n")
+    f.write(insights)
 
 # === PDF Generation ===
 latest_pdf = os.path.join(output_folder, f"Weekly_Orders_Report_Week_{week_num}_{year}.pdf")
@@ -206,8 +216,9 @@ with PdfPages(latest_pdf) as pdf:
         pdf.savefig(fig)
         plt.close(fig)
 
-    # --------- FIXED BLOCK STARTS HERE -----------
-    insight_lines = insights.split("\n")
+    # === GPT Insight Page ===
+    insight_lines = insights.split("
+")
     wrapped_insights = []
     for line in insight_lines:
         wrapped_insights.extend(textwrap.wrap(line, width=100, break_long_words=False) if len(line) > 100 else [line])
@@ -218,8 +229,8 @@ with PdfPages(latest_pdf) as pdf:
         fig.text(0.06, y, line, fontsize=10, ha="left", va="top", family="DejaVu Sans")
     pdf.savefig(fig)
     plt.close(fig)
-    # --------- FIXED BLOCK ENDS HERE -----------
 
+    # === Top 5 Charts by Product ===
     products = {
         "Lutetium  (177Lu) chloride N.C.A.": "Top 5 N.C.A. Customers",
         "Lutetium (177Lu) chloride C.A": "Top 5 C.A. Customers",
@@ -255,16 +266,9 @@ Attached is the weekly orders report for week {week_num}, {year}, including key 
 Best regards,
 Dan
 """,
-to_emails=[
-    "danamit@isotopia-global.com",
-    "gbader@isotopia-global.com",
-    "mmansur@isotopia-global.com",
-    "iyeshua@isotopia-global.com",
-    "egimshi@isotopia-global.com",
-    "vbeillis@isotopia-global.com",
-    "naricha@isotopia-global.com",
-    "ndellus@isotopia-global.com"
-],
-attachment_path=latest_pdf
+    to_emails=[
+        "danamit@isotopia-global.com"
+    ],
+    attachment_path=latest_pdf
 )
 print("✅ Report generated and emailed via Resend API.")
