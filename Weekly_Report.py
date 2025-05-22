@@ -237,11 +237,13 @@ with PdfPages(latest_pdf) as pdf:
     plt.close(fig)
 
     # --- STOPPED ORDERING TABLE ---
-if stopped:
-    stopped_df = pd.DataFrame([
-        [wrap_text(name), wrap_text(mgr)]
-        for name, mgr in stopped
-    ], columns=["Customer", "Account Manager"])
+    if stopped:
+        stopped_df = pd.DataFrame(
+            [
+                [wrap_text(name), wrap_text(mgr)]
+                for name, mgr in stopped
+            ], 
+            columns=["Customer", "Account Manager"])
 
     fig_height = max(4.5, 0.4 + 0.3 * len(stopped_df))
     fig, ax = plt.subplots(figsize=(8, fig_height))
@@ -271,16 +273,17 @@ if stopped:
 
 
     # --- DECREASED ORDERS TABLE ---
-   if decreased:
-    decreased_df = pd.DataFrame([
-        [
-            wrap_text(name),
-            f"{curr - prev:+.0f}",
-            f"{(curr - prev) / prev * 100:+.1f}%" if prev else "+100%",
-            wrap_text(mgr)
-        ]
-        for name, prev, curr, mgr in decreased
-    ], columns=["Customer", "Change (mCi)", "% Change", "Account Manager"])
+    if decreased:
+        decreased_df = pd.DataFrame([
+            [
+                wrap_text(name),
+                f"{curr - prev:+.0f}",
+                f"{(curr - prev) / prev * 100:+.1f}%" if prev else "+100%",
+                wrap_text(mgr)
+            ]
+            for name, prev, curr, mgr in decreased
+         ], 
+         columns=["Customer", "Change (mCi)", "% Change", "Account Manager"])
 
     fig_height = max(4.5, 0.4 + 0.3 * len(decreased_df))
     fig, ax = plt.subplots(figsize=(8, fig_height))
@@ -308,7 +311,7 @@ if stopped:
     plt.close(fig)
 
     # --- INCREASED ORDERS TABLE ---
-if increased:
+    if increased:
     increased_df = pd.DataFrame([
         [
             wrap_text(name),
@@ -345,11 +348,13 @@ if increased:
     plt.close(fig)
 
     # --- INACTIVE IN PAST 4 WEEKS TABLE ---
-if inactive_recent_4:
-    inactive_df = pd.DataFrame([
-        [wrap_text(name)] for name in inactive_recent_4
-    ], columns=["Customer"])
-
+    if inactive_recent_4:
+        inactive_df = pd.DataFrame(
+            [
+                [wrap_text(name)] for name in inactive_recent_4
+            ], 
+            columns=["Customer"]
+        )
     fig_height = max(4.5, 0.4 + 0.3 * len(inactive_df))
     fig, ax = plt.subplots(figsize=(8, fig_height))
     ax.axis("off")
