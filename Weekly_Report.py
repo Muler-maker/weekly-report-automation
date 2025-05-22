@@ -3,6 +3,7 @@ from google.oauth2.service_account import Credentials
 from datetime import datetime, timedelta
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
 import seaborn as sns
 from matplotlib.backends.backend_pdf import PdfPages
 import os, re
@@ -209,35 +210,34 @@ with open(insight_history_path, "a") as f:
 latest_pdf = os.path.join(output_folder, f"Weekly_Orders_Report_Week_{week_num}_{year}.pdf")
 with PdfPages(latest_pdf) as pdf:
     # --- Cover Page ---
-import matplotlib.image as mpimg
+    fig = plt.figure(figsize=(9.5, 11))
+    plt.axis("off")
 
-fig = plt.figure(figsize=(9.5, 11))
-plt.axis("off")
+    # Centered report title
+    fig.text(0.5, 0.78, f"Weekly Orders Report – Week {week_num}, {year}",
+             fontsize=26, ha="center", va="center", weight='bold')
 
-# Centered report title
-fig.text(0.5, 0.78, f"Weekly Orders Report – Week {week_num}, {year}",
-         fontsize=26, ha="center", va="center", weight='bold')
+    # Load and center the logo below the title
+    logo_path = os.path.join(script_dir, "Isotopia.jpg")
+    logo = mpimg.imread(logo_path)
 
-# Load and center the logo below the title
-logo_path = os.path.join(script_dir, "Isotopia.jpg")
-logo = mpimg.imread(logo_path)
+    logo_width = 0.25  # 25% of the figure width
+    logo_height = 0.12  # 12% of the figure height
+    logo_x = (1 - logo_width) / 2  # centered horizontally
+    logo_y = 0.60  # vertical placement under title
 
-logo_width = 0.25  # 25% of the figure width
-logo_height = 0.12  # 12% of the figure height
-logo_x = (1 - logo_width) / 2  # centered horizontally
-logo_y = 0.60  # vertical placement under title
+    ax_logo = fig.add_axes([logo_x, logo_y, logo_width, logo_height])
+    ax_logo.imshow(logo)
+    ax_logo.axis("off")
 
-ax_logo = fig.add_axes([logo_x, logo_y, logo_width, logo_height])
-ax_logo.imshow(logo)
-ax_logo.axis("off")
+    # Save the cover page
+    pdf.savefig(fig)
+    plt.close(fig)
 
-# Save the cover page
-pdf.savefig(fig)
-plt.close(fig)
     # --- STOPPED ORDERING TABLE ---
     if stopped:
         stopped_df = pd.DataFrame(stopped, columns=["Customer", "Account Manager"])
-        fig_height = max(4.5, 0.4 + 0.3 * len(df))  # Adjust height based on number of rows
+        fig_height = max(4.5, 0.4 + 0.3 * len(stopped_df))
         fig, ax = plt.subplots(figsize=(8, fig_height))
 
         ax.axis("off")
@@ -249,7 +249,7 @@ plt.close(fig)
         )
         table.auto_set_font_size(False)
         table.set_fontsize(9)
-        table.scale(1, 1.5)  # More vertical breathing room
+        table.scale(1, 1.5)
         ax.set_title("STOPPED ORDERING", fontsize=12, weight="bold", pad=10)
         pdf.savefig(fig)
         plt.close(fig)
@@ -260,7 +260,8 @@ plt.close(fig)
             [name, f"{curr - prev:+.0f}", f"{(curr - prev) / prev * 100:+.1f}%" if prev else "+100%", mgr]
             for name, prev, curr, mgr in decreased
         ], columns=["Customer", "Change (mCi)", "% Change", "Account Manager"])
-        fig, ax = plt.subplots(figsize=(8, 4.5))
+        fig_height = max(4.5, 0.4 + 0.3 * len(decreased_df))
+        fig, ax = plt.subplots(figsize=(8, fig_height))
         ax.axis("off")
         table = ax.table(
             cellText=decreased_df.values,
@@ -268,8 +269,10 @@ plt.close(fig)
             loc="center",
             cellLoc="center"
         )
-        table.auto_set_column_width(col=list(range(len(df.columns))))
-        table.scale(1, 1.2)
+        table.auto_set_column_width(col=list(range(len(decreased_df.columns))))
+        table.auto_set_font_size(False)
+        table.set_fontsize(9)
+        table.scale(1, 1.5)
         ax.set_title("DECREASED ORDERS", fontsize=12, weight="bold", pad=10)
         pdf.savefig(fig)
         plt.close(fig)
@@ -280,7 +283,8 @@ plt.close(fig)
             [name, f"{curr - prev:+.0f}", f"{(curr - prev) / prev * 100:+.1f}%" if prev else "+100%", mgr]
             for name, prev, curr, mgr in increased
         ], columns=["Customer", "Change (mCi)", "% Change", "Account Manager"])
-        fig, ax = plt.subplots(figsize=(8, 4.5))
+        fig_height = max(4.5, 0.4 + 0.3 * len(increased_df))
+        fig, ax = plt.subplots(figsize=(8, fig_height))
         ax.axis("off")
         table = ax.table(
             cellText=increased_df.values,
@@ -290,7 +294,7 @@ plt.close(fig)
         )
         table.auto_set_font_size(False)
         table.set_fontsize(9)
-        table.scale(1, 1.2)
+        table.scale(1, 1.5)
         ax.set_title("INCREASED ORDERS", fontsize=12, weight="bold", pad=10)
         pdf.savefig(fig)
         plt.close(fig)
@@ -298,7 +302,8 @@ plt.close(fig)
     # --- INACTIVE IN PAST 4 WEEKS TABLE ---
     if inactive_recent_4:
         inactive_df = pd.DataFrame(inactive_recent_4, columns=["Customer"])
-        fig, ax = plt.subplots(figsize=(8, 4.5))
+        fig_height = max(4.5, 0.4 + 0.3 * len(inactive_df))
+        fig, ax = plt.subplots(figsize=(8, fig_height))
         ax.axis("off")
         table = ax.table(
             cellText=inactive_df.values,
@@ -308,7 +313,7 @@ plt.close(fig)
         )
         table.auto_set_font_size(False)
         table.set_fontsize(9)
-        table.scale(1, 1.2)
+        table.scale(1, 1.5)
         ax.set_title("INACTIVE IN PAST 4 WEEKS", fontsize=12, weight="bold", pad=10)
         pdf.savefig(fig)
         plt.close(fig)
