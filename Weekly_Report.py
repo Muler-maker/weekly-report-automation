@@ -258,7 +258,7 @@ with PdfPages(latest_pdf) as pdf:
         plot_df["WeekLabel"] = plot_df["Year"].astype(str) + "-W" + plot_df["Week"].astype(str).str.zfill(2)
         pivot_df = plot_df.pivot_table(index="WeekLabel", columns="Customer", values="Total_mCi", aggfunc="sum").fillna(0)
         pivot_df = pivot_df.reindex(sorted(pivot_df.index, key=lambda x: (int(x.split("-W")[0]), int(x.split("-W")[1]))))
-        fig, ax = plt.subplots(figsize=(11, 7))  # Increased size for better clarity
+        fig, ax = plt.subplots(figsize=(8, 4.5))  # Increased size for better clarity
         pivot_df.plot(ax=ax, marker='o')
 
         ax.set_title(title, fontsize=16, weight='bold')
