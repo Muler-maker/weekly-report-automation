@@ -40,7 +40,8 @@ df.columns = [c.strip() for c in df.columns]
 account_manager_map = {
     "vbeillis@isotopia-global.com": "Vicki Beillis",
     "naricha@isotopia-global.com": "Noam Aricha",
-    "ndellus@isotopia-global.com": "Noam Dellus"
+    "ndellus@isotopia-global.com": "Noam Dellus",
+    "gbader@isotopia-global.com": "Gilli Bader"
 }
 df["Account Manager"] = df["Account Manager Email"].map(account_manager_map).fillna("Other")
 
