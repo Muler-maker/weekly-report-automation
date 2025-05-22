@@ -55,45 +55,28 @@ def send_email(subject, body, to_emails, attachment_path):
         return
 
     with open(attachment_path, "rb") as f:
-        encoded_file = base64.b64encode(f.read()).decode()
+        files = {
+            'attachments': (os.path.basename(attachment_path), f, 'application/pdf')
+        }
 
-    payload = {
-        "from": "Dan Amit <onboarding@resend.dev>",
-        "to": to_emails,
-        "subject": subject,
-        "text": body,
-        "attachments": [
-            {
-                "filename": os.path.basename(attachment_path),
-                "content": encoded_file,
-                "content_type": "application/pdf"  # <-- important fix here!
-            }
-        ]
-    }
+        data = {
+            "from": "Dan Amit <onboarding@resend.dev>",
+            "to": ','.join(to_emails),  # Must be a comma-separated string
+            "subject": subject,
+            "text": body
+        }
 
-    headers = {
-        "Authorization": f"Bearer {os.getenv('RESEND_API_KEY')}",
-        "Content-Type": "application/json"
-    }
+        headers = {
+            "Authorization": f"Bearer {os.getenv('RESEND_API_KEY')}"
+            # Do NOT add "Content-Type" — requests sets it automatically
+        }
 
-    response = requests.post("https://api.resend.com/emails", json=payload, headers=headers)
+        response = requests.post("https://api.resend.com/emails", data=data, files=files, headers=headers)
 
     if 200 <= response.status_code < 300:
         print(f"📨 Email successfully sent to: {', '.join(to_emails)}")
     else:
         print("❌ Failed to send email:", response.status_code, response.text)
-
-    headers = {
-        "Authorization": f"Bearer {os.getenv('RESEND_API_KEY')}",
-        "Content-Type": "application/json"
-    }
-
-    response = requests.post("https://api.resend.com/emails", json=data, headers=headers)
-
-    if response.status_code >= 200 and response.status_code < 300:
-        print(f"\U0001F4E7 Email sent to: {', '.join(to_emails)} via Resend API")
-    else:
-        print("\u274C Failed to send email:", response.status_code, response.text)
 
 # === Define report date values (simulate 11 days ahead) ===
 today = datetime.today() + timedelta(days=11)
