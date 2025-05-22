@@ -258,14 +258,17 @@ with PdfPages(latest_pdf) as pdf:
         plot_df["WeekLabel"] = plot_df["Year"].astype(str) + "-W" + plot_df["Week"].astype(str).str.zfill(2)
         pivot_df = plot_df.pivot_table(index="WeekLabel", columns="Customer", values="Total_mCi", aggfunc="sum").fillna(0)
         pivot_df = pivot_df.reindex(sorted(pivot_df.index, key=lambda x: (int(x.split("-W")[0]), int(x.split("-W")[1]))))
-        fig, ax = plt.subplots(figsize=(9.5, 6))
+        fig, ax = plt.subplots(figsize=(11, 7))  # Increased size for better clarity
         pivot_df.plot(ax=ax, marker='o')
+
         ax.set_title(title, fontsize=16, weight='bold')
-        ax.set_xlabel("Production Week", fontsize=10)
-        ax.set_ylabel("Total mCi Ordered", fontsize=10)
+        ax.set_xlabel("Production Week", fontsize=11)
+        ax.set_ylabel("Total mCi Ordered", fontsize=11)
+        ax.tick_params(axis='x', rotation=45)  # Rotate week labels to prevent overlap
         ax.grid(True, linestyle='--', alpha=0.5)
         ax.legend(title="Customer", bbox_to_anchor=(1.02, 1), loc='upper left')
-        plt.tight_layout()
+
+        fig.tight_layout(pad=2.0)  # Ensure nothing is cut off or overlapping
         pdf.savefig(fig)
         plt.close(fig)
 
@@ -290,14 +293,7 @@ Best regards,
 Dan
 """,
     to_emails=[
-    "danamit@isotopia-global.com",
-    "gbader@isotopia-global.com",
-    "mmansur@isotopia-global.com",
-    "iyeshua@isotopia-global.com",
-    "egimshi@isotopia-global.com",
-    "vbeillis@isotopia-global.com",
-    "naricha@isotopia-global.com",
-    "ndellus@isotopia-global.com"
+    "danamit@isotopia-global.com"
 ],
     attachment_path=latest_pdf
 )
