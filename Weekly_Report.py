@@ -13,6 +13,8 @@ from email.message import EmailMessage
 from openai import OpenAI
 import requests
 import base64
+def wrap_text(text, width=20):
+    return '\n'.join(textwrap.wrap(str(text), width=width))
 
 # === Set global font style ===
 plt.rcParams["font.family"] = "DejaVu Sans"
@@ -231,12 +233,16 @@ with PdfPages(latest_pdf) as pdf:
     ax_logo.axis("off")
 
     # Save the cover page
-    pdf.savefig(fig)
+    pdf.savefig(fig, bbox_inches="tight")
     plt.close(fig)
 
     # --- STOPPED ORDERING TABLE ---
     if stopped:
-        stopped_df = pd.DataFrame(stopped, columns=["Customer", "Account Manager"])
+        stopped_df = pd.DataFrame([
+    [wrap_text(name), wrap_text(mgr)]
+    for name, mgr in stopped
+    ], columns=["Customer", "Account Manager"])
+
         fig_height = max(4.5, 0.4 + 0.3 * len(stopped_df))
         fig, ax = plt.subplots(figsize=(8, fig_height))
 
@@ -244,81 +250,94 @@ with PdfPages(latest_pdf) as pdf:
         table = ax.table(
             cellText=stopped_df.values,
             colLabels=stopped_df.columns,
-            loc="center",
-            cellLoc="center"
+            loc="upper left",
+            cellLoc="left"
         )
         table.auto_set_font_size(False)
         table.set_fontsize(9)
         table.scale(1, 1.5)
         ax.set_title("STOPPED ORDERING", fontsize=12, weight="bold", pad=10)
-        pdf.savefig(fig)
+        pdf.savefig(fig, bbox_inches="tight")
         plt.close(fig)
 
     # --- DECREASED ORDERS TABLE ---
     if decreased:
-        decreased_df = pd.DataFrame([
-            [name, f"{curr - prev:+.0f}", f"{(curr - prev) / prev * 100:+.1f}%" if prev else "+100%", mgr]
-            for name, prev, curr, mgr in decreased
-        ], columns=["Customer", "Change (mCi)", "% Change", "Account Manager"])
+    decreased_df = pd.DataFrame([
+    [
+        wrap_text(name), 
+        f"{curr - prev:+.0f}", 
+        f"{(curr - prev) / prev * 100:+.1f}%" if prev else "+100%", 
+        wrap_text(mgr)
+    ]
+    for name, prev, curr, mgr in decreased
+    ], columns=["Customer", "Change (mCi)", "% Change", "Account Manager"])
+
         fig_height = max(4.5, 0.4 + 0.3 * len(decreased_df))
         fig, ax = plt.subplots(figsize=(8, fig_height))
         ax.axis("off")
         table = ax.table(
             cellText=decreased_df.values,
             colLabels=decreased_df.columns,
-            loc="center",
-            cellLoc="center"
+            loc="upper left",
+            cellLoc="left"
         )
         table.auto_set_column_width(col=list(range(len(decreased_df.columns))))
         table.auto_set_font_size(False)
         table.set_fontsize(9)
         table.scale(1, 1.5)
-        ax.set_title("DECREASED ORDERS", fontsize=12, weight="bold", pad=10)
-        pdf.savefig(fig)
+        ax.set_title("DECREASED ORDERS", fontsize=12, weight="bold", pad=30, y=1.05)
+        pdf.savefig(fig, bbox_inches="tight")
         plt.close(fig)
 
     # --- INCREASED ORDERS TABLE ---
     if increased:
-        increased_df = pd.DataFrame([
-            [name, f"{curr - prev:+.0f}", f"{(curr - prev) / prev * 100:+.1f}%" if prev else "+100%", mgr]
-            for name, prev, curr, mgr in increased
-        ], columns=["Customer", "Change (mCi)", "% Change", "Account Manager"])
+    increased_df = pd.DataFrame([
+    [
+        wrap_text(name), 
+        f"{curr - prev:+.0f}", 
+        f"{(curr - prev) / prev * 100:+.1f}%" if prev else "+100%", 
+        wrap_text(mgr)
+    ]
+    for name, prev, curr, mgr in increased
+    ], columns=["Customer", "Change (mCi)", "% Change", "Account Manager"])
+
         fig_height = max(4.5, 0.4 + 0.3 * len(increased_df))
         fig, ax = plt.subplots(figsize=(8, fig_height))
         ax.axis("off")
         table = ax.table(
             cellText=increased_df.values,
             colLabels=increased_df.columns,
-            loc="center",
-            cellLoc="center"
+            loc="upper left",
+            cellLoc="left"
         )
         table.auto_set_font_size(False)
         table.set_fontsize(9)
         table.scale(1, 1.5)
         ax.set_title("INCREASED ORDERS", fontsize=12, weight="bold", pad=10)
-        pdf.savefig(fig)
+        pdf.savefig(fig, bbox_inches="tight")
         plt.close(fig)
 
     # --- INACTIVE IN PAST 4 WEEKS TABLE ---
     if inactive_recent_4:
-        inactive_df = pd.DataFrame(inactive_recent_4, columns=["Customer"])
+        inactive_df = pd.DataFrame([
+    [wrap_text(name)] for name in inactive_recent_4
+    ], columns=["Customer"])
+
         fig_height = max(4.5, 0.4 + 0.3 * len(inactive_df))
         fig, ax = plt.subplots(figsize=(8, fig_height))
         ax.axis("off")
         table = ax.table(
             cellText=inactive_df.values,
             colLabels=inactive_df.columns,
-            loc="center",
-            cellLoc="center"
+            loc="upper left",
+            cellLoc="left"
         )
         table.auto_set_font_size(False)
         table.set_fontsize(9)
         table.scale(1, 1.5)
         ax.set_title("INACTIVE IN PAST 4 WEEKS", fontsize=12, weight="bold", pad=10)
-        pdf.savefig(fig)
+        pdf.savefig(fig, bbox_inches="tight")
         plt.close(fig)
-
-
     # === GPT Insight Page ===
     insight_lines = insights.split("\n")
 
@@ -330,7 +349,7 @@ with PdfPages(latest_pdf) as pdf:
     for i, line in enumerate(wrapped_insights):
         y = 1 - (i + 1) * 0.028
         fig.text(0.06, y, line, fontsize=10, ha="left", va="top", family="DejaVu Sans")
-    pdf.savefig(fig)
+    pdf.savefig(fig, bbox_inches="tight")
     plt.close(fig)
 
     # === Top 5 Charts by Product ===
@@ -361,7 +380,7 @@ with PdfPages(latest_pdf) as pdf:
         ax.legend(title="Customer", bbox_to_anchor=(1.02, 1), loc='upper left')
 
         fig.tight_layout(pad=2.0)  # Ensure nothing is cut off or overlapping
-        pdf.savefig(fig)
+        pdf.savefig(fig, bbox_inches="tight")
         plt.close(fig)
 
 # === Send Email ===
