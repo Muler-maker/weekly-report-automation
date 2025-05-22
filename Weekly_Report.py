@@ -218,7 +218,9 @@ with PdfPages(latest_pdf) as pdf:
     # --- STOPPED ORDERING TABLE ---
     if stopped:
         stopped_df = pd.DataFrame(stopped, columns=["Customer", "Account Manager"])
-        fig, ax = plt.subplots(figsize=(8, 4.5))
+        fig_height = max(4.5, 0.4 + 0.3 * len(df))  # Adjust height based on number of rows
+        fig, ax = plt.subplots(figsize=(8, fig_height))
+
         ax.axis("off")
         table = ax.table(
             cellText=stopped_df.values,
@@ -228,7 +230,7 @@ with PdfPages(latest_pdf) as pdf:
         )
         table.auto_set_font_size(False)
         table.set_fontsize(9)
-        table.scale(1, 1.2)
+        table.scale(1, 1.5)  # More vertical breathing room
         ax.set_title("STOPPED ORDERING", fontsize=12, weight="bold", pad=10)
         pdf.savefig(fig)
         plt.close(fig)
@@ -247,8 +249,7 @@ with PdfPages(latest_pdf) as pdf:
             loc="center",
             cellLoc="center"
         )
-        table.auto_set_font_size(False)
-        table.set_fontsize(9)
+        table.auto_set_column_width(col=list(range(len(df.columns))))
         table.scale(1, 1.2)
         ax.set_title("DECREASED ORDERS", fontsize=12, weight="bold", pad=10)
         pdf.savefig(fig)
