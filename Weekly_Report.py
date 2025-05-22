@@ -240,6 +240,24 @@ with PdfPages(latest_pdf) as pdf:
             ha="center", va="center", fontsize=18
         )
         pdf.savefig(fig)
+        # === Add ChatGPT insights page ===
+        fig = plt.figure(figsize=(9.5, 11))
+        plt.axis("off")
+
+        # Split long insights into wrapped lines
+        insight_lines = insights.split("\n")
+        wrapped_insights = []
+        for line in insight_lines:
+            wrapped_insights.extend(textwrap.wrap(line, width=100, break_long_words=False) if len(line) > 100 else [line])
+
+        # Add text to the figure
+        for i, line in enumerate(wrapped_insights):
+            y = 1 - (i + 1) * 0.028
+            fig.text(0.06, y, line, fontsize=10, ha="left", va="top", family="DejaVu Sans")
+
+        pdf.savefig(fig)
+        plt.close(fig)
+
         plt.close(fig)
         print("⚠️ No data available. Generated fallback PDF with message page only.")
     else:
@@ -301,7 +319,6 @@ with PdfPages(latest_pdf) as pdf:
 
             pdf.savefig(fig, bbox_inches="tight")
             plt.close(fig)
-
         # --- DECREASED ORDERS TABLE ---
         if decreased:
             decreased_df = pd.DataFrame([
@@ -445,23 +462,7 @@ with PdfPages(latest_pdf) as pdf:
         fig.tight_layout(pad=2.0)  # Ensure nothing is cut off or overlapping
         pdf.savefig(fig, bbox_inches="tight")
         plt.close(fig)
-# === Add ChatGPT insights page ===
-fig = plt.figure(figsize=(9.5, 11))
-plt.axis("off")
 
-# Split long insights into wrapped lines
-insight_lines = insights.split("\n")
-wrapped_insights = []
-for line in insight_lines:
-    wrapped_insights.extend(textwrap.wrap(line, width=100, break_long_words=False) if len(line) > 100 else [line])
-
-# Add text to the figure
-for i, line in enumerate(wrapped_insights):
-    y = 1 - (i + 1) * 0.028
-    fig.text(0.06, y, line, fontsize=10, ha="left", va="top", family="DejaVu Sans")
-
-pdf.savefig(fig)
-plt.close(fig)
 # === Save report with additional filenames ===
 summary_pdf = os.path.join(output_folder, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf")
 latest_copy_path = os.path.join(output_folder, "Latest_Weekly_Report.pdf")
