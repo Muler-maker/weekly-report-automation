@@ -208,26 +208,91 @@ with open(insight_history_path, "a") as f:
 # === PDF Generation and email sending follow ===
 latest_pdf = os.path.join(output_folder, f"Weekly_Orders_Report_Week_{week_num}_{year}.pdf")
 with PdfPages(latest_pdf) as pdf:
+    # --- Cover Page ---
     fig = plt.figure(figsize=(9.5, 11))
     plt.axis("off")
     fig.text(0.5, 0.5, f"Weekly Orders Report – Week {week_num}, {year}", fontsize=26, ha="center", va="center", weight='bold')
     pdf.savefig(fig)
     plt.close(fig)
 
-    wrapped_lines = []
-    for line in summary_lines:
-        wrapped_lines.extend(textwrap.wrap(line, width=100, break_long_words=False) if len(line) > 100 else [line])
-    for p in range(0, len(wrapped_lines), 40):
-        fig = plt.figure(figsize=(9.5, 11))
-        plt.axis("off")
-        for i, line in enumerate(wrapped_lines[p:p + 40]):
-            y = 1 - (i + 1) * 0.028
-            style = {"fontsize": 10, "ha": "left", "va": "top", "family": "DejaVu Sans"}
-            if line.isupper() and ":" in line:
-                style.update({"fontsize": 12, "weight": "bold"})
-            fig.text(0.06, y, line, **style)
+    # --- STOPPED ORDERING TABLE ---
+    if stopped:
+        stopped_df = pd.DataFrame(stopped, columns=["Customer", "Account Manager"])
+        fig, ax = plt.subplots(figsize=(8, 4.5))
+        ax.axis("off")
+        table = ax.table(
+            cellText=stopped_df.values,
+            colLabels=stopped_df.columns,
+            loc="center",
+            cellLoc="center"
+        )
+        table.auto_set_font_size(False)
+        table.set_fontsize(9)
+        table.scale(1, 1.2)
+        ax.set_title("STOPPED ORDERING", fontsize=12, weight="bold", pad=10)
         pdf.savefig(fig)
         plt.close(fig)
+
+    # --- DECREASED ORDERS TABLE ---
+    if decreased:
+        decreased_df = pd.DataFrame([
+            [name, f"{curr - prev:+.0f}", f"{(curr - prev) / prev * 100:+.1f}%" if prev else "+100%", mgr]
+            for name, prev, curr, mgr in decreased
+        ], columns=["Customer", "Change (mCi)", "% Change", "Account Manager"])
+        fig, ax = plt.subplots(figsize=(8, 4.5))
+        ax.axis("off")
+        table = ax.table(
+            cellText=decreased_df.values,
+            colLabels=decreased_df.columns,
+            loc="center",
+            cellLoc="center"
+        )
+        table.auto_set_font_size(False)
+        table.set_fontsize(9)
+        table.scale(1, 1.2)
+        ax.set_title("DECREASED ORDERS", fontsize=12, weight="bold", pad=10)
+        pdf.savefig(fig)
+        plt.close(fig)
+
+    # --- INCREASED ORDERS TABLE ---
+    if increased:
+        increased_df = pd.DataFrame([
+            [name, f"{curr - prev:+.0f}", f"{(curr - prev) / prev * 100:+.1f}%" if prev else "+100%", mgr]
+            for name, prev, curr, mgr in increased
+        ], columns=["Customer", "Change (mCi)", "% Change", "Account Manager"])
+        fig, ax = plt.subplots(figsize=(8, 4.5))
+        ax.axis("off")
+        table = ax.table(
+            cellText=increased_df.values,
+            colLabels=increased_df.columns,
+            loc="center",
+            cellLoc="center"
+        )
+        table.auto_set_font_size(False)
+        table.set_fontsize(9)
+        table.scale(1, 1.2)
+        ax.set_title("INCREASED ORDERS", fontsize=12, weight="bold", pad=10)
+        pdf.savefig(fig)
+        plt.close(fig)
+
+    # --- INACTIVE IN PAST 4 WEEKS TABLE ---
+    if inactive_recent_4:
+        inactive_df = pd.DataFrame(inactive_recent_4, columns=["Customer"])
+        fig, ax = plt.subplots(figsize=(8, 4.5))
+        ax.axis("off")
+        table = ax.table(
+            cellText=inactive_df.values,
+            colLabels=inactive_df.columns,
+            loc="center",
+            cellLoc="center"
+        )
+        table.auto_set_font_size(False)
+        table.set_fontsize(9)
+        table.scale(1, 1.2)
+        ax.set_title("INACTIVE IN PAST 4 WEEKS", fontsize=12, weight="bold", pad=10)
+        pdf.savefig(fig)
+        plt.close(fig)
+
 
     # === GPT Insight Page ===
     insight_lines = insights.split("\n")
