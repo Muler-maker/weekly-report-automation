@@ -262,7 +262,7 @@ with PdfPages(latest_pdf) as pdf:
         pivot_df.plot(ax=ax, marker='o')
 
         ax.set_title(title, fontsize=16, weight='bold')
-        ax.set_xlabel("Production Week", fontsize=11)
+        ax.set_xlabel("Week of Supply", fontsize=11)
         ax.set_ylabel("Total mCi Ordered", fontsize=11)
         ax.tick_params(axis='x', rotation=45)  # Rotate week labels to prevent overlap
         ax.grid(True, linestyle='--', alpha=0.5)
