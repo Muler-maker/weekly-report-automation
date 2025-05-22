@@ -60,7 +60,7 @@ def send_email(subject, body, to_emails, attachment_path):
         }
 
         data = {
-            "from": "Dan Amit <onboarding@resend.dev>",
+            "from": "Dan Amit <dan.test@resend.dev>",
             "to": ','.join(to_emails),  # Must be a comma-separated string
             "subject": subject,
             "text": body
