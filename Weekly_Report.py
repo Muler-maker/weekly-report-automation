@@ -445,6 +445,11 @@ pdf.savefig(fig)
 plt.close(fig)
 
 # === Send Email ===
+if not os.path.exists(latest_pdf):
+    print(f"❌ PDF not found at: {latest_pdf}")
+else:
+    print(f"✅ PDF found and will be sent: {latest_pdf}")
+
 send_email(
     subject=f"Weekly Orders Report – Week {week_num}, {year}",
     body=f"""Dear team,
