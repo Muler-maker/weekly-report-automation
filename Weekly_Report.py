@@ -76,10 +76,10 @@ def send_email(subject, body, to_emails, attachment_path):
     else:
         print("\u274C Failed to send email:", response.status_code, response.text)
 
-# === Define report date values ===
-today = datetime.today()
+# === Define report date values (simulate 11 days ahead) ===
+today = datetime.today() + timedelta(days=11)
 week_num = today.isocalendar().week
-year = today.year
+year = today.isocalendar().year
 
 # === Prepare weekly report data ===
 df = df.rename(columns={
