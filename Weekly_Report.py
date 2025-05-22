@@ -259,8 +259,6 @@ with PdfPages(latest_pdf) as pdf:
         cell.set_width(0.4)  # Wider
     else:
         cell.set_width(0.15)  # Narrower for other columns
-
-        )
         table.auto_set_font_size(False)
         table.set_fontsize(7)
         table.scale(1.0, 2.0)
@@ -295,8 +293,6 @@ with PdfPages(latest_pdf) as pdf:
         cell.set_width(0.4)  # Wider
     else:
         cell.set_width(0.15)  # Narrower for other columns
-
-        )
         table.auto_set_column_width(col=list(range(len(decreased_df.columns))))
         table.auto_set_font_size(False)
         table.set_fontsize(7)
@@ -332,8 +328,6 @@ with PdfPages(latest_pdf) as pdf:
         cell.set_width(0.4)  # Wider
     else:
         cell.set_width(0.15)  # Narrower for other columns
-
-        )
         table.auto_set_font_size(False)
         table.set_fontsize(7)
         table.scale(1.0, 2.0)
@@ -362,8 +356,6 @@ with PdfPages(latest_pdf) as pdf:
         cell.set_width(0.4)  # Wider
     else:
         cell.set_width(0.15)  # Narrower for other columns
-
-        )
         table.auto_set_font_size(False)
         table.set_fontsize(7)
         table.scale(1.0, 2.0)
