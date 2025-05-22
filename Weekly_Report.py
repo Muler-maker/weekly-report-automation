@@ -77,7 +77,26 @@ def send_email(subject, body, to_emails, attachment_path):
         print(f"📨 Email successfully sent to: {', '.join(to_emails)}")
     else:
         print("❌ Failed to send email:", response.status_code, response.text)
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
 
+def upload_to_drive(file_path, file_name, folder_id=None):
+    drive_service = build('drive', 'v3', credentials=creds)
+
+    file_metadata = {
+        'name': file_name
+    }
+    if folder_id:
+        file_metadata['parents'] = [folder_id]
+
+    media = MediaFileUpload(file_path, mimetype='application/pdf')
+    uploaded_file = drive_service.files().create(
+        body=file_metadata,
+        media_body=media,
+        fields='id'
+    ).execute()
+
+    print(f"✅ Uploaded to Google Drive: {file_name} (ID: {uploaded_file.get('id')})")
 # === Define report date values (simulate 11 days ahead) ===
 today = datetime.today() + timedelta(days=11)
 week_num = today.isocalendar().week
@@ -211,6 +230,7 @@ with open(insight_history_path, "a") as f:
 # === PDF Generation and email sending follow ===
 latest_pdf = os.path.join(output_folder, f"Weekly_Orders_Report_Week_{week_num}_{year}.pdf")
 with PdfPages(latest_pdf) as pdf:
+
     if not any([stopped, decreased, increased, inactive_recent_4]):
         fig = plt.figure(figsize=(8.5, 11))
         plt.axis("off")
@@ -442,6 +462,19 @@ for i, line in enumerate(wrapped_insights):
 
 pdf.savefig(fig)
 plt.close(fig)
+# === Save report with additional filenames ===
+summary_pdf = os.path.join(output_folder, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf")
+latest_copy_path = os.path.join(output_folder, "Latest_Weekly_Report.pdf")
+copyfile(latest_pdf, summary_pdf)
+copyfile(latest_pdf, latest_copy_path)
+print(f"✅ Report also saved as: {summary_pdf}")
+print(f"✅ Report also saved as: {latest_copy_path}")
+
+# === Upload PDFs to Google Drive Folder ===
+folder_id = "1i1DAOTnF8SznikYrS-ovrg2TRgth9wwP"
+upload_to_drive(latest_pdf, f"Weekly_Orders_Report_Week_{week_num}_{year}.pdf", folder_id)
+upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
+upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
 
 # === Send Email ===
 if not os.path.exists(latest_pdf):
