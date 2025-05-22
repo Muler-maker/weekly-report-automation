@@ -229,9 +229,9 @@ with PdfPages(latest_pdf) as pdf:
         plt.close(fig)
 
     # === GPT Insight Page ===
-insight_lines = insights.split("
-")
-wrapped_insights = []
+    insight_lines = insights.split("\n")
+
+    wrapped_insights = []
     for line in insight_lines:
         wrapped_insights.extend(textwrap.wrap(line, width=100, break_long_words=False) if len(line) > 100 else [line])
     fig = plt.figure(figsize=(9.5, 11))
