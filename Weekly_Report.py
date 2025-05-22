@@ -240,25 +240,6 @@ with PdfPages(latest_pdf) as pdf:
             ha="center", va="center", fontsize=18
         )
         pdf.savefig(fig)
-        # === Add ChatGPT insights page ===
-        fig = plt.figure(figsize=(9.5, 11))
-        plt.axis("off")
-
-        # Split long insights into wrapped lines
-        insight_lines = insights.split("\n")
-        wrapped_insights = []
-        for line in insight_lines:
-            wrapped_insights.extend(textwrap.wrap(line, width=100, break_long_words=False) if len(line) > 100 else [line])
-
-        # Add text to the figure
-        for i, line in enumerate(wrapped_insights):
-            y = 1 - (i + 1) * 0.028
-            fig.text(0.06, y, line, fontsize=10, ha="left", va="top", family="DejaVu Sans")
-
-        pdf.savefig(fig)
-        plt.close(fig)
-
-        plt.close(fig)
         print("⚠️ No data available. Generated fallback PDF with message page only.")
     else:
         # --- Cover Page ---
@@ -432,6 +413,25 @@ with PdfPages(latest_pdf) as pdf:
             fig.text(0.06, 0.91, "Customers who were active 4–8 weeks ago but not in the most recent 4 weeks.", fontsize=9)
             pdf.savefig(fig, bbox_inches="tight")
             plt.close(fig)
+                    # === Add ChatGPT insights page ===
+        fig = plt.figure(figsize=(9.5, 11))
+        plt.axis("off")
+
+        # Split long insights into wrapped lines
+        insight_lines = insights.split("\n")
+        wrapped_insights = []
+        for line in insight_lines:
+            wrapped_insights.extend(textwrap.wrap(line, width=100, break_long_words=False) if len(line) > 100 else [line])
+
+        # Add text to the figure
+        for i, line in enumerate(wrapped_insights):
+            y = 1 - (i + 1) * 0.028
+            fig.text(0.06, y, line, fontsize=10, ha="left", va="top", family="DejaVu Sans")
+
+        pdf.savefig(fig)
+        plt.close(fig)
+
+        plt.close(fig)
     # === Top 5 Charts by Product ===
     products = {
         "Lutetium  (177Lu) chloride N.C.A.": "Top 5 N.C.A. Customers",
