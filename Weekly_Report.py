@@ -209,12 +209,31 @@ with open(insight_history_path, "a") as f:
 latest_pdf = os.path.join(output_folder, f"Weekly_Orders_Report_Week_{week_num}_{year}.pdf")
 with PdfPages(latest_pdf) as pdf:
     # --- Cover Page ---
-    fig = plt.figure(figsize=(9.5, 11))
-    plt.axis("off")
-    fig.text(0.5, 0.5, f"Weekly Orders Report – Week {week_num}, {year}", fontsize=26, ha="center", va="center", weight='bold')
-    pdf.savefig(fig)
-    plt.close(fig)
+import matplotlib.image as mpimg
 
+fig = plt.figure(figsize=(9.5, 11))
+plt.axis("off")
+
+# Centered report title
+fig.text(0.5, 0.78, f"Weekly Orders Report – Week {week_num}, {year}",
+         fontsize=26, ha="center", va="center", weight='bold')
+
+# Load and center the logo below the title
+logo_path = os.path.join(script_dir, "Isotopia.jpg")
+logo = mpimg.imread(logo_path)
+
+logo_width = 0.25  # 25% of the figure width
+logo_height = 0.12  # 12% of the figure height
+logo_x = (1 - logo_width) / 2  # centered horizontally
+logo_y = 0.60  # vertical placement under title
+
+ax_logo = fig.add_axes([logo_x, logo_y, logo_width, logo_height])
+ax_logo.imshow(logo)
+ax_logo.axis("off")
+
+# Save the cover page
+pdf.savefig(fig)
+plt.close(fig)
     # --- STOPPED ORDERING TABLE ---
     if stopped:
         stopped_df = pd.DataFrame(stopped, columns=["Customer", "Account Manager"])
