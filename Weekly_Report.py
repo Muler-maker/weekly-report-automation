@@ -237,131 +237,142 @@ with PdfPages(latest_pdf) as pdf:
     plt.close(fig)
 
     # --- STOPPED ORDERING TABLE ---
-    if stopped:
-        stopped_df = pd.DataFrame([
-    [wrap_text(name), wrap_text(mgr)]
-    for name, mgr in stopped
+if stopped:
+    stopped_df = pd.DataFrame([
+        [wrap_text(name), wrap_text(mgr)]
+        for name, mgr in stopped
     ], columns=["Customer", "Account Manager"])
 
-        fig_height = max(4.5, 0.4 + 0.3 * len(stopped_df))
-        fig, ax = plt.subplots(figsize=(8, fig_height))
+    fig_height = max(4.5, 0.4 + 0.3 * len(stopped_df))
+    fig, ax = plt.subplots(figsize=(8, fig_height))
+    ax.axis("off")
 
-        ax.axis("off")
-        table = ax.table(
-            cellText=stopped_df.values,
-            colLabels=stopped_df.columns,
-            loc="upper left",
-            cellLoc="left")
-            # Manually widen the "Customer" column (column index 0)
+    table = ax.table(
+        cellText=stopped_df.values,
+        colLabels=stopped_df.columns,
+        loc="upper left",
+        cellLoc="left"
+    )
+    table.auto_set_font_size(False)
+    table.set_fontsize(7)
+    table.scale(1.0, 2.0)
+
+    # Manually widen the "Customer" column (column index 0)
     for key, cell in table.get_celld().items():
-    row, col = key
-    if col == 0:  # Customer column
-        cell.set_width(0.4)  # Wider
-    else:
-        cell.set_width(0.15)  # Narrower for other columns
-        table.auto_set_font_size(False)
-        table.set_fontsize(7)
-        table.scale(1.0, 2.0)
-        ax.set_title("STOPPED ORDERING", fontsize=12, weight="bold", pad=10)
-        pdf.savefig(fig, bbox_inches="tight")
-        plt.close(fig)
+        row, col = key
+        if col == 0:
+            cell.set_width(0.4)
+        else:
+            cell.set_width(0.15)
+
+    ax.set_title("STOPPED ORDERING", fontsize=12, weight="bold", pad=10)
+    pdf.savefig(fig, bbox_inches="tight")
+    plt.close(fig)
+
 
     # --- DECREASED ORDERS TABLE ---
     if decreased:
-        decreased_df = pd.DataFrame([
-    [
-        wrap_text(name), 
-        f"{curr - prev:+.0f}", 
-        f"{(curr - prev) / prev * 100:+.1f}%" if prev else "+100%", 
-        wrap_text(mgr)
-    ]
-    for name, prev, curr, mgr in decreased
+    decreased_df = pd.DataFrame([
+        [
+            wrap_text(name),
+            f"{curr - prev:+.0f}",
+            f"{(curr - prev) / prev * 100:+.1f}%" if prev else "+100%",
+            wrap_text(mgr)
+        ]
+        for name, prev, curr, mgr in decreased
     ], columns=["Customer", "Change (mCi)", "% Change", "Account Manager"])
 
-        fig_height = max(4.5, 0.4 + 0.3 * len(decreased_df))
-        fig, ax = plt.subplots(figsize=(8, fig_height))
-        ax.axis("off")
-        table = ax.table(
-            cellText=decreased_df.values,
-            colLabels=decreased_df.columns,
-            loc="upper left",
-            cellLoc="left")
-            # Manually widen the "Customer" column (column index 0)
+    fig_height = max(4.5, 0.4 + 0.3 * len(decreased_df))
+    fig, ax = plt.subplots(figsize=(8, fig_height))
+    ax.axis("off")
+
+    table = ax.table(
+        cellText=decreased_df.values,
+        colLabels=decreased_df.columns,
+        loc="upper left",
+        cellLoc="left"
+    )
+    table.auto_set_font_size(False)
+    table.set_fontsize(7)
+    table.scale(1.0, 2.0)
+
     for key, cell in table.get_celld().items():
-    row, col = key
-    if col == 0:  # Customer column
-        cell.set_width(0.4)  # Wider
-    else:
-        cell.set_width(0.15)  # Narrower for other columns
-        table.auto_set_column_width(col=list(range(len(decreased_df.columns))))
-        table.auto_set_font_size(False)
-        table.set_fontsize(7)
-        table.scale(1.0, 2.0)
-        ax.set_title("DECREASED ORDERS", fontsize=12, weight="bold", pad=30, y=1.05)
-        pdf.savefig(fig, bbox_inches="tight")
-        plt.close(fig)
+        row, col = key
+        if col == 0:
+            cell.set_width(0.4)
+        else:
+            cell.set_width(0.15)
+
+    ax.set_title("DECREASED ORDERS", fontsize=12, weight="bold", pad=30, y=1.05)
+    pdf.savefig(fig, bbox_inches="tight")
+    plt.close(fig)
 
     # --- INCREASED ORDERS TABLE ---
-    if increased:
-        increased_df = pd.DataFrame([
-    [
-        wrap_text(name), 
-        f"{curr - prev:+.0f}", 
-        f"{(curr - prev) / prev * 100:+.1f}%" if prev else "+100%", 
-        wrap_text(mgr)
-    ]
-    for name, prev, curr, mgr in increased
+   if increased:
+    increased_df = pd.DataFrame([
+        [
+            wrap_text(name),
+            f"{curr - prev:+.0f}",
+            f"{(curr - prev) / prev * 100:+.1f}%" if prev else "+100%",
+            wrap_text(mgr)
+        ]
+        for name, prev, curr, mgr in increased
     ], columns=["Customer", "Change (mCi)", "% Change", "Account Manager"])
 
-        fig_height = max(4.5, 0.4 + 0.3 * len(increased_df))
-        fig, ax = plt.subplots(figsize=(8, fig_height))
-        ax.axis("off")
-        table = ax.table(
-            cellText=increased_df.values,
-            colLabels=increased_df.columns,
-            loc="upper left",
-            cellLoc="left")
-            # Manually widen the "Customer" column (column index 0)
-    for key, cell in table.get_celld().items():
-    row, col = key
-    if col == 0:  # Customer column
-        cell.set_width(0.4)  # Wider
-    else:
-        cell.set_width(0.15)  # Narrower for other columns
-        table.auto_set_font_size(False)
-        table.set_fontsize(7)
-        table.scale(1.0, 2.0)
-        ax.set_title("INCREASED ORDERS", fontsize=12, weight="bold", pad=10)
-        pdf.savefig(fig, bbox_inches="tight")
-        plt.close(fig)
+    fig_height = max(4.5, 0.4 + 0.3 * len(increased_df))
+    fig, ax = plt.subplots(figsize=(8, fig_height))
+    ax.axis("off")
 
+    table = ax.table(
+        cellText=increased_df.values,
+        colLabels=increased_df.columns,
+        loc="upper left",
+        cellLoc="left"
+    )
+    table.auto_set_font_size(False)
+    table.set_fontsize(7)
+    table.scale(1.0, 2.0)
+
+    for key, cell in table.get_celld().items():
+        row, col = key
+        if col == 0:
+            cell.set_width(0.4)
+        else:
+            cell.set_width(0.15)
+
+    ax.set_title("INCREASED ORDERS", fontsize=12, weight="bold", pad=10)
+    pdf.savefig(fig, bbox_inches="tight")
+    plt.close(fig)
     # --- INACTIVE IN PAST 4 WEEKS TABLE ---
-    if inactive_recent_4:
-        inactive_df = pd.DataFrame([
-    [wrap_text(name)] for name in inactive_recent_4
+ if inactive_recent_4:
+    inactive_df = pd.DataFrame([
+        [wrap_text(name)] for name in inactive_recent_4
     ], columns=["Customer"])
 
-        fig_height = max(4.5, 0.4 + 0.3 * len(inactive_df))
-        fig, ax = plt.subplots(figsize=(8, fig_height))
-        ax.axis("off")
-        table = ax.table(
-            cellText=inactive_df.values,
-            colLabels=inactive_df.columns,
-            loc="upper left",
-            cellLoc="left")
-            # Manually widen the "Customer" column (column index 0)
+    fig_height = max(4.5, 0.4 + 0.3 * len(inactive_df))
+    fig, ax = plt.subplots(figsize=(8, fig_height))
+    ax.axis("off")
+
+    table = ax.table(
+        cellText=inactive_df.values,
+        colLabels=inactive_df.columns,
+        loc="upper left",
+        cellLoc="left"
+    )
+    table.auto_set_font_size(False)
+    table.set_fontsize(7)
+    table.scale(1.0, 2.0)
+
     for key, cell in table.get_celld().items():
-    row, col = key
-    if col == 0:  # Customer column
-        cell.set_width(0.4)  # Wider
-    else:
-        cell.set_width(0.15)  # Narrower for other columns
-        table.auto_set_font_size(False)
-        table.set_fontsize(7)
-        table.scale(1.0, 2.0)
-        ax.set_title("INACTIVE IN PAST 4 WEEKS", fontsize=12, weight="bold", pad=10)
-        pdf.savefig(fig, bbox_inches="tight")
-        plt.close(fig)
+        row, col = key
+        if col == 0:
+            cell.set_width(0.4)
+        else:
+            cell.set_width(0.15)
+
+    ax.set_title("INACTIVE IN PAST 4 WEEKS", fontsize=12, weight="bold", pad=10)
+    pdf.savefig(fig, bbox_inches="tight")
+    plt.close(fig)
     # === GPT Insight Page ===
     insight_lines = insights.split("\n")
 
