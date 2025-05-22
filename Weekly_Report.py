@@ -312,15 +312,18 @@ with PdfPages(latest_pdf) as pdf:
 
     # --- INCREASED ORDERS TABLE ---
     if increased:
-    increased_df = pd.DataFrame([
-        [
-            wrap_text(name),
-            f"{curr - prev:+.0f}",
-            f"{(curr - prev) / prev * 100:+.1f}%" if prev else "+100%",
-            wrap_text(mgr)
-        ]
-        for name, prev, curr, mgr in increased
-    ], columns=["Customer", "Change (mCi)", "% Change", "Account Manager"])
+        increased_df = pd.DataFrame(
+            [
+                [
+                    wrap_text(name),
+                    f"{curr - prev:+.0f}",
+                    f"{(curr - prev) / prev * 100:+.1f}%" if prev else "+100%",
+                    wrap_text(mgr)
+                ]
+                for name, prev, curr, mgr in increased
+            ], 
+            columns=["Customer", "Change (mCi)", "% Change", "Account Manager"]
+         )
 
     fig_height = max(4.5, 0.4 + 0.3 * len(increased_df))
     fig, ax = plt.subplots(figsize=(8, fig_height))
