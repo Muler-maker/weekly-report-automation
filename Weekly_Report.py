@@ -262,7 +262,7 @@ with PdfPages(latest_pdf) as pdf:
 
     # --- DECREASED ORDERS TABLE ---
     if decreased:
-    decreased_df = pd.DataFrame([
+        decreased_df = pd.DataFrame([
     [
         wrap_text(name), 
         f"{curr - prev:+.0f}", 
@@ -291,7 +291,7 @@ with PdfPages(latest_pdf) as pdf:
 
     # --- INCREASED ORDERS TABLE ---
     if increased:
-    increased_df = pd.DataFrame([
+        increased_df = pd.DataFrame([
     [
         wrap_text(name), 
         f"{curr - prev:+.0f}", 
