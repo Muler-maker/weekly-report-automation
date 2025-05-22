@@ -251,7 +251,7 @@ with PdfPages(latest_pdf) as pdf:
             cellText=stopped_df.values,
             colLabels=stopped_df.columns,
             loc="upper left",
-            cellLoc="left"
+            cellLoc="left")
             # Manually widen the "Customer" column (column index 0)
     for key, cell in table.get_celld().items():
     row, col = key
@@ -287,7 +287,7 @@ with PdfPages(latest_pdf) as pdf:
             cellText=decreased_df.values,
             colLabels=decreased_df.columns,
             loc="upper left",
-            cellLoc="left"
+            cellLoc="left")
             # Manually widen the "Customer" column (column index 0)
     for key, cell in table.get_celld().items():
     row, col = key
@@ -324,7 +324,7 @@ with PdfPages(latest_pdf) as pdf:
             cellText=increased_df.values,
             colLabels=increased_df.columns,
             loc="upper left",
-            cellLoc="left"
+            cellLoc="left")
             # Manually widen the "Customer" column (column index 0)
     for key, cell in table.get_celld().items():
     row, col = key
@@ -354,7 +354,7 @@ with PdfPages(latest_pdf) as pdf:
             cellText=inactive_df.values,
             colLabels=inactive_df.columns,
             loc="upper left",
-            cellLoc="left"
+            cellLoc="left")
             # Manually widen the "Customer" column (column index 0)
     for key, cell in table.get_celld().items():
     row, col = key
