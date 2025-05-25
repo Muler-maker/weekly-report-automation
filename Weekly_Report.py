@@ -338,14 +338,15 @@ with PdfPages(latest_pdf) as pdf:
         fig = plt.figure(figsize=(9.5, 11))
         plt.axis("off")
 
-        fig.text(0.5, 0.78, f"Weekly Orders Report – Week {week_num}, {year}",
-                fontsize=26, ha="center", va="center", weight='bold')
+        fig.text(0.5, 0.80, "Weekly Orders Report", fontsize=26, ha="center", va="center", weight='bold')
+        fig.text(0.5, 0.74, f"Week {week_num}, {year}", fontsize=20, ha="center", va="center")
+
 
         logo_path = os.path.join(script_dir, "Isotopia.jpg")
         if os.path.exists(logo_path):
             logo = mpimg.imread(logo_path)
-            logo_width = 0.25
-            logo_height = 0.12
+            logo_width = 0.35
+            logo_height = 0.18
             logo_x = (1 - logo_width) / 2
             logo_y = 0.60
             ax_logo = fig.add_axes([logo_x, logo_y, logo_width, logo_height])
