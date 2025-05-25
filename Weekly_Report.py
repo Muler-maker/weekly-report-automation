@@ -83,20 +83,39 @@ from googleapiclient.http import MediaFileUpload
 def upload_to_drive(file_path, file_name, folder_id=None):
     drive_service = build('drive', 'v3', credentials=creds)
 
-    file_metadata = {
-        'name': file_name
-    }
+    # Search for an existing file with the same name in the target folder
+    query = f"name = '{file_name}'"
     if folder_id:
-        file_metadata['parents'] = [folder_id]
+        query += f" and '{folder_id}' in parents"
 
-    media = MediaFileUpload(file_path, mimetype='application/pdf')
-    uploaded_file = drive_service.files().create(
-        body=file_metadata,
-        media_body=media,
-        fields='id'
-    ).execute()
+    existing_files = drive_service.files().list(
+        q=query,
+        fields="files(id, name)"
+    ).execute().get('files', [])
 
-    print(f"✅ Uploaded to Google Drive: {file_name} (ID: {uploaded_file.get('id')})")
+    if existing_files:
+        # File exists — overwrite it using update
+        file_id = existing_files[0]['id']
+        media = MediaFileUpload(file_path, mimetype='application/pdf', resumable=True)
+        updated_file = drive_service.files().update(
+            fileId=file_id,
+            media_body=media
+        ).execute()
+        print(f"🔁 Overwritten on Google Drive: {file_name} (ID: {file_id})")
+    else:
+        # File doesn't exist — create a new one
+        file_metadata = {'name': file_name}
+        if folder_id:
+            file_metadata['parents'] = [folder_id]
+
+        media = MediaFileUpload(file_path, mimetype='application/pdf')
+        uploaded_file = drive_service.files().create(
+            body=file_metadata,
+            media_body=media,
+            fields='id'
+        ).execute()
+        print(f"✅ Uploaded to Google Drive: {file_name} (ID: {uploaded_file.get('id')})")
+
 # === Define report date values (simulate 11 days ahead) ===
 today = datetime.today() + timedelta(days=11)
 week_num = today.isocalendar().week
