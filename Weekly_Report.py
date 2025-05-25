@@ -2,6 +2,8 @@ import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime, timedelta
 import pandas as pd
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import seaborn as sns
@@ -288,7 +290,9 @@ with open(insight_history_path, "a") as f:
 
 # === PDF Generation and email sending follow ===
 latest_pdf = os.path.join(output_folder, f"Weekly_Orders_Report_Week_{week_num}_{year}.pdf")
+
 with PdfPages(latest_pdf) as pdf:
+    print("DEBUG: Entered PdfPages block")
 
     if not any([stopped, decreased, increased, inactive_recent_4]):
         fig = plt.figure(figsize=(8.5, 11))
@@ -300,6 +304,7 @@ with PdfPages(latest_pdf) as pdf:
         )
         pdf.savefig(fig)
         print("⚠️ No data available. Generated fallback PDF with message page only.")
+        plt.close(fig)
     else:
         # --- Cover Page ---
         fig = plt.figure(figsize=(9.5, 11))
@@ -309,16 +314,17 @@ with PdfPages(latest_pdf) as pdf:
                 fontsize=26, ha="center", va="center", weight='bold')
 
         logo_path = os.path.join(script_dir, "Isotopia.jpg")
-        logo = mpimg.imread(logo_path)
-
-        logo_width = 0.25
-        logo_height = 0.12
-        logo_x = (1 - logo_width) / 2
-        logo_y = 0.60
-
-        ax_logo = fig.add_axes([logo_x, logo_y, logo_width, logo_height])
-        ax_logo.imshow(logo)
-        ax_logo.axis("off")
+        if os.path.exists(logo_path):
+            logo = mpimg.imread(logo_path)
+            logo_width = 0.25
+            logo_height = 0.12
+            logo_x = (1 - logo_width) / 2
+            logo_y = 0.60
+            ax_logo = fig.add_axes([logo_x, logo_y, logo_width, logo_height])
+            ax_logo.imshow(logo)
+            ax_logo.axis("off")
+        else:
+            print("WARNING: Logo file not found, skipping logo.")
 
         pdf.savefig(fig, bbox_inches="tight")
         plt.close(fig)
@@ -332,11 +338,9 @@ with PdfPages(latest_pdf) as pdf:
                 ],
                 columns=["Customer", "Account Manager"]
             )
-
             fig_height = max(4.5, 0.4 + 0.3 * len(stopped_df))
             fig, ax = plt.subplots(figsize=(10, fig_height))
             ax.axis("off")
-
             table = ax.table(
                 cellText=stopped_df.values,
                 colLabels=stopped_df.columns,
@@ -346,19 +350,14 @@ with PdfPages(latest_pdf) as pdf:
             table.auto_set_font_size(False)
             table.set_fontsize(6.5)
             table.scale(1.0, 2.0)
-
             for key, cell in table.get_celld().items():
                 row, col = key
-                if col == 0:
-                    cell.set_width(0.6)
-                else:
-                    cell.set_width(0.15)
-
+                cell.set_width(0.6 if col == 0 else 0.15)
             ax.set_title("STOPPED ORDERING", fontsize=12, weight="bold", pad=10)
             fig.text(0.06, 0.87, "Customers who stopped ordering in the last 4 weeks but did order in the 4 weeks before.", fontsize=9)
-
             pdf.savefig(fig, bbox_inches="tight")
             plt.close(fig)
+
         # --- DECREASED ORDERS TABLE ---
         if decreased:
             decreased_df = pd.DataFrame([
@@ -369,14 +368,10 @@ with PdfPages(latest_pdf) as pdf:
                     wrap_text(mgr)
                 ]
                 for name, prev, curr, mgr in decreased
-            ],
-            columns=["Customer", "Change (mCi)", "% Change", "Account Manager"]
-            )
-
+            ], columns=["Customer", "Change (mCi)", "% Change", "Account Manager"])
             fig_height = max(4.5, 0.4 + 0.3 * len(decreased_df))
             fig, ax = plt.subplots(figsize=(10, fig_height))
             ax.axis("off")
-
             table = ax.table(
                 cellText=decreased_df.values,
                 colLabels=decreased_df.columns,
@@ -386,14 +381,9 @@ with PdfPages(latest_pdf) as pdf:
             table.auto_set_font_size(False)
             table.set_fontsize(6.5)
             table.scale(1.0, 2.0)
-
             for key, cell in table.get_celld().items():
                 row, col = key
-                if col == 0:
-                    cell.set_width(0.6)
-                else:
-                    cell.set_width(0.15)
-
+                cell.set_width(0.6 if col == 0 else 0.15)
             ax.set_title("DECREASED ORDERS", fontsize=12, weight="bold", pad=2, y=1.05)
             fig.text(0.06, 0.87, "These customers ordered less in the last 8 weeks compared to the 8 weeks prior.", fontsize=9)
             pdf.savefig(fig, bbox_inches="tight")
@@ -410,14 +400,11 @@ with PdfPages(latest_pdf) as pdf:
                         wrap_text(mgr)
                     ]
                     for name, prev, curr, mgr in increased
-                ],
-                columns=["Customer", "Change (mCi)", "% Change", "Account Manager"]
+                ], columns=["Customer", "Change (mCi)", "% Change", "Account Manager"]
             )
-
             fig_height = max(4.5, 0.4 + 0.3 * len(increased_df))
             fig, ax = plt.subplots(figsize=(10, fig_height))
             ax.axis("off")
-
             table = ax.table(
                 cellText=increased_df.values,
                 colLabels=increased_df.columns,
@@ -427,14 +414,9 @@ with PdfPages(latest_pdf) as pdf:
             table.auto_set_font_size(False)
             table.set_fontsize(6.5)
             table.scale(1.0, 2.0)
-
             for key, cell in table.get_celld().items():
                 row, col = key
-                if col == 0:
-                    cell.set_width(0.6)
-                else:
-                    cell.set_width(0.15)
-
+                cell.set_width(0.6 if col == 0 else 0.15)
             ax.set_title("INCREASED ORDERS", fontsize=12, weight="bold", pad=2)
             fig.text(0.06, 0.87, "These customers increased their order amounts in the last 8 weeks compared to the 8 weeks prior.", fontsize=9)
             pdf.savefig(fig, bbox_inches="tight")
@@ -446,11 +428,9 @@ with PdfPages(latest_pdf) as pdf:
                 [[name] for name in inactive_recent_4],
                 columns=["Customer"]
             )
-
             fig_height = max(4.5, 0.4 + 0.3 * len(inactive_df))
             fig, ax = plt.subplots(figsize=(10, fig_height))
             ax.axis("off")
-
             table = ax.table(
                 cellText=inactive_df.values,
                 colLabels=inactive_df.columns,
@@ -460,40 +440,34 @@ with PdfPages(latest_pdf) as pdf:
             table.auto_set_font_size(False)
             table.set_fontsize(6.5)
             table.scale(1.0, 2.0)
-
             for key, cell in table.get_celld().items():
                 row, col = key
-                if col == 0:
-                    cell.set_width(0.6)
-                else:
-                    cell.set_width(0.15)
-
+                cell.set_width(0.6 if col == 0 else 0.15)
             ax.set_title("INACTIVE IN PAST 4 WEEKS", fontsize=12, weight="bold", pad=2)
             fig.text(0.06, 0.87, "Customers who were active 4–8 weeks ago but not in the most recent 4 weeks.", fontsize=9)
             pdf.savefig(fig, bbox_inches="tight")
             plt.close(fig)
 
-# === Add ChatGPT insights pages (paginated) ===
-insight_lines = insights.split("\n")
-wrapped_insights = []
-for line in insight_lines:
-    # Wrap long lines at 100 characters, keep short lines as is
-    wrapped_insights.extend(
-        textwrap.wrap(line, width=100, break_long_words=False) if len(line) > 100 else [line]
-    )
+    # === Add ChatGPT insights pages (paginated) ===
+    insight_lines = insights.split("\n")
+    wrapped_insights = []
+    for line in insight_lines:
+        wrapped_insights.extend(
+            textwrap.wrap(line, width=100, break_long_words=False) if len(line) > 100 else [line]
+        )
 
-lines_per_page = 35  # Adjust if you want more or fewer lines per page
+    lines_per_page = 35
+    for page_start in range(0, len(wrapped_insights), lines_per_page):
+        fig = plt.figure(figsize=(9.5, 11))
+        plt.axis("off")
+        page_lines = wrapped_insights[page_start:page_start + lines_per_page]
+        for i, line in enumerate(page_lines):
+            y = 1 - (i + 1) * 0.028
+            fig.text(0.06, y, line, fontsize=10, ha="left", va="top", family="DejaVu Sans")
+        pdf.savefig(fig)
+        plt.close(fig)
 
-for page_start in range(0, len(wrapped_insights), lines_per_page):
-    fig = plt.figure(figsize=(9.5, 11))
-    plt.axis("off")
-    page_lines = wrapped_insights[page_start:page_start + lines_per_page]
-    for i, line in enumerate(page_lines):
-        y = 1 - (i + 1) * 0.028
-        fig.text(0.06, y, line, fontsize=10, ha="left", va="top", family="DejaVu Sans")
-    pdf.savefig(fig)
-    plt.close(fig)
-
+print("DEBUG: PDF file size right after creation:", os.path.getsize(latest_pdf))
 # === Top 5 Charts by Product ===
 products = {
     "Lutetium  (177Lu) chloride N.C.A.": "Top 5 N.C.A. Customers",
