@@ -83,6 +83,23 @@ from googleapiclient.http import MediaFileUpload
 def upload_to_drive(file_path, file_name, folder_id=None):
     drive_service = build('drive', 'v3', credentials=creds)
 
+    # Search for existing files with the same name in the folder
+    query = f"name='{file_name}' and trashed=false"
+    if folder_id:
+        query += f" and '{folder_id}' in parents"
+
+    existing_files = drive_service.files().list(
+        q=query,
+        spaces='drive',
+        fields='files(id, name)'
+    ).execute().get('files', [])
+
+    # Delete existing files with the same name
+    for file in existing_files:
+        drive_service.files().delete(fileId=file['id']).execute()
+        print(f"🗑️ Deleted existing file: {file['name']} (ID: {file['id']})")
+
+    # Upload the new file
     file_metadata = {
         'name': file_name
     }
