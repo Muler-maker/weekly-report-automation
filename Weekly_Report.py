@@ -473,18 +473,7 @@ import re
 # Add text to the figure
 for i, line in enumerate(wrapped_insights):
     y = 1 - (i + 1) * 0.028
-
-    # Use regex to match **text** pattern ONLY if the whole line is wrapped with double asterisks
-    m = re.match(r"^\*\*(.+?)\*\*$", line.strip())
-    if m:
-        text = m.group(1)
-        weight = "bold"
-    else:
-        text = line
-        weight = "normal"
-
-    fig.text(0.06, y, text, fontsize=10, ha="left", va="top", weight=weight, family="DejaVu Sans")
-
+    fig.text(0.06, y, line, fontsize=10, ha="left", va="top", family="DejaVu Sans")
 # Save the figure after all lines are processed
 pdf.savefig(fig)
 plt.close(fig)
