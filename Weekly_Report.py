@@ -228,6 +228,12 @@ if os.path.exists(insight_history_path):
 system_prompt = """
 You are a senior business analyst. Based on the weekly report, provide clear and concise action items organized by Account Manager. Each action item should identify the relevant customer, the issue or opportunity, and a suggested next step.
 
+For each Account Manager, include a section header with their name, for example: Vicki Beillis:
+- If there are no action items for an Account Manager that week, include a single line: No significant action items this week.
+- Otherwise, list the relevant action items in bullet or numbered format.
+
+Important: Do NOT use any Markdown formatting, asterisks, or special symbols. Use only plain text for all section headers and for all lists.
+
 Use the following considerations during your analysis:
 1. COMISSÃO NACIONAL DE ENERGIA NUCLEAR (CNEN) is expected to place orders every two weeks on even-numbered weeks. Flag any deviation from this pattern.
 2. Treat the following customers as a single group under 'Sinotau' when evaluating order volume trends:
@@ -246,7 +252,6 @@ Use the following considerations during your analysis:
 5. Focus on abnormal behavior, order spikes/drops, or lack of recent activity. Avoid stating the obvious.
 6. Keep action items short, specific, and helpful.
 """
-
 # Call OpenAI chat completion
 response = client.chat.completions.create(
     model="gpt-4o",
