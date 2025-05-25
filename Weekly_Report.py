@@ -467,9 +467,11 @@ with PdfPages(latest_pdf) as pdf:
             wrapped_insights.extend(textwrap.wrap(line, width=100, break_long_words=False) if len(line) > 100 else [line])
 
         # Add text to the figure
-        for i, line in enumerate(wrapped_insights):
-            y = 1 - (i + 1) * 0.028
-            # Detect bold lines based on Markdown-style **...**
+# Add text to the figure
+for i, line in enumerate(wrapped_insights):
+    y = 1 - (i + 1) * 0.028
+
+    # Detect bold lines based on Markdown-style **...**
     if line.strip().startswith("**") and line.strip().endswith("**"):
         text = line.strip().strip("*")  # Remove **
         weight = "bold"
@@ -479,10 +481,11 @@ with PdfPages(latest_pdf) as pdf:
 
     fig.text(0.06, y, text, fontsize=10, ha="left", va="top", weight=weight, family="DejaVu Sans")
 
-        pdf.savefig(fig)
-        plt.close(fig)
+# Save the figure after all lines are processed
+pdf.savefig(fig)
+plt.close(fig)
 
-        plt.close(fig)
+
     # === Top 5 Charts by Product ===
     products = {
         "Lutetium  (177Lu) chloride N.C.A.": "Top 5 N.C.A. Customers",
