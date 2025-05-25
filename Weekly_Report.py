@@ -270,40 +270,43 @@ with open(insight_history_path, "a") as f:
     f.write(f"\n\n===== Week {week_num}, {year} =====\n")
     f.write(insights)
 
-# === PDF Generation and email sending follow ===
+# === TEST PDF Generation ===
 latest_pdf = os.path.join(output_folder, f"Weekly_Orders_Report_Week_{week_num}_{year}.pdf")
+
+from matplotlib.backends.backend_pdf import PdfPages
+import matplotlib.pyplot as plt
+
 with PdfPages(latest_pdf) as pdf:
+    # Page 1: Cover
+    fig = plt.figure(figsize=(8.27, 11.69))  # A4 size
+    plt.axis("off")
+    fig.text(0.5, 0.8, "Weekly Orders Report – TEST COVER", fontsize=20, ha="center")
+    pdf.savefig(fig)
+    plt.close(fig)
 
-    if not any([stopped, decreased, increased, inactive_recent_4]):
-        print("⚠️ No customer activity found. Generating fallback PDF page.")
-        fig = plt.figure(figsize=(8.27, 11.69))  # A4 size
-        plt.axis("off")
-        fig.text(0.5, 0.5, "No data available for this week's report.", ha="center", va="center", fontsize=18)
-        pdf.savefig(fig)
-        plt.close(fig)
+    # Page 2: GPT Insights mock
+    lines = [
+        "**Noam Aricha:**",
+        "- Follow up with CNEN about skipped week 22",
+        "**Gilli Bader:**",
+        "- Customer X dropped 60% vs. prior period",
+    ]
 
-    else:
-        # --- Cover Page ---
-        fig = plt.figure(figsize=(9.5, 11))
-        plt.axis("off")
+    fig = plt.figure(figsize=(8.27, 11.69))
+    plt.axis("off")
+    for i, line in enumerate(lines):
+        y = 1 - (i + 1) * 0.05
+        if line.startswith("**") and line.endswith("**"):
+            text = line.strip("*")
+            weight = "bold"
+        else:
+            text = line
+            weight = "normal"
+        fig.text(0.06, y, text, fontsize=10, ha="left", va="top", weight=weight)
+    pdf.savefig(fig)
+    plt.close(fig)
 
-        fig.text(0.5, 0.78, f"Weekly Orders Report – Week {week_num}, {year}",
-                 fontsize=26, ha="center", va="center", weight='bold')
-
-        logo_path = os.path.join(script_dir, "Isotopia.jpg")
-        logo = mpimg.imread(logo_path)
-
-        logo_width = 0.25
-        logo_height = 0.12
-        logo_x = (1 - logo_width) / 2
-        logo_y = 0.60
-
-        ax_logo = fig.add_axes([logo_x, logo_y, logo_width, logo_height])
-        ax_logo.imshow(logo)
-        ax_logo.axis("off")
-
-        pdf.savefig(fig, bbox_inches="tight")
-        plt.close(fig)
+print(f"✅ TEST PDF saved: {latest_pdf}")
 
         # --- STOPPED ORDERING TABLE ---
         if stopped:
