@@ -485,7 +485,6 @@ with PdfPages(latest_pdf) as pdf:
         # Save the figure after all lines are processed
         pdf.savefig(fig)
         plt.close(fig)
-
 # === Top 5 Charts by Product ===
 products = {
     "Lutetium  (177Lu) chloride N.C.A.": "Top 5 N.C.A. Customers",
