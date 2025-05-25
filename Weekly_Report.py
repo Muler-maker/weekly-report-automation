@@ -2,8 +2,6 @@ import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime, timedelta
 import pandas as pd
-import matplotlib
-matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import seaborn as sns
@@ -85,39 +83,20 @@ from googleapiclient.http import MediaFileUpload
 def upload_to_drive(file_path, file_name, folder_id=None):
     drive_service = build('drive', 'v3', credentials=creds)
 
-    # Search for an existing file with the same name in the target folder
-    query = f"name = '{file_name}'"
+    file_metadata = {
+        'name': file_name
+    }
     if folder_id:
-        query += f" and '{folder_id}' in parents"
+        file_metadata['parents'] = [folder_id]
 
-    existing_files = drive_service.files().list(
-        q=query,
-        fields="files(id, name)"
-    ).execute().get('files', [])
+    media = MediaFileUpload(file_path, mimetype='application/pdf')
+    uploaded_file = drive_service.files().create(
+        body=file_metadata,
+        media_body=media,
+        fields='id'
+    ).execute()
 
-    if existing_files:
-        # File exists — overwrite it using update
-        file_id = existing_files[0]['id']
-        media = MediaFileUpload(file_path, mimetype='application/pdf', resumable=True)
-        updated_file = drive_service.files().update(
-            fileId=file_id,
-            media_body=media
-        ).execute()
-        print(f"🔁 Overwritten on Google Drive: {file_name} (ID: {file_id})")
-    else:
-        # File doesn't exist — create a new one
-        file_metadata = {'name': file_name}
-        if folder_id:
-            file_metadata['parents'] = [folder_id]
-
-        media = MediaFileUpload(file_path, mimetype='application/pdf')
-        uploaded_file = drive_service.files().create(
-            body=file_metadata,
-            media_body=media,
-            fields='id'
-        ).execute()
-        print(f"✅ Uploaded to Google Drive: {file_name} (ID: {uploaded_file.get('id')})")
-
+    print(f"✅ Uploaded to Google Drive: {file_name} (ID: {uploaded_file.get('id')})")
 # === Define report date values (simulate 11 days ahead) ===
 today = datetime.today() + timedelta(days=11)
 week_num = today.isocalendar().week
@@ -236,9 +215,7 @@ if os.path.exists(insight_history_path):
 response = client.chat.completions.create(
     model="gpt-4o",
     messages=[
-        {
-            "role": "system",
-            "content": """You are a senior business analyst. Based on the weekly report, provide clear and concise action items organized by Account Manager. Each action item should identify the relevant customer, the issue or opportunity, and a suggested next step.
+        {"role": "system", "content": "You are a senior business analyst. Based on the weekly report, provide clear and concise action items organized by Account Manager. Each action item should identify the relevant customer, the issue or opportunity, and a suggested next step.
 
 Use the following considerations during your analysis:
 1. COMISSÃO NACIONAL DE ENERGIA NUCLEAR (CNEN) is expected to place orders every two weeks on even-numbered weeks. Flag any deviation from this pattern.
@@ -256,12 +233,10 @@ Use the following considerations during your analysis:
    - Seibersdorf Laboratories (Starget Pharma)
 4. Only include Sinotau or Seibersdorf if there’s a noteworthy insight.
 5. Focus on abnormal behavior, order spikes/drops, or lack of recent activity. Avoid stating the obvious.
-6. Keep action items short, specific, and helpful."""
-        },
-        {
-            "role": "user",
-            "content": report_text
-        }
+6. Keep action items short, specific, and helpful."
+
+},
+        {"role": "user", "content": report_text}
     ]
 )
 insights = response.choices[0].message.content
@@ -277,20 +252,22 @@ latest_pdf = os.path.join(output_folder, f"Weekly_Orders_Report_Week_{week_num}_
 with PdfPages(latest_pdf) as pdf:
 
     if not any([stopped, decreased, increased, inactive_recent_4]):
-        print("⚠️ No customer activity found. Generating fallback PDF page.")
-        fig = plt.figure(figsize=(8.27, 11.69))  # A4 size
+        fig = plt.figure(figsize=(8.5, 11))
         plt.axis("off")
-        fig.text(0.5, 0.5, "No data available for this week's report.", ha="center", va="center", fontsize=18)
+        fig.text(
+            0.5, 0.5,
+            "No data available for this week's report.",
+            ha="center", va="center", fontsize=18
+        )
         pdf.savefig(fig)
-        plt.close(fig)
-
+        print("⚠️ No data available. Generated fallback PDF with message page only.")
     else:
         # --- Cover Page ---
         fig = plt.figure(figsize=(9.5, 11))
         plt.axis("off")
 
         fig.text(0.5, 0.78, f"Weekly Orders Report – Week {week_num}, {year}",
-                 fontsize=26, ha="center", va="center", weight='bold')
+                fontsize=26, ha="center", va="center", weight='bold')
 
         logo_path = os.path.join(script_dir, "Isotopia.jpg")
         logo = mpimg.imread(logo_path)
@@ -456,7 +433,7 @@ with PdfPages(latest_pdf) as pdf:
             fig.text(0.06, 0.87, "Customers who were active 4–8 weeks ago but not in the most recent 4 weeks.", fontsize=9)
             pdf.savefig(fig, bbox_inches="tight")
             plt.close(fig)
-        # === Add ChatGPT insights page ===
+                    # === Add ChatGPT insights page ===
         fig = plt.figure(figsize=(9.5, 11))
         plt.axis("off")
 
@@ -464,53 +441,48 @@ with PdfPages(latest_pdf) as pdf:
         insight_lines = insights.split("\n")
         wrapped_insights = []
         for line in insight_lines:
-            wrapped_insights.extend(
-                textwrap.wrap(line, width=100, break_long_words=False) if len(line) > 100 else [line]
-            )
+            wrapped_insights.extend(textwrap.wrap(line, width=100, break_long_words=False) if len(line) > 100 else [line])
 
-import re
+        # Add text to the figure
+        for i, line in enumerate(wrapped_insights):
+            y = 1 - (i + 1) * 0.028
+            fig.text(0.06, y, line, fontsize=10, ha="left", va="top", family="DejaVu Sans")
 
-# Add text to the figure
-for i, line in enumerate(wrapped_insights):
-    y = 1 - (i + 1) * 0.028
-    fig.text(0.06, y, line, fontsize=10, ha="left", va="top", family="DejaVu Sans")
-# Save the figure after all lines are processed
-pdf.savefig(fig)
-plt.close(fig)
+        pdf.savefig(fig)
+        plt.close(fig)
 
-# === Top 5 Charts by Product ===
-products = {
-    "Lutetium  (177Lu) chloride N.C.A.": "Top 5 N.C.A. Customers",
-    "Lutetium (177Lu) chloride C.A": "Top 5 C.A. Customers",
-    "Terbium-161 chloride n.c.a": "Top 5 Terbium Customers"
-}
+        plt.close(fig)
+    # === Top 5 Charts by Product ===
+    products = {
+        "Lutetium  (177Lu) chloride N.C.A.": "Top 5 N.C.A. Customers",
+        "Lutetium (177Lu) chloride C.A": "Top 5 C.A. Customers",
+        "Terbium-161 chloride n.c.a": "Top 5 Terbium Customers"
+    }
+    for product_name, title in products.items():
+        product_df = recent_df[recent_df["Product"] == product_name]
+        if product_df.empty:
+            continue
+        top_customers = product_df.groupby("Customer")["Total_mCi"].sum().sort_values(ascending=False).head(5).index
+        plot_df = product_df[product_df["Customer"].isin(top_customers)].copy()
+        plot_df["WrappedCustomer"] = plot_df["Customer"].apply(lambda x: '\n'.join(textwrap.wrap(x, 12)))
+        plot_df["WeekLabel"] = plot_df["Year"].astype(str) + "-W" + plot_df["Week"].astype(str).str.zfill(2)
 
-for product_name, title in products.items():
-    product_df = recent_df[recent_df["Product"] == product_name]
-    if product_df.empty:
-        continue
+        pivot_df = plot_df.pivot_table(index="WeekLabel", columns="WrappedCustomer", values="Total_mCi", aggfunc="sum").fillna(0)
+        pivot_df = pivot_df.reindex(sorted(pivot_df.index, key=lambda x: (int(x.split("-W")[0]), int(x.split("-W")[1]))))
+        fig, ax = plt.subplots(figsize=(8, 4.5))  # Increased size for better clarity
+        pivot_df.plot(ax=ax, marker='o')
 
-    top_customers = product_df.groupby("Customer")["Total_mCi"].sum().sort_values(ascending=False).head(5).index
-    plot_df = product_df[product_df["Customer"].isin(top_customers)].copy()
-    plot_df["WrappedCustomer"] = plot_df["Customer"].apply(lambda x: '\n'.join(textwrap.wrap(x, 12)))
-    plot_df["WeekLabel"] = plot_df["Year"].astype(str) + "-W" + plot_df["Week"].astype(str).str.zfill(2)
+        ax.set_title(title, fontsize=16, weight='bold')
+        ax.set_xlabel("Week of Supply", fontsize=11)
+        ax.set_ylabel("Total mCi Ordered", fontsize=11)
+        ax.tick_params(axis='x', rotation=45)  # Rotate week labels to prevent overlap
+        ax.grid(True, linestyle='--', alpha=0.5)
+        ax.legend(title="Customer", bbox_to_anchor=(1.02, 1), loc='upper left')
 
-    pivot_df = plot_df.pivot_table(index="WeekLabel", columns="WrappedCustomer", values="Total_mCi", aggfunc="sum").fillna(0)
-    pivot_df = pivot_df.reindex(sorted(pivot_df.index, key=lambda x: (int(x.split("-W")[0]), int(x.split("-W")[1]))))
+        fig.tight_layout(pad=2.0)  # Ensure nothing is cut off or overlapping
+        pdf.savefig(fig, bbox_inches="tight")
+        plt.close(fig)
 
-    fig, ax = plt.subplots(figsize=(8, 4.5))
-    pivot_df.plot(ax=ax, marker='o')
-
-    ax.set_title(title, fontsize=16, weight='bold')
-    ax.set_xlabel("Week of Supply", fontsize=11)
-    ax.set_ylabel("Total mCi Ordered", fontsize=11)
-    ax.tick_params(axis='x', rotation=45)
-    ax.grid(True, linestyle='--', alpha=0.5)
-    ax.legend(title="Customer", bbox_to_anchor=(1.02, 1), loc='upper left')
-
-    fig.tight_layout(pad=2.0)
-    pdf.savefig(fig, bbox_inches="tight")
-    plt.close(fig)
 # === Save report with additional filenames ===
 summary_pdf = os.path.join(output_folder, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf")
 latest_copy_path = os.path.join(output_folder, "Latest_Weekly_Report.pdf")
@@ -521,6 +493,7 @@ print(f"✅ Report also saved as: {latest_copy_path}")
 
 # === Upload PDFs to Google Drive Folder ===
 folder_id = "1i1DAOTnF8SznikYrS-ovrg2TRgth9wwP"
+upload_to_drive(latest_pdf, f"Weekly_Orders_Report_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
 
