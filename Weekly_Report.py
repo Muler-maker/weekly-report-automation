@@ -455,55 +455,68 @@ with PdfPages(latest_pdf) as pdf:
             fig.text(0.06, 0.87, "Customers who were active 4–8 weeks ago but not in the most recent 4 weeks.", fontsize=9)
             pdf.savefig(fig, bbox_inches="tight")
             plt.close(fig)
-                    # === Add ChatGPT insights page ===
-        fig = plt.figure(figsize=(9.5, 11))
-        plt.axis("off")
 
-        # Split long insights into wrapped lines
-        insight_lines = insights.split("\n")
-        wrapped_insights = []
-        for line in insight_lines:
-            wrapped_insights.extend(textwrap.wrap(line, width=100, break_long_words=False) if len(line) > 100 else [line])
+# === Add ChatGPT insights pages (paginated) ===
+insight_lines = insights.split("\n")
+wrapped_insights = []
+for line in insight_lines:
+    # Wrap long lines at 100 characters, keep short lines as is
+    wrapped_insights.extend(
+        textwrap.wrap(line, width=100, break_long_words=False) if len(line) > 100 else [line]
+    )
 
-        # Add text to the figure
-        for i, line in enumerate(wrapped_insights):
-            y = 1 - (i + 1) * 0.028
-            fig.text(0.06, y, line, fontsize=10, ha="left", va="top", family="DejaVu Sans")
+lines_per_page = 35  # Adjust if you want more or fewer lines per page
 
-        pdf.savefig(fig)
-        plt.close(fig)
+for page_start in range(0, len(wrapped_insights), lines_per_page):
+    fig = plt.figure(figsize=(9.5, 11))
+    plt.axis("off")
+    page_lines = wrapped_insights[page_start:page_start + lines_per_page]
+    for i, line in enumerate(page_lines):
+        y = 1 - (i + 1) * 0.028
+        fig.text(0.06, y, line, fontsize=10, ha="left", va="top", family="DejaVu Sans")
+    pdf.savefig(fig)
+    plt.close(fig)
 
-        plt.close(fig)
-    # === Top 5 Charts by Product ===
-    products = {
-        "Lutetium  (177Lu) chloride N.C.A.": "Top 5 N.C.A. Customers",
-        "Lutetium (177Lu) chloride C.A": "Top 5 C.A. Customers",
-        "Terbium-161 chloride n.c.a": "Top 5 Terbium Customers"
-    }
-    for product_name, title in products.items():
-        product_df = recent_df[recent_df["Product"] == product_name]
-        if product_df.empty:
-            continue
-        top_customers = product_df.groupby("Customer")["Total_mCi"].sum().sort_values(ascending=False).head(5).index
-        plot_df = product_df[product_df["Customer"].isin(top_customers)].copy()
-        plot_df["WrappedCustomer"] = plot_df["Customer"].apply(lambda x: '\n'.join(textwrap.wrap(x, 12)))
-        plot_df["WeekLabel"] = plot_df["Year"].astype(str) + "-W" + plot_df["Week"].astype(str).str.zfill(2)
+# === Top 5 Charts by Product ===
+products = {
+    "Lutetium  (177Lu) chloride N.C.A.": "Top 5 N.C.A. Customers",
+    "Lutetium (177Lu) chloride C.A": "Top 5 C.A. Customers",
+    "Terbium-161 chloride n.c.a": "Top 5 Terbium Customers"
+}
 
-        pivot_df = plot_df.pivot_table(index="WeekLabel", columns="WrappedCustomer", values="Total_mCi", aggfunc="sum").fillna(0)
-        pivot_df = pivot_df.reindex(sorted(pivot_df.index, key=lambda x: (int(x.split("-W")[0]), int(x.split("-W")[1]))))
-        fig, ax = plt.subplots(figsize=(8, 4.5))  # Increased size for better clarity
-        pivot_df.plot(ax=ax, marker='o')
+for product_name, title in products.items():
+    product_df = recent_df[recent_df["Product"] == product_name]
+    if product_df.empty:
+        continue
+    top_customers = product_df.groupby("Customer")["Total_mCi"].sum().sort_values(ascending=False).head(5).index
+    plot_df = product_df[product_df["Customer"].isin(top_customers)].copy()
+    plot_df["WrappedCustomer"] = plot_df["Customer"].apply(lambda x: '\n'.join(textwrap.wrap(x, 12)))
+    plot_df["WeekLabel"] = plot_df["Year"].astype(str) + "-W" + plot_df["Week"].astype(str).str.zfill(2)
 
-        ax.set_title(title, fontsize=16, weight='bold')
-        ax.set_xlabel("Week of Supply", fontsize=11)
-        ax.set_ylabel("Total mCi Ordered", fontsize=11)
-        ax.tick_params(axis='x', rotation=45)  # Rotate week labels to prevent overlap
-        ax.grid(True, linestyle='--', alpha=0.5)
-        ax.legend(title="Customer", bbox_to_anchor=(1.02, 1), loc='upper left')
+    pivot_df = plot_df.pivot_table(
+        index="WeekLabel",
+        columns="WrappedCustomer",
+        values="Total_mCi",
+        aggfunc="sum"
+    ).fillna(0)
+    pivot_df = pivot_df.reindex(sorted(
+        pivot_df.index,
+        key=lambda x: (int(x.split("-W")[0]), int(x.split("-W")[1]))
+    ))
 
-        fig.tight_layout(pad=2.0)  # Ensure nothing is cut off or overlapping
-        pdf.savefig(fig, bbox_inches="tight")
-        plt.close(fig)
+    fig, ax = plt.subplots(figsize=(8, 4.5))  # Increased size for better clarity
+    pivot_df.plot(ax=ax, marker='o')
+
+    ax.set_title(title, fontsize=16, weight='bold')
+    ax.set_xlabel("Week of Supply", fontsize=11)
+    ax.set_ylabel("Total mCi Ordered", fontsize=11)
+    ax.tick_params(axis='x', rotation=45)  # Rotate week labels to prevent overlap
+    ax.grid(True, linestyle='--', alpha=0.5)
+    ax.legend(title="Customer", bbox_to_anchor=(1.02, 1), loc='upper left')
+
+    fig.tight_layout(pad=2.0)  # Ensure nothing is cut off or overlapping
+    pdf.savefig(fig, bbox_inches="tight")
+    plt.close(fig)
 
 # === Save report with additional filenames ===
 summary_pdf = os.path.join(output_folder, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf")
