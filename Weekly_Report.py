@@ -243,7 +243,7 @@ with PdfPages(latest_pdf) as pdf:
         print("⚠️ No data available. Generated fallback PDF with message page only.")
     else:
         # --- Cover Page ---
-        fig = plt.figure(figsize=(9.5, 11))
+        fig = plt.figure(figsize=(8.27, 11.69))
         plt.axis("off")
 
         fig.text(0.5, 0.78, f"Weekly Orders Report – Week {week_num}, {year}",
@@ -275,7 +275,7 @@ with PdfPages(latest_pdf) as pdf:
             )
 
             fig_height = max(4.5, 0.4 + 0.3 * len(stopped_df))
-            fig, ax = plt.subplots(figsize=(10, fig_height))
+            fig, ax = plt.subplots(figsize=(8.27, fig_height))
             ax.axis("off")
 
             table = ax.table(
@@ -315,7 +315,7 @@ with PdfPages(latest_pdf) as pdf:
             )
 
             fig_height = max(4.5, 0.4 + 0.3 * len(decreased_df))
-            fig, ax = plt.subplots(figsize=(10, fig_height))
+            fig, ax = plt.subplots(figsize=(8.27, fig_height))
             ax.axis("off")
 
             table = ax.table(
@@ -356,7 +356,7 @@ with PdfPages(latest_pdf) as pdf:
             )
 
             fig_height = max(4.5, 0.4 + 0.3 * len(increased_df))
-            fig, ax = plt.subplots(figsize=(10, fig_height))
+            fig, ax = plt.subplots(figsize=(8.27, fig_height))
             ax.axis("off")
 
             table = ax.table(
@@ -389,7 +389,7 @@ with PdfPages(latest_pdf) as pdf:
             )
 
             fig_height = max(4.5, 0.4 + 0.3 * len(inactive_df))
-            fig, ax = plt.subplots(figsize=(10, fig_height))
+            fig, ax = plt.subplots(figsize=(8.27, fig_height))
             ax.axis("off")
 
             table = ax.table(
@@ -414,7 +414,7 @@ with PdfPages(latest_pdf) as pdf:
             pdf.savefig(fig, bbox_inches="tight")
             plt.close(fig)
                     # === Add ChatGPT insights page ===
-        fig = plt.figure(figsize=(9.5, 11))
+        fig = plt.figure(figsize=(8.27, 11.69))
         plt.axis("off")
 
         # Split long insights into wrapped lines
