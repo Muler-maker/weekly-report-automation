@@ -129,7 +129,8 @@ df = df.rename(columns={
     "Week of supply": "Week",
     "Shipping Status": "ShippingStatus",
     "Catalogue description (sold as)": "Product",
-    "Distributing company (from Company name)": "Distributor"
+    "Distributing company (from Company name)": "Distributor",
+    "Country": "Country"
 })
 
 valid_statuses = ["Shipped", "Partially shipped", "Shipped and arrived late", "Order being processed"]
@@ -171,14 +172,16 @@ for customer in all_customers:
         decreased.append((customer, prev, curr, manager))
 # === Build mapping: customer to distributor ===
 customer_to_distributor = df.set_index("Customer")["Distributor"].to_dict()
+customer_to_country = df.set_index("Customer")["Country"].to_dict()
 
 # === For GPT prompt only: create formatted lines with distributor info ===
 def format_row_for_gpt(name, prev, curr, mgr):
     distributor = customer_to_distributor.get(name, "Unknown")
+    country = customer_to_country.get(name, "Unknown")
     return (
         f"{name:<30} | {curr - prev:+7.0f} mCi | "
         f"{(curr - prev) / prev * 100 if prev else 100:+6.1f}% | "
-        f"{mgr} | {distributor}"
+        f"{mgr} | {distributor} | {country}"
     )
 
 gpt_rows = [
@@ -186,7 +189,7 @@ gpt_rows = [
     for (name, prev, curr, mgr) in increased + decreased
 ]
 gpt_distributor_section = [
-    "Customer name                     | Change   | % Change | Account Manager | Distributor"
+    "Customer name                     | Change   | % Change | Account Manager | Distributor | Country"
 ] + gpt_rows
 
 # === Inactive recent 4 weeks ===
@@ -270,33 +273,36 @@ report_text = (
 
 # System prompt with analyst instructions
 system_prompt = """
-You are a senior business analyst. Based on the weekly report, provide clear and concise action items organized by Account Manager. Each action item should identify the relevant customer, the issue or opportunity, and a suggested next step.
+You are a senior business analyst. Analyze the weekly report and generate clear, actionable recommendations for each Account Manager, organized under their own section. Structure your insights in a top-down approach—start with patterns or issues at the Distributor level, note any relevant Country-level trends, and then drill down to individual Customers.
 
-For each Account Manager, include a section header with their name, for example: Vicki Beillis:
-- If there are no action items for an Account Manager that week, include a single line: No significant action items this week.
-- Otherwise, list the relevant action items in bullet or numbered format.
+For each Account Manager:
+- Use a section header with their name (e.g., Vicki Beillis).
+- If there are no action items for that week, write: No significant action items this week.
+- Otherwise, list all relevant recommendations in a numbered or bulleted format, grouped and prioritized as follows:
+    1. Distributor-level insights (mention any distributor handling multiple customers with similar trends or issues, with suggested actions).
+    2. Country-level patterns (highlight any notable changes or risks affecting several customers in the same country).
+    3. Customer-specific actions (briefly state the customer, issue or opportunity, and a clear next step).
 
-Important: Do NOT use any Markdown formatting, asterisks, or special symbols. Use only plain text for all section headers and for all lists.
-
-Use the following considerations during your analysis:
-1. COMISSÃO NACIONAL DE ENERGIA NUCLEAR (CNEN) is expected to place orders every two weeks on even-numbered weeks. Flag any deviation from this pattern.
-2. Treat the following customers as a single group under 'Sinotau' when evaluating order volume trends:
+Guidelines for your analysis:
+1. COMISSÃO NACIONAL DE ENERGIA NUCLEAR (CNEN) is expected to place orders every two weeks on even-numbered weeks. Flag any deviation.
+2. Treat the following as a single group under 'Sinotau' when evaluating trends:
    - Glotope (Mianyang) Advanced Pharmaceutical Technology Ltd
    - Jiangsu Sinotau Molecular Imaging Science & Technology Co. LTD
    - Sinotau Pharmaceutical Group (Beijing)
    - Sinotau Pharmaceutical Group (Guangdong)
    - Sinotau Pharmaceutical Group (Sichuan)
-3. Treat the following customers as a single group under 'Seibersdorf Laboratories':
+3. Treat the following as a single group under 'Seibersdorf Laboratories':
    - Seibersdorf Laboratories
    - Seibersdorf Laboratories (Blue Earth Therapeutics)
    - Seibersdorf Laboratories (Debiopharm)
    - Seibersdorf Laboratories (Philochem)
    - Seibersdorf Laboratories (Starget Pharma)
-4. Only include Sinotau or Seibersdorf if there’s a noteworthy insight.
+4. Only mention Sinotau or Seibersdorf if there’s a noteworthy insight.
 5. Focus on abnormal behavior, order spikes/drops, or lack of recent activity. Avoid stating the obvious.
-6. Keep action items short, specific, and helpful.
-7. As you generate action items, consider patterns, risks, or opportunities involving distributors. If an issue or trend affects multiple customers handled by the same distributor, mention it in the relevant action items and provide distributor-level suggestions where appropriate, in addition to customer-specific recommendations.
-8. Ensure each Account Manager appears only once in your output, summarizing all relevant action items under a single section for each manager.
+6. Recommendations must be concise, specific, and practical for the Account Manager to follow up on.
+7. Use only plain text—no Markdown, asterisks, or special formatting.
+
+Prioritize insights at the distributor and country levels before drilling down to individual customers. Ensure each Account Manager appears only once in your output, summarizing all relevant action items in their section.
 """
 # Call OpenAI chat completion
 response = client.chat.completions.create(
