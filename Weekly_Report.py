@@ -370,7 +370,7 @@ with PdfPages(latest_pdf) as pdf:
                 ]
                 for name, prev, curr, mgr in decreased
             ], columns=["Customer", "Change (mCi)", "% Change", "Account Manager", "PercentValue"])
-            decreased_df = decreased_df.sort_values("PercentValue", ascending=False)
+            decreased_df = decreased_df.sort_values("PercentValue", ascending=True)
             decreased_df = decreased_df.drop(columns="PercentValue")
             fig_height = max(4.5, 0.4 + 0.3 * len(decreased_df))
             fig, ax = plt.subplots(figsize=(10, fig_height))
