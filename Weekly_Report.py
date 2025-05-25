@@ -295,7 +295,7 @@ Use the following considerations during your analysis:
 4. Only include Sinotau or Seibersdorf if there’s a noteworthy insight.
 5. Focus on abnormal behavior, order spikes/drops, or lack of recent activity. Avoid stating the obvious.
 6. Keep action items short, specific, and helpful.
-7. Begin your analysis by reviewing trends and issues at the Distributor level (using the Distributor field provided at the end of the report). Identify any risks, patterns, or opportunities involving multiple customers handled by the same distributor. Then, for each distributor with noteworthy findings, drill down to specific customers and suggest action items by Account Manager as before.
+7. As you generate action items, consider patterns, risks, or opportunities involving distributors. If an issue or trend affects multiple customers handled by the same distributor, mention it in the relevant action items and provide distributor-level suggestions where appropriate, in addition to customer-specific recommendations.
 """
 # Call OpenAI chat completion
 response = client.chat.completions.create(
