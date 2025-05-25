@@ -2,6 +2,8 @@ import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime, timedelta
 import pandas as pd
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import seaborn as sns
@@ -270,40 +272,294 @@ with open(insight_history_path, "a") as f:
     f.write(f"\n\n===== Week {week_num}, {year} =====\n")
     f.write(insights)
 
-# === TEST PDF Generation ===
+# === PDF Generation and email sending follow ===
 latest_pdf = os.path.join(output_folder, f"Weekly_Orders_Report_Week_{week_num}_{year}.pdf")
-
-from matplotlib.backends.backend_pdf import PdfPages
-import matplotlib.pyplot as plt
-
 with PdfPages(latest_pdf) as pdf:
-    # Page 1: Cover
-    fig = plt.figure(figsize=(8.27, 11.69))  # A4 size
-    plt.axis("off")
-    fig.text(0.5, 0.8, "Weekly Orders Report – TEST COVER", fontsize=20, ha="center")
-    pdf.savefig(fig)
+
+    if not any([stopped, decreased, increased, inactive_recent_4]):
+        print("⚠️ No customer activity found. Generating fallback PDF page.")
+        fig = plt.figure(figsize=(8.27, 11.69))  # A4 size
+        plt.axis("off")
+        fig.text(0.5, 0.5, "No data available for this week's report.", ha="center", va="center", fontsize=18)
+        pdf.savefig(fig)
+        plt.close(fig)
+
+    else:
+        # --- Cover Page ---
+        fig = plt.figure(figsize=(9.5, 11))
+        plt.axis("off")
+
+        fig.text(0.5, 0.78, f"Weekly Orders Report – Week {week_num}, {year}",
+                 fontsize=26, ha="center", va="center", weight='bold')
+
+        logo_path = os.path.join(script_dir, "Isotopia.jpg")
+        logo = mpimg.imread(logo_path)
+
+        logo_width = 0.25
+        logo_height = 0.12
+        logo_x = (1 - logo_width) / 2
+        logo_y = 0.60
+
+        ax_logo = fig.add_axes([logo_x, logo_y, logo_width, logo_height])
+        ax_logo.imshow(logo)
+        ax_logo.axis("off")
+
+        pdf.savefig(fig, bbox_inches="tight")
+        plt.close(fig)
+
+        # --- STOPPED ORDERING TABLE ---
+        if stopped:
+            stopped_df = pd.DataFrame(
+                [
+                    [name, wrap_text(mgr)]
+                    for name, mgr in stopped
+                ],
+                columns=["Customer", "Account Manager"]
+            )
+
+            fig_height = max(4.5, 0.4 + 0.3 * len(stopped_df))
+            fig, ax = plt.subplots(figsize=(10, fig_height))
+            ax.axis("off")
+
+            table = ax.table(
+                cellText=stopped_df.values,
+                colLabels=stopped_df.columns,
+                loc="upper left",
+                cellLoc="left"
+            )
+            table.auto_set_font_size(False)
+            table.set_fontsize(6.5)
+            table.scale(1.0, 2.0)
+
+            for key, cell in table.get_celld().items():
+                row, col = key
+                if col == 0:
+                    cell.set_width(0.6)
+                else:
+                    cell.set_width(0.15)
+
+            ax.set_title("STOPPED ORDERING", fontsize=12, weight="bold", pad=10)
+            fig.text(0.06, 0.87, "Customers who stopped ordering in the last 4 weeks but did order in the 4 weeks before.", fontsize=9)
+
+            pdf.savefig(fig, bbox_inches="tight")
+            plt.close(fig)
+        # --- DECREASED ORDERS TABLE ---
+        if decreased:
+            decreased_df = pd.DataFrame([
+                [
+                    name,
+                    f"{curr - prev:+.0f}",
+                    f"{(curr - prev) / prev * 100:+.1f}%" if prev else "+100%",
+                    wrap_text(mgr)
+                ]
+                for name, prev, curr, mgr in decreased
+            ],
+            columns=["Customer", "Change (mCi)", "% Change", "Account Manager"]
+            )
+
+            fig_height = max(4.5, 0.4 + 0.3 * len(decreased_df))
+            fig, ax = plt.subplots(figsize=(10, fig_height))
+            ax.axis("off")
+
+            table = ax.table(
+                cellText=decreased_df.values,
+                colLabels=decreased_df.columns,
+                loc="upper left",
+                cellLoc="left"
+            )
+            table.auto_set_font_size(False)
+            table.set_fontsize(6.5)
+            table.scale(1.0, 2.0)
+
+            for key, cell in table.get_celld().items():
+                row, col = key
+                if col == 0:
+                    cell.set_width(0.6)
+                else:
+                    cell.set_width(0.15)
+
+            ax.set_title("DECREASED ORDERS", fontsize=12, weight="bold", pad=2, y=1.05)
+            fig.text(0.06, 0.87, "These customers ordered less in the last 8 weeks compared to the 8 weeks prior.", fontsize=9)
+            pdf.savefig(fig, bbox_inches="tight")
+            plt.close(fig)
+
+        # --- INCREASED ORDERS TABLE ---
+        if increased:
+            increased_df = pd.DataFrame(
+                [
+                    [
+                        name,
+                        f"{curr - prev:+.0f}",
+                        f"{(curr - prev) / prev * 100:+.1f}%" if prev else "+100%",
+                        wrap_text(mgr)
+                    ]
+                    for name, prev, curr, mgr in increased
+                ],
+                columns=["Customer", "Change (mCi)", "% Change", "Account Manager"]
+            )
+
+            fig_height = max(4.5, 0.4 + 0.3 * len(increased_df))
+            fig, ax = plt.subplots(figsize=(10, fig_height))
+            ax.axis("off")
+
+            table = ax.table(
+                cellText=increased_df.values,
+                colLabels=increased_df.columns,
+                loc="upper left",
+                cellLoc="left"
+            )
+            table.auto_set_font_size(False)
+            table.set_fontsize(6.5)
+            table.scale(1.0, 2.0)
+
+            for key, cell in table.get_celld().items():
+                row, col = key
+                if col == 0:
+                    cell.set_width(0.6)
+                else:
+                    cell.set_width(0.15)
+
+            ax.set_title("INCREASED ORDERS", fontsize=12, weight="bold", pad=2)
+            fig.text(0.06, 0.87, "These customers increased their order amounts in the last 8 weeks compared to the 8 weeks prior.", fontsize=9)
+            pdf.savefig(fig, bbox_inches="tight")
+            plt.close(fig)
+
+        # --- INACTIVE IN PAST 4 WEEKS TABLE ---
+        if inactive_recent_4:
+            inactive_df = pd.DataFrame(
+                [[name] for name in inactive_recent_4],
+                columns=["Customer"]
+            )
+
+            fig_height = max(4.5, 0.4 + 0.3 * len(inactive_df))
+            fig, ax = plt.subplots(figsize=(10, fig_height))
+            ax.axis("off")
+
+            table = ax.table(
+                cellText=inactive_df.values,
+                colLabels=inactive_df.columns,
+                loc="upper left",
+                cellLoc="left"
+            )
+            table.auto_set_font_size(False)
+            table.set_fontsize(6.5)
+            table.scale(1.0, 2.0)
+
+            for key, cell in table.get_celld().items():
+                row, col = key
+                if col == 0:
+                    cell.set_width(0.6)
+                else:
+                    cell.set_width(0.15)
+
+            ax.set_title("INACTIVE IN PAST 4 WEEKS", fontsize=12, weight="bold", pad=2)
+            fig.text(0.06, 0.87, "Customers who were active 4–8 weeks ago but not in the most recent 4 weeks.", fontsize=9)
+            pdf.savefig(fig, bbox_inches="tight")
+            plt.close(fig)
+        # === Add ChatGPT insights page ===
+        fig = plt.figure(figsize=(9.5, 11))
+        plt.axis("off")
+
+        # Split long insights into wrapped lines
+        insight_lines = insights.split("\n")
+        wrapped_insights = []
+        for line in insight_lines:
+            wrapped_insights.extend(
+                textwrap.wrap(line, width=100, break_long_words=False) if len(line) > 100 else [line]
+            )
+
+        # Add text to the figure
+        for i, line in enumerate(wrapped_insights):
+            y = 1 - (i + 1) * 0.028
+
+            # Detect bold lines based on Markdown-style **...**
+            if line.strip().startswith("**") and line.strip().endswith("**"):
+                text = line.strip().strip("*")  # Remove **
+                weight = "bold"
+            else:
+                text = line
+                weight = "normal"
+
+            fig.text(0.06, y, text, fontsize=10, ha="left", va="top", weight=weight, family="DejaVu Sans")
+
+        # Save the figure after all lines are processed
+        pdf.savefig(fig)
+        plt.close(fig)
+# === Top 5 Charts by Product ===
+products = {
+    "Lutetium  (177Lu) chloride N.C.A.": "Top 5 N.C.A. Customers",
+    "Lutetium (177Lu) chloride C.A": "Top 5 C.A. Customers",
+    "Terbium-161 chloride n.c.a": "Top 5 Terbium Customers"
+}
+
+for product_name, title in products.items():
+    product_df = recent_df[recent_df["Product"] == product_name]
+    if product_df.empty:
+        continue
+
+    top_customers = product_df.groupby("Customer")["Total_mCi"].sum().sort_values(ascending=False).head(5).index
+    plot_df = product_df[product_df["Customer"].isin(top_customers)].copy()
+    plot_df["WrappedCustomer"] = plot_df["Customer"].apply(lambda x: '\n'.join(textwrap.wrap(x, 12)))
+    plot_df["WeekLabel"] = plot_df["Year"].astype(str) + "-W" + plot_df["Week"].astype(str).str.zfill(2)
+
+    pivot_df = plot_df.pivot_table(index="WeekLabel", columns="WrappedCustomer", values="Total_mCi", aggfunc="sum").fillna(0)
+    pivot_df = pivot_df.reindex(sorted(pivot_df.index, key=lambda x: (int(x.split("-W")[0]), int(x.split("-W")[1]))))
+
+    fig, ax = plt.subplots(figsize=(8, 4.5))
+    pivot_df.plot(ax=ax, marker='o')
+
+    ax.set_title(title, fontsize=16, weight='bold')
+    ax.set_xlabel("Week of Supply", fontsize=11)
+    ax.set_ylabel("Total mCi Ordered", fontsize=11)
+    ax.tick_params(axis='x', rotation=45)
+    ax.grid(True, linestyle='--', alpha=0.5)
+    ax.legend(title="Customer", bbox_to_anchor=(1.02, 1), loc='upper left')
+
+    fig.tight_layout(pad=2.0)
+    pdf.savefig(fig, bbox_inches="tight")
     plt.close(fig)
 
-    # Page 2: GPT Insights mock
-    lines = [
-        "**Noam Aricha:**",
-        "- Follow up with CNEN about skipped week 22",
-        "**Gilli Bader:**",
-        "- Customer X dropped 60% vs. prior period",
-    ]
+# === Save report with additional filenames ===
+summary_pdf = os.path.join(output_folder, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf")
+latest_copy_path = os.path.join(output_folder, "Latest_Weekly_Report.pdf")
+copyfile(latest_pdf, summary_pdf)
+copyfile(latest_pdf, latest_copy_path)
+print(f"✅ Report also saved as: {summary_pdf}")
+print(f"✅ Report also saved as: {latest_copy_path}")
 
-    fig = plt.figure(figsize=(8.27, 11.69))
-    plt.axis("off")
-    for i, line in enumerate(lines):
-        y = 1 - (i + 1) * 0.05
-        if line.startswith("**") and line.endswith("**"):
-            text = line.strip("*")
-            weight = "bold"
-        else:
-            text = line
-            weight = "normal"
-        fig.text(0.06, y, text, fontsize=10, ha="left", va="top", weight=weight)
-    pdf.savefig(fig)
-    plt.close(fig)
+# === Upload PDFs to Google Drive Folder ===
+folder_id = "1i1DAOTnF8SznikYrS-ovrg2TRgth9wwP"
+upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
+upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
 
-print(f"✅ TEST PDF saved: {latest_pdf}")
+# === Send Email ===
+if not os.path.exists(latest_pdf):
+    print(f"❌ PDF not found at: {latest_pdf}")
+else:
+    print(f"✅ PDF found and will be sent: {latest_pdf}")
+
+send_email(
+    subject=f"Weekly Orders Report – Week {week_num}, {year}",
+    body=f"""Dear team,
+
+Attached is the weekly orders report for Week {week_num}, {year}. The report outlines key changes in customer activity, including:
+
+Customers who increased or decreased their orders
+
+Customers who stopped ordering entirely
+
+Customers who were inactive in the past 4 weeks but had ordered in the 4 weeks prior
+
+The top 5 customers for each product category: NCA, CA, and Terbium
+
+Please let me know if you have any questions or if you'd like to add someone to the mailing list.
+
+Best regards,
+Dan
+""",
+    to_emails=[
+    "danamit@isotopia-global.com"
+],
+    attachment_path=latest_pdf
+)
+print("✅ Report generated and emailed via Resend API.")
