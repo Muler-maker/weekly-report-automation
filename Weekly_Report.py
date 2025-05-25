@@ -222,8 +222,9 @@ response = client.chat.completions.create(
 Please consider the following:
 1. COMISSÃO NACIONAL DE ENERGIA NUCLEAR (CNEN) are supposed to order every two weeks on even week numbers.
 2. Glotope (Mianyang) Advanced Pharmaceutical Technology Ltd, Jiangsu Sinotau Molecular Imaging Science & Technology Co. LTD, Sinotau Pharmaceutical Group (Beijing), Sinotau Pharmaceutical Group (Guangdong), and Sinotau Pharmaceutical Group (Sichuan) belong to the same group of Sinotau — consider the total amount for all these customers when doing the analysis.
-3. Only mention the above customers if there's an important insight about them.
-4. Keep the information short and concise."""
+3. Seibersdorf Laboratories has the following customers:Seibersdorf Laboratories, Seibersdorf Laboratories (Blue Earth Therapeutics), Seibersdorf Laboratories (Debiopharm), Seibersdorf Laboratories (Philochem), Seibersdorf Laboratories (Starget pharma)
+4. Only mention the above customers if there's an important insight about them.
+5. Keep the information short and concise."""
         },
         {
             "role": "user",
