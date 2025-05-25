@@ -478,7 +478,6 @@ print(f"✅ Report also saved as: {latest_copy_path}")
 
 # === Upload PDFs to Google Drive Folder ===
 folder_id = "1i1DAOTnF8SznikYrS-ovrg2TRgth9wwP"
-upload_to_drive(latest_pdf, f"Weekly_Orders_Report_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
 
