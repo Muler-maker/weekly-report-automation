@@ -543,6 +543,10 @@ copyfile(latest_pdf, latest_copy_path)
 print(f"✅ Report also saved as: {summary_pdf}")
 print(f"✅ Report also saved as: {latest_copy_path}")
 
+# === Add a short pause to ensure files are fully written and closed ===
+import time
+time.sleep(0.5)
+
 # === Upload PDFs to Google Drive Folder ===
 folder_id = "1i1DAOTnF8SznikYrS-ovrg2TRgth9wwP"
 upload_to_drive(latest_pdf, f"Weekly_Orders_Report_Week_{week_num}_{year}.pdf", folder_id)
