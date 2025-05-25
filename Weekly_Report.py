@@ -128,7 +128,8 @@ df = df.rename(columns={
     "Year": "Year",
     "Week of supply": "Week",
     "Shipping Status": "ShippingStatus",
-    "Catalogue description (sold as)": "Product"
+    "Catalogue description (sold as)": "Product",
+    "Distributing company (from Company name)": "Distributor"
 })
 
 valid_statuses = ["Shipped", "Partially shipped", "Shipped and arrived late", "Order being processed"]
@@ -168,6 +169,25 @@ for customer in all_customers:
         increased.append((customer, prev, curr, manager))
     elif curr < prev:
         decreased.append((customer, prev, curr, manager))
+# === Build mapping: customer to distributor ===
+customer_to_distributor = df.set_index("Customer")["Distributor"].to_dict()
+
+# === For GPT prompt only: create formatted lines with distributor info ===
+def format_row_for_gpt(name, prev, curr, mgr):
+    distributor = customer_to_distributor.get(name, "Unknown")
+    return (
+        f"{name:<30} | {curr - prev:+7.0f} mCi | "
+        f"{(curr - prev) / prev * 100 if prev else 100:+6.1f}% | "
+        f"{mgr} | {distributor}"
+    )
+
+gpt_rows = [
+    format_row_for_gpt(name, prev, curr, mgr)
+    for (name, prev, curr, mgr) in increased + decreased
+]
+gpt_distributor_section = [
+    "Customer name                     | Change   | % Change | Account Manager | Distributor"
+] + gpt_rows
 
 # === Inactive recent 4 weeks ===
 last_8_weeks = week_pairs[-8:]
@@ -242,6 +262,11 @@ if os.path.exists(insight_history_path):
         past_insights = f.read()
     # Separate with a clear marker
     report_text = f"{past_insights}\n\n===== NEW WEEK =====\n\n{report_text}"
+# Add distributor info for GPT analysis (NOT for PDF)
+report_text = (
+    f"{report_text}\n\n=== Distributor info for GPT analysis ===\n" +
+    "\n".join(gpt_distributor_section)
+)
 
 # System prompt with analyst instructions
 system_prompt = """
@@ -270,6 +295,7 @@ Use the following considerations during your analysis:
 4. Only include Sinotau or Seibersdorf if there’s a noteworthy insight.
 5. Focus on abnormal behavior, order spikes/drops, or lack of recent activity. Avoid stating the obvious.
 6. Keep action items short, specific, and helpful.
+7. Begin your analysis by reviewing trends and issues at the Distributor level (using the Distributor field provided at the end of the report). Identify any risks, patterns, or opportunities involving multiple customers handled by the same distributor. Then, for each distributor with noteworthy findings, drill down to specific customers and suggest action items by Account Manager as before.
 """
 # Call OpenAI chat completion
 response = client.chat.completions.create(
