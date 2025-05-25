@@ -358,17 +358,20 @@ with PdfPages(latest_pdf) as pdf:
             pdf.savefig(fig, bbox_inches="tight")
             plt.close(fig)
 
-        # --- DECREASED ORDERS TABLE ---
+# --- DECREASED ORDERS TABLE ---
         if decreased:
             decreased_df = pd.DataFrame([
                 [
                     name,
                     f"{curr - prev:+.0f}",
                     f"{(curr - prev) / prev * 100:+.1f}%" if prev else "+100%",
-                    wrap_text(mgr)
+                    wrap_text(mgr),
+                    (curr - prev) / prev * 100 if prev else 100  # Helper column for sorting
                 ]
                 for name, prev, curr, mgr in decreased
-            ], columns=["Customer", "Change (mCi)", "% Change", "Account Manager"])
+            ], columns=["Customer", "Change (mCi)", "% Change", "Account Manager", "PercentValue"])
+            decreased_df = decreased_df.sort_values("PercentValue", ascending=False)
+            decreased_df = decreased_df.drop(columns="PercentValue")
             fig_height = max(4.5, 0.4 + 0.3 * len(decreased_df))
             fig, ax = plt.subplots(figsize=(10, fig_height))
             ax.axis("off")
@@ -389,19 +392,21 @@ with PdfPages(latest_pdf) as pdf:
             pdf.savefig(fig, bbox_inches="tight")
             plt.close(fig)
 
-        # --- INCREASED ORDERS TABLE ---
+
+ # --- INCREASED ORDERS TABLE ---
         if increased:
-            increased_df = pd.DataFrame(
+            increased_df = pd.DataFrame([
                 [
-                    [
-                        name,
-                        f"{curr - prev:+.0f}",
-                        f"{(curr - prev) / prev * 100:+.1f}%" if prev else "+100%",
-                        wrap_text(mgr)
-                    ]
-                    for name, prev, curr, mgr in increased
-                ], columns=["Customer", "Change (mCi)", "% Change", "Account Manager"]
-            )
+                    name,
+                    f"{curr - prev:+.0f}",
+                    f"{(curr - prev) / prev * 100:+.1f}%" if prev else "+100%",
+                    wrap_text(mgr),
+                    (curr - prev) / prev * 100 if prev else 100  # Helper column for sorting
+                ]
+                for name, prev, curr, mgr in increased
+            ], columns=["Customer", "Change (mCi)", "% Change", "Account Manager", "PercentValue"])
+            increased_df = increased_df.sort_values("PercentValue", ascending=False)
+            increased_df = increased_df.drop(columns="PercentValue")
             fig_height = max(4.5, 0.4 + 0.3 * len(increased_df))
             fig, ax = plt.subplots(figsize=(10, fig_height))
             ax.axis("off")
