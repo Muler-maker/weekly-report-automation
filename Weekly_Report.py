@@ -201,21 +201,32 @@ summary_path = os.path.join(output_folder, "summary.txt")
 with open(summary_path, "w") as f:
     f.write("\n".join(summary_lines))
 
+import os
+from openai import OpenAI
+
 # === ChatGPT Insights with memory ===
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-with open(summary_path, "r") as f:
+
+# Initialize OpenAI client
+openai_api_key = os.getenv("OPENAI_API_KEY")
+if not openai_api_key:
+    raise ValueError("OPENAI_API_KEY environment variable not set.")
+client = OpenAI(api_key=openai_api_key)
+
+# Read summary report
+with open(summary_path, "r", encoding="utf-8") as f:
     report_text = f.read()
 
+# Optional: Prepend past insights for context/memory
 insight_history_path = os.path.join(output_folder, "insight_history.txt")
 if os.path.exists(insight_history_path):
-    with open(insight_history_path, "r") as f:
+    with open(insight_history_path, "r", encoding="utf-8") as f:
         past_insights = f.read()
-    report_text = past_insights + "\n\n" + report_text
+    # Separate with a clear marker
+    report_text = f"{past_insights}\n\n===== NEW WEEK =====\n\n{report_text}"
 
-response = client.chat.completions.create(
-    model="gpt-4o",
-    messages=[
-        {"role": "system", "content": "You are a senior business analyst. Based on the weekly report, provide clear and concise action items organized by Account Manager. Each action item should identify the relevant customer, the issue or opportunity, and a suggested next step.
+# System prompt with analyst instructions
+system_prompt = """
+You are a senior business analyst. Based on the weekly report, provide clear and concise action items organized by Account Manager. Each action item should identify the relevant customer, the issue or opportunity, and a suggested next step.
 
 Use the following considerations during your analysis:
 1. COMISSÃO NACIONAL DE ENERGIA NUCLEAR (CNEN) is expected to place orders every two weeks on even-numbered weeks. Flag any deviation from this pattern.
@@ -233,13 +244,19 @@ Use the following considerations during your analysis:
    - Seibersdorf Laboratories (Starget Pharma)
 4. Only include Sinotau or Seibersdorf if there’s a noteworthy insight.
 5. Focus on abnormal behavior, order spikes/drops, or lack of recent activity. Avoid stating the obvious.
-6. Keep action items short, specific, and helpful."
+6. Keep action items short, specific, and helpful.
+"""
 
-},
+# Call OpenAI chat completion
+response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[
+        {"role": "system", "content": system_prompt},
         {"role": "user", "content": report_text}
     ]
 )
-insights = response.choices[0].message.content
+
+insights = response.choices[0].message.content.strip()
 print("\n💡 GPT Insights:\n", insights)
 
 # === Save new insight to history ===
