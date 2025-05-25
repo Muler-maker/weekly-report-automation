@@ -348,7 +348,7 @@ with PdfPages(latest_pdf) as pdf:
             logo_width = 0.35
             logo_height = 0.18
             logo_x = (1 - logo_width) / 2
-            logo_y = 0.60
+            logo_y = 0.40
             ax_logo = fig.add_axes([logo_x, logo_y, logo_width, logo_height])
             ax_logo.imshow(logo)
             ax_logo.axis("off")
