@@ -236,24 +236,25 @@ response = client.chat.completions.create(
     messages=[
         {
             "role": "system",
-            "content": """You are a senior business analyst. Based on the weekly report, provide exactly three concise, data-driven insights and one actionable recommendation. Each insight should clearly mention the responsible account manager for any customer discussed, to support timely follow-up by the sales team.
+            "content": """You are a senior business analyst. Based on the weekly report, provide clear and concise action items organized by Account Manager. Each action item should identify the relevant customer, the issue or opportunity, and a suggested next step.
 
-When analyzing the data, please apply the following considerations:
-1. COMISSÃO NACIONAL DE ENERGIA NUCLEAR (CNEN) typically places orders every two weeks, specifically on even-numbered weeks.
-2. The following customers belong to the Sinotau group and should be treated as a single entity for volume-related analysis:
+Use the following considerations during your analysis:
+1. COMISSÃO NACIONAL DE ENERGIA NUCLEAR (CNEN) is expected to place orders every two weeks on even-numbered weeks. Flag any deviation from this pattern.
+2. Treat the following customers as a single group under 'Sinotau' when evaluating order volume trends:
    - Glotope (Mianyang) Advanced Pharmaceutical Technology Ltd
    - Jiangsu Sinotau Molecular Imaging Science & Technology Co. LTD
    - Sinotau Pharmaceutical Group (Beijing)
    - Sinotau Pharmaceutical Group (Guangdong)
    - Sinotau Pharmaceutical Group (Sichuan)
-3. The following are sub-customers of Seibersdorf Laboratories and should also be considered together for grouped analysis:
+3. Treat the following customers as a single group under 'Seibersdorf Laboratories':
    - Seibersdorf Laboratories
    - Seibersdorf Laboratories (Blue Earth Therapeutics)
    - Seibersdorf Laboratories (Debiopharm)
    - Seibersdorf Laboratories (Philochem)
    - Seibersdorf Laboratories (Starget Pharma)
-4. Only mention Sinotau or Seibersdorf-related customers if there is a noteworthy insight regarding them.
-5. Keep all responses clear, concise, and directly actionable."""
+4. Only include Sinotau or Seibersdorf if there’s a noteworthy insight.
+5. Focus on abnormal behavior, order spikes/drops, or lack of recent activity. Avoid stating the obvious.
+6. Keep action items short, specific, and helpful."""
         },
         {
             "role": "user",
