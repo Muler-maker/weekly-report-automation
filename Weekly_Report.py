@@ -527,10 +527,16 @@ print(f"✅ Report also saved as: {latest_copy_path}")
 import time
 time.sleep(0.5)
 
+# === Create and save week info file ===
+week_info_path = os.path.join(output_folder, "Week_number.txt")
+with open(week_info_path, "w") as f:
+    f.write(f"{week_num},{year}")
+    
 # === Upload PDFs to Google Drive Folder ===
 folder_id = "1i1DAOTnF8SznikYrS-ovrg2TRgth9wwP"
 upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
+upload_to_drive(week_info_path, "Week_number.txt", folder_id)
 
 # === Send Email ===
 if not os.path.exists(latest_pdf):
