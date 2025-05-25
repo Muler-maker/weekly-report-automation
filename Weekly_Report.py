@@ -468,23 +468,27 @@ with PdfPages(latest_pdf) as pdf:
                 textwrap.wrap(line, width=100, break_long_words=False) if len(line) > 100 else [line]
             )
 
-        # Add text to the figure
-        for i, line in enumerate(wrapped_insights):
-            y = 1 - (i + 1) * 0.028
+import re
 
-            # Detect bold lines based on Markdown-style **...**
-            if line.strip().startswith("**") and line.strip().endswith("**"):
-                text = line.strip().strip("*")  # Remove **
-                weight = "bold"
-            else:
-                text = line
-                weight = "normal"
+# Add text to the figure
+for i, line in enumerate(wrapped_insights):
+    y = 1 - (i + 1) * 0.028
 
-            fig.text(0.06, y, text, fontsize=10, ha="left", va="top", weight=weight, family="DejaVu Sans")
+    # Use regex to match **text** pattern ONLY if the whole line is wrapped with double asterisks
+    m = re.match(r"^\*\*(.+?)\*\*$", line.strip())
+    if m:
+        text = m.group(1)
+        weight = "bold"
+    else:
+        text = line
+        weight = "normal"
 
-        # Save the figure after all lines are processed
-        pdf.savefig(fig)
-        plt.close(fig)
+    fig.text(0.06, y, text, fontsize=10, ha="left", va="top", weight=weight, family="DejaVu Sans")
+
+# Save the figure after all lines are processed
+pdf.savefig(fig)
+plt.close(fig)
+
 # === Top 5 Charts by Product ===
 products = {
     "Lutetium  (177Lu) chloride N.C.A.": "Top 5 N.C.A. Customers",
