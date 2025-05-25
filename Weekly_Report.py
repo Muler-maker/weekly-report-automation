@@ -275,22 +275,20 @@ latest_pdf = os.path.join(output_folder, f"Weekly_Orders_Report_Week_{week_num}_
 with PdfPages(latest_pdf) as pdf:
 
     if not any([stopped, decreased, increased, inactive_recent_4]):
-        fig = plt.figure(figsize=(8.5, 11))
+        print("⚠️ No customer activity found. Generating fallback PDF page.")
+        fig = plt.figure(figsize=(8.27, 11.69))  # A4 size
         plt.axis("off")
-        fig.text(
-            0.5, 0.5,
-            "No data available for this week's report.",
-            ha="center", va="center", fontsize=18
-        )
+        fig.text(0.5, 0.5, "No data available for this week's report.", ha="center", va="center", fontsize=18)
         pdf.savefig(fig)
-        print("⚠️ No data available. Generated fallback PDF with message page only.")
+        plt.close(fig)
+
     else:
         # --- Cover Page ---
         fig = plt.figure(figsize=(9.5, 11))
         plt.axis("off")
 
         fig.text(0.5, 0.78, f"Weekly Orders Report – Week {week_num}, {year}",
-                fontsize=26, ha="center", va="center", weight='bold')
+                 fontsize=26, ha="center", va="center", weight='bold')
 
         logo_path = os.path.join(script_dir, "Isotopia.jpg")
         logo = mpimg.imread(logo_path)
