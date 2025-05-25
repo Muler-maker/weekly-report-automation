@@ -215,7 +215,12 @@ if os.path.exists(insight_history_path):
 response = client.chat.completions.create(
     model="gpt-4o",
     messages=[
-        {"role": "system", "content": "You are a senior business analyst. Based on the weekly report, provide 3 data-driven insights and 1 clear recommendation. Include the responsible account manager for each customer mentioned so the sales team can follow up effectively. Please consider the following: COMISSÃO NACIONAL DE ENERGIA NUCLEAR (CNEN) are supposed to order every two weeks on even week numbers 2.Glotope (Mianyang) Advanced Pharmaceutical Technology Ltd Jiangsu Sinotau Molecular lmaging Science & Technology Co.LTD Sinotau Pharmaceutical Group (Beijing) Sinotau Pharmaceutical Group (Guangdong) Sinotau Pharmaceutical Group (Sichuan) belong to the same group of Sinotau so you should consider the total amount for all these customers when doing the analysis"},
+        {"role": "system", "content": "You are a senior business analyst. Based on the weekly report, provide 3 data-driven insights and 1 clear recommendation. Include the responsible account manager for each customer mentioned so the sales team can follow up effectively. 
+            Please consider the following:
+                1. COMISSÃO NACIONAL DE ENERGIA NUCLEAR (CNEN) are supposed to order every two weeks on even week numbers 
+                2. Glotope (Mianyang) Advanced Pharmaceutical Technology Ltd Jiangsu Sinotau Molecular lmaging Science & Technology Co.LTD Sinotau Pharmaceutical Group (Beijing) Sinotau Pharmaceutical Group (Guangdong) Sinotau Pharmaceutical Group (Sichuan) belong to the same group of Sinotau so you should consider the total amount for all these customers when doing the analysis
+                3. Only mention the above customers if there's an important insight about them
+                4. Keep the the information short and concise"},
         {"role": "user", "content": report_text}
     ]
 )
