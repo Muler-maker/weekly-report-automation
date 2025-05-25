@@ -215,7 +215,11 @@ if os.path.exists(insight_history_path):
 response = client.chat.completions.create(
     model="gpt-4o",
     messages=[
-        {"role": "system", "content": "You are a senior business analyst. Based on the weekly report, provide 3 data-driven insights and 1 clear recommendation. Include the responsible account manager for each customer mentioned so the sales team can follow up effectively."},
+        {"role": "system", "content": "You are a senior business analyst. Based on the weekly report, provide 3 data-driven insights and 1 clear recommendation. Include the responsible account manager for each customer mentioned so the sales team can follow up effectively. Please consider the following: 1. COMISSÃO NACIONAL DE ENERGIA NUCLEAR (CNEN) are supposed to order every two weeks on even week numbers 2.Glotope (Mianyang) Advanced Pharmaceutical Technology Ltd
+Jiangsu Sinotau Molecular lmaging Science & Technology Co.LTD
+Sinotau Pharmaceutical Group (Beijing)
+Sinotau Pharmaceutical Group (Guangdong)
+Sinotau Pharmaceutical Group (Sichuan) belong to the same group of Sinotau so you should consider the total amount for all these customers when doing the analysis"},
         {"role": "user", "content": report_text}
     ]
 )
@@ -243,7 +247,7 @@ with PdfPages(latest_pdf) as pdf:
         print("⚠️ No data available. Generated fallback PDF with message page only.")
     else:
         # --- Cover Page ---
-        fig = plt.figure(figsize=(8.27, 11.69))
+        fig = plt.figure(figsize=(9.5, 11))
         plt.axis("off")
 
         fig.text(0.5, 0.78, f"Weekly Orders Report – Week {week_num}, {year}",
@@ -275,7 +279,7 @@ with PdfPages(latest_pdf) as pdf:
             )
 
             fig_height = max(4.5, 0.4 + 0.3 * len(stopped_df))
-            fig, ax = plt.subplots(figsize=(8.27, fig_height))
+            fig, ax = plt.subplots(figsize=(10, fig_height))
             ax.axis("off")
 
             table = ax.table(
@@ -315,7 +319,7 @@ with PdfPages(latest_pdf) as pdf:
             )
 
             fig_height = max(4.5, 0.4 + 0.3 * len(decreased_df))
-            fig, ax = plt.subplots(figsize=(8.27, fig_height))
+            fig, ax = plt.subplots(figsize=(10, fig_height))
             ax.axis("off")
 
             table = ax.table(
@@ -356,7 +360,7 @@ with PdfPages(latest_pdf) as pdf:
             )
 
             fig_height = max(4.5, 0.4 + 0.3 * len(increased_df))
-            fig, ax = plt.subplots(figsize=(8.27, fig_height))
+            fig, ax = plt.subplots(figsize=(10, fig_height))
             ax.axis("off")
 
             table = ax.table(
@@ -389,7 +393,7 @@ with PdfPages(latest_pdf) as pdf:
             )
 
             fig_height = max(4.5, 0.4 + 0.3 * len(inactive_df))
-            fig, ax = plt.subplots(figsize=(8.27, fig_height))
+            fig, ax = plt.subplots(figsize=(10, fig_height))
             ax.axis("off")
 
             table = ax.table(
@@ -414,7 +418,7 @@ with PdfPages(latest_pdf) as pdf:
             pdf.savefig(fig, bbox_inches="tight")
             plt.close(fig)
                     # === Add ChatGPT insights page ===
-        fig = plt.figure(figsize=(8.27, 11.69))
+        fig = plt.figure(figsize=(9.5, 11))
         plt.axis("off")
 
         # Split long insights into wrapped lines
