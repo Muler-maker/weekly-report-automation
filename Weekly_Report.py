@@ -296,6 +296,7 @@ Use the following considerations during your analysis:
 5. Focus on abnormal behavior, order spikes/drops, or lack of recent activity. Avoid stating the obvious.
 6. Keep action items short, specific, and helpful.
 7. As you generate action items, consider patterns, risks, or opportunities involving distributors. If an issue or trend affects multiple customers handled by the same distributor, mention it in the relevant action items and provide distributor-level suggestions where appropriate, in addition to customer-specific recommendations.
+8. Ensure each Account Manager appears only once in your output, summarizing all relevant action items under a single section for each manager.
 """
 # Call OpenAI chat completion
 response = client.chat.completions.create(
