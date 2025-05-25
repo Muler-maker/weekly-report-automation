@@ -518,7 +518,6 @@ for product_name, title in products.items():
     fig.tight_layout(pad=2.0)
     pdf.savefig(fig, bbox_inches="tight")
     plt.close(fig)
-
 # === Save report with additional filenames ===
 summary_pdf = os.path.join(output_folder, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf")
 latest_copy_path = os.path.join(output_folder, "Latest_Weekly_Report.pdf")
