@@ -392,7 +392,7 @@ with PdfPages(latest_pdf) as pdf:
         pdf.savefig(fig, bbox_inches="tight")
         plt.close(fig)
 
-         # --- STOPPED ORDERING TABLE ---
+        # --- STOPPED ORDERING TABLE ---
         if stopped:
             stopped_df = pd.DataFrame(
                 [
@@ -419,13 +419,25 @@ with PdfPages(latest_pdf) as pdf:
             for (row, col), cell in table.get_celld().items():
                 cell.PAD = 0.2
                 if row == 0:
-                    cell.set_text_props(weight='bold')
                     cell.set_facecolor("#e6e6fa")
+                    if col == 0:
+                        cell.set_text_props(ha="left", weight='bold')
+                    elif col in [1, 2]:
+                        cell.set_text_props(ha="right", weight='bold')
+                    else:
+                        cell.set_text_props(ha="left", weight='bold')
                 elif row % 2 == 0:
                     cell.set_facecolor("#f9f9f9")
+                    if col in [1, 2]:
+                        cell.set_text_props(ha="right")
+                    else:
+                        cell.set_text_props(ha="left")
                 else:
                     cell.set_facecolor("#ffffff")
-                cell.set_text_props(ha="left")
+                    if col in [1, 2]:
+                        cell.set_text_props(ha="right")
+                    else:
+                        cell.set_text_props(ha="left")
 
             ax.set_title("STOPPED ORDERING", fontsize=14, weight="bold", pad=15)
             fig.text(
@@ -470,20 +482,29 @@ with PdfPages(latest_pdf) as pdf:
             table.set_fontsize(8)
             table.scale(1.0, 1.4)
 
+            # Improve alignment and styling
             for (row, col), cell in table.get_celld().items():
                 cell.PAD = 0.2
                 if row == 0:
-                    cell.set_text_props(weight='bold')
                     cell.set_facecolor("#e6e6fa")
+                    if col == 0:
+                        cell.set_text_props(ha="left", weight='bold')
+                    elif col in [1, 2]:
+                        cell.set_text_props(ha="right", weight='bold')
+                    else:
+                        cell.set_text_props(ha="left", weight='bold')
                 elif row % 2 == 0:
                     cell.set_facecolor("#f9f9f9")
+                    if col in [1, 2]:
+                        cell.set_text_props(ha="right")
+                    else:
+                        cell.set_text_props(ha="left")
                 else:
                     cell.set_facecolor("#ffffff")
-                # Right-align numbers, left-align text
-                if col in [1, 2]:
-                    cell.set_text_props(ha="right")
-                else:
-                    cell.set_text_props(ha="left")
+                    if col in [1, 2]:
+                        cell.set_text_props(ha="right")
+                    else:
+                        cell.set_text_props(ha="left")
 
             ax.set_title("DECREASED ORDERS", fontsize=14, weight="bold", pad=15)
             fig.text(
@@ -497,7 +518,7 @@ with PdfPages(latest_pdf) as pdf:
             pdf.savefig(fig, bbox_inches="tight")
             plt.close(fig)
 
-        # --- INCREASED ORDERS TABLE ---
+          # --- INCREASED ORDERS TABLE ---
         if increased:
             increased_df = pd.DataFrame([
                 [
@@ -529,19 +550,29 @@ with PdfPages(latest_pdf) as pdf:
             table.set_fontsize(8)
             table.scale(1.0, 1.4)
 
+            # Improve alignment and styling
             for (row, col), cell in table.get_celld().items():
                 cell.PAD = 0.2
                 if row == 0:
-                    cell.set_text_props(weight='bold')
                     cell.set_facecolor("#e6e6fa")
+                    if col == 0:
+                        cell.set_text_props(ha="left", weight='bold')
+                    elif col in [1, 2]:
+                        cell.set_text_props(ha="right", weight='bold')
+                    else:
+                        cell.set_text_props(ha="left", weight='bold')
                 elif row % 2 == 0:
                     cell.set_facecolor("#f9f9f9")
+                    if col in [1, 2]:
+                        cell.set_text_props(ha="right")
+                    else:
+                        cell.set_text_props(ha="left")
                 else:
                     cell.set_facecolor("#ffffff")
-                if col in [1, 2]:
-                    cell.set_text_props(ha="right")
-                else:
-                    cell.set_text_props(ha="left")
+                    if col in [1, 2]:
+                        cell.set_text_props(ha="right")
+                    else:
+                        cell.set_text_props(ha="left")
 
             ax.set_title("INCREASED ORDERS", fontsize=14, weight="bold", pad=15)
             fig.text(
@@ -578,16 +609,18 @@ with PdfPages(latest_pdf) as pdf:
             table.set_fontsize(8)
             table.scale(1.0, 1.4)
 
+            # Improve alignment and styling
             for (row, col), cell in table.get_celld().items():
                 cell.PAD = 0.2
                 if row == 0:
-                    cell.set_text_props(weight='bold')
                     cell.set_facecolor("#e6e6fa")
+                    cell.set_text_props(ha="left", weight='bold')
                 elif row % 2 == 0:
                     cell.set_facecolor("#f9f9f9")
+                    cell.set_text_props(ha="left")
                 else:
                     cell.set_facecolor("#ffffff")
-                cell.set_text_props(ha="left")
+                    cell.set_text_props(ha="left")
 
             ax.set_title("INACTIVE IN PAST 4 WEEKS", fontsize=14, weight="bold", pad=15)
             fig.text(
