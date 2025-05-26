@@ -470,7 +470,7 @@ with PdfPages(latest_pdf) as pdf:
                 colLabels=decreased_df.columns,
                 loc="upper left",
                 cellLoc="left",
-                colWidths=[0.45, 0.17, 0.13, 0.25]  # More space for customer name
+                colWidths=[0.55, 0.13, 0.12, 0.18]  # More space for customer name
             )
             table.auto_set_font_size(False)
             table.set_fontsize(8)
@@ -528,7 +528,7 @@ with PdfPages(latest_pdf) as pdf:
                 colLabels=increased_df.columns,
                 loc="upper left",
                 cellLoc="left",
-                colWidths=[0.45, 0.17, 0.13, 0.25]  # Adjust as needed for your data
+                colWidths=[0.55, 0.13, 0.12, 0.18]  # Adjust as needed for your data
             )
             table.auto_set_font_size(False)
             table.set_fontsize(8)
