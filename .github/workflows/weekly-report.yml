@@ -1,4 +1,3 @@
-workflow_dispatch:
 name: Weekly Report
 
 on:
