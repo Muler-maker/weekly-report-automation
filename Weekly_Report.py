@@ -311,8 +311,16 @@ response = client.chat.completions.create(
 insights = response.choices[0].message.content.strip()
 print("\n💡 GPT Insights:\n", insights)
 # === Generate Executive Summary ===
-exec_summary_prompt = """
-You are a senior business analyst. Based on the report below, write a short executive summary (max 6 sentences) suitable for company leadership. Focus on the most important trends and insights at a high level. Be concise, avoid technical jargon, and summarize only the key takeaways. Use bullet points if necessary.
+exec_summary_prompt =  """
+You are a senior business analyst. Based on the report below, write a short, high-level executive summary (maximum 6 concise sentences) suitable for a leadership email.
+
+Guidelines:
+- Always begin with: "Dear team,"
+- Focus on major trends across distributors and countries.
+- Mention key customers only if it helps illustrate a broader trend.
+- Do not include any Account Manager names.
+- Highlight notable increases, decreases, or halts in activity.
+- Keep the language concise, professional, and free of jargon.
 """
 
 exec_response = client.chat.completions.create(
