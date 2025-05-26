@@ -310,6 +310,24 @@ response = client.chat.completions.create(
 
 insights = response.choices[0].message.content.strip()
 print("\n💡 GPT Insights:\n", insights)
+# === Generate Executive Summary ===
+exec_summary_prompt = """
+You are a senior business analyst. Based on the report below, write a short executive summary (max 6 sentences) suitable for company leadership. Focus on the most important trends and insights at a high level. Be concise, avoid technical jargon, and summarize only the key takeaways. Use bullet points if necessary.
+"""
+
+exec_response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[
+        {"role": "system", "content": exec_summary_prompt},
+        {"role": "user", "content": report_text}
+    ]
+)
+
+executive_summary = exec_response.choices[0].message.content.strip()
+# === Save executive summary to local file ===
+exec_summary_path = os.path.join(output_folder, "executive_summary.txt")
+with open(exec_summary_path, "w", encoding="utf-8") as f:
+    f.write(executive_summary)
 
 # === Save new insight to history ===
 with open(insight_history_path, "a") as f:
@@ -566,6 +584,7 @@ folder_id = "1i1DAOTnF8SznikYrS-ovrg2TRgth9wwP"
 upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
 upload_to_drive(week_info_path, "Week_number.txt", folder_id)
+upload_to_drive(exec_summary_path, "executive_summary.txt", folder_id)
 
 # === Send Email ===
 if not os.path.exists(latest_pdf):
