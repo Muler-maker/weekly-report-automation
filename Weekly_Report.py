@@ -99,27 +99,27 @@ def upload_to_drive(file_path, file_name, folder_id=None):
         spaces='drive',
         fields='files(id, name)'
     ).execute().get('files', [])
-
-    # Delete existing files with the same name
+    
+    # Delete existing files
     for file in existing_files:
         drive_service.files().delete(fileId=file['id']).execute()
-        print(f"🗑️ Deleted existing file: {file['name']} (ID: {file['id']})")
+        print(f"🗑️ Deleted: {file['name']} (ID: {file['id']})")
 
     # Upload the new file
     file_metadata = {
-        'name': file_name
+        'name': file_name,
+        'parents': [folder_id] if folder_id else []
     }
-    if folder_id:
-        file_metadata['parents'] = [folder_id]
 
-    media = MediaFileUpload(file_path, mimetype='application/pdf')
+    mimetype = 'application/json' if file_name.endswith('.json') else 'application/pdf'
+    media = MediaFileUpload(file_path, mimetype=mimetype)
     uploaded_file = drive_service.files().create(
         body=file_metadata,
         media_body=media,
         fields='id'
     ).execute()
 
-    print(f"✅ Uploaded to Google Drive: {file_name} (ID: {uploaded_file.get('id')})")
+    print(f"✅ Uploaded: {file_name} (ID: {uploaded_file.get('id')})")
 # === Define report date values (simulate 11 days ahead) ===
 today = datetime.today() + timedelta(days=11)
 week_num = today.isocalendar().week
@@ -339,8 +339,6 @@ import json
 summary_json_path = os.path.join(output_folder, "Executive_Summary.json")
 with open(summary_json_path, "w", encoding="utf-8") as f:
     json.dump({
-        "week": week_num,
-        "year": year,
         "executive_summary": executive_summary
     }, f, ensure_ascii=False, indent=2)
 
