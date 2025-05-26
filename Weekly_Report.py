@@ -412,7 +412,7 @@ with PdfPages(latest_pdf) as pdf:
                 colLabels=stopped_df.columns,
                 loc="upper left",
                 cellLoc="left",
-                colWidths=[0.6, 0.4]
+                colWidths=[0.8, 0.2]
             )
             table.auto_set_font_size(False)
             table.set_fontsize(8)
@@ -448,7 +448,7 @@ with PdfPages(latest_pdf) as pdf:
             pdf.savefig(fig, bbox_inches="tight")
             plt.close(fig)
 
-        # --- DECREASED ORDERS TABLE ---
+                # --- DECREASED ORDERS TABLE ---
         if decreased:
             decreased_df = pd.DataFrame([
                 [
@@ -470,7 +470,7 @@ with PdfPages(latest_pdf) as pdf:
                 colLabels=decreased_df.columns,
                 loc="upper left",
                 cellLoc="left",
-                colWidths=[0.4, 0.15, 0.15, 0.3]
+                colWidths=[0.45, 0.17, 0.13, 0.25]  # More space for customer name
             )
             table.auto_set_font_size(False)
             table.set_fontsize(8)
@@ -479,25 +479,23 @@ with PdfPages(latest_pdf) as pdf:
                 cell.PAD = 0.2
                 if row == 0:
                     cell.set_facecolor("#e6e6fa")
-                    if col == 0:
+                    if col in [0, 3]:
                         cell.set_text_props(ha="left", weight='bold')
-                    elif col in [1, 2]:
-                        cell.set_text_props(ha="right", weight='bold')
+                        cell._loc = 'left'
                     else:
-                        cell.set_text_props(ha="left", weight='bold')
+                        cell.set_text_props(ha="right", weight='bold')
+                        cell._loc = 'right'
                 else:
                     if row % 2 == 0:
                         cell.set_facecolor("#f9f9f9")
                     else:
                         cell.set_facecolor("#ffffff")
-                    if col == 0:
+                    if col in [0, 3]:
                         cell.set_text_props(ha="left")
                         cell._loc = 'left'
-                    elif col in [1, 2]:
-                        cell.set_text_props(ha="right")
                     else:
-                        cell.set_text_props(ha="left")
-                        cell._loc = 'left'
+                        cell.set_text_props(ha="right")
+                        cell._loc = 'right'
             ax.set_title("DECREASED ORDERS", fontsize=14, weight="bold", pad=15)
             fig.text(
                 0.5, 0.87,
@@ -507,7 +505,8 @@ with PdfPages(latest_pdf) as pdf:
             pdf.savefig(fig, bbox_inches="tight")
             plt.close(fig)
 
-        # --- INCREASED ORDERS TABLE ---
+
+           # --- INCREASED ORDERS TABLE ---
         if increased:
             increased_df = pd.DataFrame([
                 [
@@ -529,7 +528,7 @@ with PdfPages(latest_pdf) as pdf:
                 colLabels=increased_df.columns,
                 loc="upper left",
                 cellLoc="left",
-                colWidths=[0.4, 0.15, 0.15, 0.3]
+                colWidths=[0.45, 0.17, 0.13, 0.25]  # Adjust as needed for your data
             )
             table.auto_set_font_size(False)
             table.set_fontsize(8)
@@ -538,25 +537,23 @@ with PdfPages(latest_pdf) as pdf:
                 cell.PAD = 0.2
                 if row == 0:
                     cell.set_facecolor("#e6e6fa")
-                    if col == 0:
+                    if col in [0, 3]:
                         cell.set_text_props(ha="left", weight='bold')
-                    elif col in [1, 2]:
-                        cell.set_text_props(ha="right", weight='bold')
+                        cell._loc = 'left'
                     else:
-                        cell.set_text_props(ha="left", weight='bold')
+                        cell.set_text_props(ha="right", weight='bold')
+                        cell._loc = 'right'
                 else:
                     if row % 2 == 0:
                         cell.set_facecolor("#f9f9f9")
                     else:
                         cell.set_facecolor("#ffffff")
-                    if col == 0:
+                    if col in [0, 3]:
                         cell.set_text_props(ha="left")
                         cell._loc = 'left'
-                    elif col in [1, 2]:
-                        cell.set_text_props(ha="right")
                     else:
-                        cell.set_text_props(ha="left")
-                        cell._loc = 'left'
+                        cell.set_text_props(ha="right")
+                        cell._loc = 'right'
             ax.set_title("INCREASED ORDERS", fontsize=14, weight="bold", pad=15)
             fig.text(
                 0.5, 0.87,
@@ -565,6 +562,7 @@ with PdfPages(latest_pdf) as pdf:
             )
             pdf.savefig(fig, bbox_inches="tight")
             plt.close(fig)
+        
 
         # --- INACTIVE IN PAST 4 WEEKS TABLE ---
         if inactive_recent_4:
