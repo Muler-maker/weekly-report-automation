@@ -476,7 +476,7 @@ with PdfPages(latest_pdf) as pdf:
             )
             # Set larger font size for table
             table.auto_set_font_size(False)
-            table.set_fontsize(10)
+            table.set_fontsize(7.5)
             table.scale(1.0, 1.4)
             for (row, col), cell in table.get_celld().items():
                 cell.PAD = 0.2
@@ -542,7 +542,7 @@ with PdfPages(latest_pdf) as pdf:
                 colWidths=colWidths
             )
             table.auto_set_font_size(False)
-            table.set_fontsize(10)
+            table.set_fontsize(7.5)
             table.scale(1.0, 1.4)
             for (row, col), cell in table.get_celld().items():
                 cell.PAD = 0.2
