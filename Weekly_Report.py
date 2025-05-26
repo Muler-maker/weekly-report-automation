@@ -332,11 +332,24 @@ exec_response = client.chat.completions.create(
     ]
 )
 
-executive_summary = exec_response.choices[0].message.content.strip()
-# === Save executive summary to local file ===
-exec_summary_path = os.path.join(output_folder, "executive_summary.txt")
-with open(exec_summary_path, "w", encoding="utf-8") as f:
-    f.write(executive_summary)
+# === Save executive summary as a PDF ===
+exec_summary_pdf_path = os.path.join(output_folder, f"executive_summary_Week_{week_num}_{year}.pdf")
+
+wrapped_summary = []
+for paragraph in executive_summary.split("\n\n"):
+    wrapped_summary.extend(textwrap.wrap(paragraph, width=100, break_long_words=False))
+    wrapped_summary.append("")  # blank line between paragraphs
+
+with PdfPages(exec_summary_pdf_path) as pdf:
+    fig = plt.figure(figsize=(8.5, 11))
+    plt.axis("off")
+    for i, line in enumerate(wrapped_summary[:50]):  # up to 50 lines per page
+        y = 1 - (i + 1) * 0.028
+        fig.text(0.08, y, line, fontsize=10, ha="left", va="top", family="DejaVu Sans")
+    pdf.savefig(fig, bbox_inches="tight")
+    plt.close(fig)
+
+print(f"✅ Executive Summary PDF saved: {exec_summary_pdf_path}")
 
 # === Save new insight to history ===
 with open(insight_history_path, "a") as f:
@@ -593,7 +606,7 @@ folder_id = "1i1DAOTnF8SznikYrS-ovrg2TRgth9wwP"
 upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
 upload_to_drive(week_info_path, "Week_number.txt", folder_id)
-upload_to_drive(exec_summary_path, "executive_summary.txt", folder_id)
+upload_to_drive(exec_summary_pdf_path, f"executive_summary_Week_{week_num}_{year}.pdf", folder_id)
 
 # === Send Email ===
 if not os.path.exists(latest_pdf):
