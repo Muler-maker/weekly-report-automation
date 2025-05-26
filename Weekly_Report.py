@@ -15,6 +15,9 @@ from email.message import EmailMessage
 from openai import OpenAI
 import requests
 import base64
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaIoBaseUpload
+import io
 def wrap_text(text, width=20):
     return '\n'.join(textwrap.wrap(str(text), width=width))
 
@@ -332,24 +335,34 @@ exec_response = client.chat.completions.create(
     ]
 )
 executive_summary = exec_response.choices[0].message.content.strip()
-# === Save executive summary as a PDF ===
-exec_summary_pdf_path = os.path.join(output_folder, "executive_summary.pdf")
+def upload_summary_to_google_doc(summary_text, doc_name, folder_id=None):
+    drive_service = build('drive', 'v3', credentials=creds)
+    docs_service = build('docs', 'v1', credentials=creds)
 
-wrapped_summary = []
-for paragraph in executive_summary.split("\n\n"):
-    wrapped_summary.extend(textwrap.wrap(paragraph, width=100, break_long_words=False))
-    wrapped_summary.append("")  # blank line between paragraphs
+    # Create the Google Doc
+    doc = docs_service.documents().create(body={"title": doc_name}).execute()
+    doc_id = doc["documentId"]
 
-with PdfPages(exec_summary_pdf_path) as pdf:
-    fig = plt.figure(figsize=(8.5, 11))
-    plt.axis("off")
-    for i, line in enumerate(wrapped_summary[:50]):  # up to 50 lines per page
-        y = 1 - (i + 1) * 0.028
-        fig.text(0.08, y, line, fontsize=10, ha="left", va="top", family="DejaVu Sans")
-    pdf.savefig(fig, bbox_inches="tight")
-    plt.close(fig)
+    # Write the executive summary into the document
+    requests_body = [{"insertText": {"location": {"index": 1}, "text": summary_text}}]
+    docs_service.documents().batchUpdate(documentId=doc_id, body={"requests": requests_body}).execute()
 
-print(f"✅ Executive Summary PDF saved: {exec_summary_pdf_path}")
+    # If a folder_id is provided, move the document into that folder
+    if folder_id:
+        # Get existing parent folders (should only be root initially)
+        file = drive_service.files().get(fileId=doc_id, fields='parents').execute()
+        previous_parents = ",".join(file.get('parents', []))
+
+        # Move file to the target folder
+        drive_service.files().update(
+            fileId=doc_id,
+            addParents=folder_id,
+            removeParents=previous_parents,
+            fields='id, parents'
+        ).execute()
+
+    print(f"✅ Executive summary uploaded as Google Doc: https://docs.google.com/document/d/{doc_id}")
+upload_summary_to_google_doc(executive_summary, "Executive Summary", folder_id)
 
 # === Save new insight to history ===
 with open(insight_history_path, "a") as f:
@@ -606,7 +619,6 @@ folder_id = "1i1DAOTnF8SznikYrS-ovrg2TRgth9wwP"
 upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
 upload_to_drive(week_info_path, "Week_number.txt", folder_id)
-upload_to_drive(exec_summary_pdf_path, "executive_summary.pdf", folder_id)
 
 # === Send Email ===
 if not os.path.exists(latest_pdf):
