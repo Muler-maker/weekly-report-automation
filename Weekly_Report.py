@@ -16,8 +16,6 @@ from openai import OpenAI
 import requests
 import base64
 from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseUpload
-import io
 def wrap_text(text, width=20):
     return '\n'.join(textwrap.wrap(str(text), width=width))
 
@@ -27,6 +25,9 @@ plt.rcParams["font.family"] = "DejaVu Sans"
 # === Set local output folder ===
 output_folder = os.path.join(os.getcwd(), 'Reports')
 os.makedirs(output_folder, exist_ok=True)
+
+# === Define target Google Drive folder ID ===
+folder_id = "1i1DAOTnF8SznikYrS-ovrg2TRgth9wwP"
 
 # === Google Sheets Service Account Authentication ===
 script_dir = os.path.dirname(os.path.abspath(__file__)) if '__file__' in globals() else os.getcwd()
@@ -246,9 +247,6 @@ summary_path = os.path.join(output_folder, "summary.txt")
 with open(summary_path, "w") as f:
     f.write("\n".join(summary_lines))
 
-import os
-from openai import OpenAI
-
 # === ChatGPT Insights with memory ===
 
 # Initialize OpenAI client
@@ -335,36 +333,19 @@ exec_response = client.chat.completions.create(
     ]
 )
 executive_summary = exec_response.choices[0].message.content.strip()
-def upload_summary_to_google_doc(summary_text, doc_name, folder_id=None):
-    drive_service = build('drive', 'v3', credentials=creds)
-    docs_service = build('docs', 'v1', credentials=creds)
+import json
 
-    # Create the Google Doc
-    doc = docs_service.documents().create(body={"title": doc_name}).execute()
-    doc_id = doc["documentId"]
+# Save executive summary to JSON
+summary_json_path = os.path.join(output_folder, "Executive_Summary.json")
+with open(summary_json_path, "w", encoding="utf-8") as f:
+    json.dump({
+        "week": week_num,
+        "year": year,
+        "executive_summary": executive_summary
+    }, f, ensure_ascii=False, indent=2)
 
-    # Write the executive summary into the document
-    requests_body = [{"insertText": {"location": {"index": 1}, "text": summary_text}}]
-    docs_service.documents().batchUpdate(documentId=doc_id, body={"requests": requests_body}).execute()
-
-    # If a folder_id is provided, move the document into that folder
-    if folder_id:
-        # Get existing parent folders (should only be root initially)
-        file = drive_service.files().get(fileId=doc_id, fields='parents').execute()
-        previous_parents = ",".join(file.get('parents', []))
-
-        # Move file to the target folder
-        drive_service.files().update(
-            fileId=doc_id,
-            addParents=folder_id,
-            removeParents=previous_parents,
-            fields='id, parents'
-        ).execute()
-
-    print(f"✅ Executive summary uploaded as Google Doc: https://docs.google.com/document/d/{doc_id}")
-folder_id = "1i1DAOTnF8SznikYrS-ovrg2TRgth9wwP"
-upload_summary_to_google_doc(executive_summary, "Executive Summary", folder_id)
-
+# Upload JSON to Google Drive (replacing existing file if any)
+upload_to_drive(summary_json_path, "Executive_Summary.json", folder_id)
 # === Save new insight to history ===
 with open(insight_history_path, "a") as f:
     f.write(f"\n\n===== Week {week_num}, {year} =====\n")
