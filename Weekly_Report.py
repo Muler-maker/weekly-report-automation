@@ -413,7 +413,7 @@ with PdfPages(latest_pdf) as pdf:
             )
             table.auto_set_font_size(False)
             table.set_fontsize(8)
-            table.scale(1.0, 2.3)
+            table.scale(1.0, 1.4)
 
             # Improve alignment and styling
             for (row, col), cell in table.get_celld().items():
@@ -467,7 +467,7 @@ with PdfPages(latest_pdf) as pdf:
 
             table.auto_set_font_size(False)
             table.set_fontsize(8)
-            table.scale(1.0, 2.3)
+            table.scale(1.0, 1.4)
 
             for (row, col), cell in table.get_celld().items():
                 cell.PAD = 0.2
@@ -523,7 +523,7 @@ with PdfPages(latest_pdf) as pdf:
 
             table.auto_set_font_size(False)
             table.set_fontsize(8)
-            table.scale(1.0, 2.3)
+            table.scale(1.0, 1.4)
 
             for (row, col), cell in table.get_celld().items():
                 cell.PAD = 0.2
@@ -569,7 +569,7 @@ with PdfPages(latest_pdf) as pdf:
 
             table.auto_set_font_size(False)
             table.set_fontsize(8)
-            table.scale(1.0, 2.3)
+            table.scale(1.0, 1.4)
 
             for (row, col), cell in table.get_celld().items():
                 cell.PAD = 0.2
