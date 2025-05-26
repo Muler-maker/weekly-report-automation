@@ -392,7 +392,7 @@ with PdfPages(latest_pdf) as pdf:
         pdf.savefig(fig, bbox_inches="tight")
         plt.close(fig)
 
-        # --- STOPPED ORDERING TABLE ---
+         # --- STOPPED ORDERING TABLE ---
         if stopped:
             stopped_df = pd.DataFrame(
                 [
@@ -402,26 +402,42 @@ with PdfPages(latest_pdf) as pdf:
                 columns=["Customer", "Account Manager"]
             )
             fig_height = max(4.5, 0.4 + 0.3 * len(stopped_df))
-            fig, ax = plt.subplots(figsize=(10, fig_height))
+            fig, ax = plt.subplots(figsize=(11, fig_height + 1))  # Slightly wider and taller
             ax.axis("off")
             table = ax.table(
                 cellText=stopped_df.values,
                 colLabels=stopped_df.columns,
                 loc="upper left",
-                cellLoc="left"
+                cellLoc="left",
+                colWidths=[0.6, 0.4]  # Set fixed relative column widths
             )
             table.auto_set_font_size(False)
-            table.set_fontsize(6.5)
-            table.scale(1.0, 2.0)
-            for key, cell in table.get_celld().items():
-                row, col = key
-                cell.set_width(0.6 if col == 0 else 0.15)
-            ax.set_title("STOPPED ORDERING", fontsize=12, weight="bold", pad=10)
-            fig.text(0.06, 0.87, "Customers who stopped ordering in the last 4 weeks but did order in the 4 weeks before.", fontsize=9)
+            table.set_fontsize(8)
+            table.scale(1.0, 2.3)
+
+            # Improve alignment and styling
+            for (row, col), cell in table.get_celld().items():
+                cell.PAD = 0.2
+                if row == 0:
+                    cell.set_text_props(weight='bold')
+                    cell.set_facecolor("#cccccc")
+                elif row % 2 == 0:
+                    cell.set_facecolor("#f9f9f9")
+                else:
+                    cell.set_facecolor("#ffffff")
+                cell.set_ha("left")
+
+            ax.set_title("STOPPED ORDERING", fontsize=14, weight="bold", pad=15)
+            fig.text(
+                0.06,
+                0.87,
+                "Customers who stopped ordering in the last 4 weeks but did order in the 4 weeks before.",
+                fontsize=10
+            )
             pdf.savefig(fig, bbox_inches="tight")
             plt.close(fig)
 
-# --- DECREASED ORDERS TABLE ---
+        # --- DECREASED ORDERS TABLE ---
         if decreased:
             decreased_df = pd.DataFrame([
                 [
@@ -429,34 +445,55 @@ with PdfPages(latest_pdf) as pdf:
                     f"{curr - prev:+.0f}",
                     f"{(curr - prev) / prev * 100:+.1f}%" if prev else "+100%",
                     wrap_text(mgr),
-                    (curr - prev) / prev * 100 if prev else 100  # Helper column for sorting
+                    (curr - prev) / prev * 100 if prev else 100  # Helper column
                 ]
                 for name, prev, curr, mgr in decreased
             ], columns=["Customer", "Change (mCi)", "% Change", "Account Manager", "PercentValue"])
-            decreased_df = decreased_df.sort_values("PercentValue", ascending=True)
-            decreased_df = decreased_df.drop(columns="PercentValue")
+
+            # Sort by PercentValue ascending (worst decreases at top)
+            decreased_df = decreased_df.sort_values("PercentValue", ascending=True).drop(columns="PercentValue")
+
             fig_height = max(4.5, 0.4 + 0.3 * len(decreased_df))
-            fig, ax = plt.subplots(figsize=(10, fig_height))
+            fig, ax = plt.subplots(figsize=(11, fig_height + 1))  # Wider and taller for spacing
             ax.axis("off")
+
             table = ax.table(
                 cellText=decreased_df.values,
                 colLabels=decreased_df.columns,
                 loc="upper left",
-                cellLoc="left"
+                cellLoc="left",
+                colWidths=[0.4, 0.15, 0.15, 0.3]
             )
+
             table.auto_set_font_size(False)
-            table.set_fontsize(6.5)
-            table.scale(1.0, 2.0)
-            for key, cell in table.get_celld().items():
-                row, col = key
-                cell.set_width(0.6 if col == 0 else 0.15)
-            ax.set_title("DECREASED ORDERS", fontsize=12, weight="bold", pad=2, y=1.05)
-            fig.text(0.06, 0.87, "These customers ordered less in the last 8 weeks compared to the 8 weeks prior.", fontsize=9)
+            table.set_fontsize(8)
+            table.scale(1.0, 2.3)
+
+            for (row, col), cell in table.get_celld().items():
+                cell.PAD = 0.2
+                if row == 0:
+                    cell.set_text_props(weight='bold')
+                    cell.set_facecolor("#cccccc")
+                elif row % 2 == 0:
+                    cell.set_facecolor("#f9f9f9")
+                else:
+                    cell.set_facecolor("#ffffff")
+                # Right-align numbers, left-align text
+                if col in [1, 2]:
+                    cell.set_ha("right")
+                else:
+                    cell.set_ha("left")
+
+            ax.set_title("DECREASED ORDERS", fontsize=14, weight="bold", pad=15)
+            fig.text(
+                0.06, 0.87,
+                "These customers ordered less in the last 8 weeks compared to the 8 weeks prior.",
+                fontsize=10
+            )
             pdf.savefig(fig, bbox_inches="tight")
             plt.close(fig)
 
-
- # --- INCREASED ORDERS TABLE ---
+        # --- INCREASED ORDERS TABLE ---
         if increased:
             increased_df = pd.DataFrame([
                 [
@@ -464,29 +501,50 @@ with PdfPages(latest_pdf) as pdf:
                     f"{curr - prev:+.0f}",
                     f"{(curr - prev) / prev * 100:+.1f}%" if prev else "+100%",
                     wrap_text(mgr),
-                    (curr - prev) / prev * 100 if prev else 100  # Helper column for sorting
+                    (curr - prev) / prev * 100 if prev else 100  # Helper column
                 ]
                 for name, prev, curr, mgr in increased
             ], columns=["Customer", "Change (mCi)", "% Change", "Account Manager", "PercentValue"])
-            increased_df = increased_df.sort_values("PercentValue", ascending=False)
-            increased_df = increased_df.drop(columns="PercentValue")
+
+            # Sort by PercentValue descending (biggest increases at top)
+            increased_df = increased_df.sort_values("PercentValue", ascending=False).drop(columns="PercentValue")
+
             fig_height = max(4.5, 0.4 + 0.3 * len(increased_df))
-            fig, ax = plt.subplots(figsize=(10, fig_height))
+            fig, ax = plt.subplots(figsize=(11, fig_height + 1))
             ax.axis("off")
+
             table = ax.table(
                 cellText=increased_df.values,
                 colLabels=increased_df.columns,
                 loc="upper left",
-                cellLoc="left"
+                cellLoc="left",
+                colWidths=[0.4, 0.15, 0.15, 0.3]
             )
+
             table.auto_set_font_size(False)
-            table.set_fontsize(6.5)
-            table.scale(1.0, 2.0)
-            for key, cell in table.get_celld().items():
-                row, col = key
-                cell.set_width(0.6 if col == 0 else 0.15)
-            ax.set_title("INCREASED ORDERS", fontsize=12, weight="bold", pad=2)
-            fig.text(0.06, 0.87, "These customers increased their order amounts in the last 8 weeks compared to the 8 weeks prior.", fontsize=9)
+            table.set_fontsize(8)
+            table.scale(1.0, 2.3)
+
+            for (row, col), cell in table.get_celld().items():
+                cell.PAD = 0.2
+                if row == 0:
+                    cell.set_text_props(weight='bold')
+                    cell.set_facecolor("#cccccc")
+                elif row % 2 == 0:
+                    cell.set_facecolor("#f9f9f9")
+                else:
+                    cell.set_facecolor("#ffffff")
+                if col in [1, 2]:
+                    cell.set_ha("right")
+                else:
+                    cell.set_ha("left")
+
+            ax.set_title("INCREASED ORDERS", fontsize=14, weight="bold", pad=15)
+            fig.text(
+                0.06, 0.87,
+                "These customers increased their order amounts in the last 8 weeks compared to the 8 weeks prior.",
+                fontsize=10
+            )
             pdf.savefig(fig, bbox_inches="tight")
             plt.close(fig)
 
@@ -496,23 +554,40 @@ with PdfPages(latest_pdf) as pdf:
                 [[name] for name in inactive_recent_4],
                 columns=["Customer"]
             )
+
             fig_height = max(4.5, 0.4 + 0.3 * len(inactive_df))
-            fig, ax = plt.subplots(figsize=(10, fig_height))
+            fig, ax = plt.subplots(figsize=(11, fig_height + 1))
             ax.axis("off")
+
             table = ax.table(
                 cellText=inactive_df.values,
                 colLabels=inactive_df.columns,
                 loc="upper left",
-                cellLoc="left"
+                cellLoc="left",
+                colWidths=[0.9]
             )
+
             table.auto_set_font_size(False)
-            table.set_fontsize(6.5)
-            table.scale(1.0, 2.0)
-            for key, cell in table.get_celld().items():
-                row, col = key
-                cell.set_width(0.6 if col == 0 else 0.15)
-            ax.set_title("INACTIVE IN PAST 4 WEEKS", fontsize=12, weight="bold", pad=2)
-            fig.text(0.06, 0.87, "Customers who were active 4–8 weeks ago but not in the most recent 4 weeks.", fontsize=9)
+            table.set_fontsize(8)
+            table.scale(1.0, 2.3)
+
+            for (row, col), cell in table.get_celld().items():
+                cell.PAD = 0.2
+                if row == 0:
+                    cell.set_text_props(weight='bold')
+                    cell.set_facecolor("#cccccc")
+                elif row % 2 == 0:
+                    cell.set_facecolor("#f9f9f9")
+                else:
+                    cell.set_facecolor("#ffffff")
+                cell.set_ha("left")
+
+            ax.set_title("INACTIVE IN PAST 4 WEEKS", fontsize=14, weight="bold", pad=15)
+            fig.text(
+                0.06, 0.87,
+                "Customers who were active 4–8 weeks ago but not in the most recent 4 weeks.",
+                fontsize=10
+            )
             pdf.savefig(fig, bbox_inches="tight")
             plt.close(fig)
 
