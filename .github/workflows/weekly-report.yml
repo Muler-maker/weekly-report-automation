@@ -2,7 +2,7 @@ name: Weekly Report
 
 on:
   schedule:
-    - cron: '0 6 * * 1'  # every Monday at 06:00 UTC (09:00 Israel time)
+    - cron: '0 4 * * 1'  # every Monday at 04:00 UTC (07:00 Israel time)
   workflow_dispatch:      # allows manual run for testing
 
 jobs:
