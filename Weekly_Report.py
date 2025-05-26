@@ -528,7 +528,7 @@ with PdfPages(latest_pdf) as pdf:
                 colLabels=increased_df.columns,
                 loc="upper left",
                 cellLoc="left",
-                colWidths=[0.68, 0.8, 0.8, 0.16  # Adjust as needed for your data
+                colWidths=[0.68, 0.8, 0.8, 0.16]  # Adjust as needed for your data
             )
             table.auto_set_font_size(False)
             table.set_fontsize(7)
