@@ -420,7 +420,7 @@ with PdfPages(latest_pdf) as pdf:
                 cell.PAD = 0.2
                 if row == 0:
                     cell.set_text_props(weight='bold')
-                    cell.set_facecolor("#cccccc")
+                    cell.set_facecolor("#e6e6fa")
                 elif row % 2 == 0:
                     cell.set_facecolor("#f9f9f9")
                 else:
@@ -429,10 +429,11 @@ with PdfPages(latest_pdf) as pdf:
 
             ax.set_title("STOPPED ORDERING", fontsize=14, weight="bold", pad=15)
             fig.text(
-                0.06,
+                0.5,
                 0.87,
                 "Customers who stopped ordering in the last 4 weeks but did order in the 4 weeks before.",
-                fontsize=10
+                fontsize=10,
+                ha="center"
             )
             pdf.savefig(fig, bbox_inches="tight")
             plt.close(fig)
@@ -473,7 +474,7 @@ with PdfPages(latest_pdf) as pdf:
                 cell.PAD = 0.2
                 if row == 0:
                     cell.set_text_props(weight='bold')
-                    cell.set_facecolor("#cccccc")
+                    cell.set_facecolor("#e6e6fa")
                 elif row % 2 == 0:
                     cell.set_facecolor("#f9f9f9")
                 else:
@@ -486,10 +487,13 @@ with PdfPages(latest_pdf) as pdf:
 
             ax.set_title("DECREASED ORDERS", fontsize=14, weight="bold", pad=15)
             fig.text(
-                0.06, 0.87,
+                0.5,
+                0.87,
                 "These customers ordered less in the last 8 weeks compared to the 8 weeks prior.",
-                fontsize=10
+                fontsize=10,
+                ha="center"
             )
+
             pdf.savefig(fig, bbox_inches="tight")
             plt.close(fig)
 
@@ -529,7 +533,7 @@ with PdfPages(latest_pdf) as pdf:
                 cell.PAD = 0.2
                 if row == 0:
                     cell.set_text_props(weight='bold')
-                    cell.set_facecolor("#cccccc")
+                    cell.set_facecolor("#e6e6fa")
                 elif row % 2 == 0:
                     cell.set_facecolor("#f9f9f9")
                 else:
@@ -541,10 +545,13 @@ with PdfPages(latest_pdf) as pdf:
 
             ax.set_title("INCREASED ORDERS", fontsize=14, weight="bold", pad=15)
             fig.text(
-                0.06, 0.87,
+                0.5,
+                0.87,
                 "These customers increased their order amounts in the last 8 weeks compared to the 8 weeks prior.",
-                fontsize=10
+                fontsize=10,
+                ha="center"
             )
+
             pdf.savefig(fig, bbox_inches="tight")
             plt.close(fig)
 
@@ -575,7 +582,7 @@ with PdfPages(latest_pdf) as pdf:
                 cell.PAD = 0.2
                 if row == 0:
                     cell.set_text_props(weight='bold')
-                    cell.set_facecolor("#cccccc")
+                    cell.set_facecolor("#e6e6fa")
                 elif row % 2 == 0:
                     cell.set_facecolor("#f9f9f9")
                 else:
@@ -584,10 +591,13 @@ with PdfPages(latest_pdf) as pdf:
 
             ax.set_title("INACTIVE IN PAST 4 WEEKS", fontsize=14, weight="bold", pad=15)
             fig.text(
-                0.06, 0.87,
+                0.5,
+                0.87,
                 "Customers who were active 4–8 weeks ago but not in the most recent 4 weeks.",
-                fontsize=10
+                fontsize=10,
+                ha="center"
             )
+
             pdf.savefig(fig, bbox_inches="tight")
             plt.close(fig)
 
