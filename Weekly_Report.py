@@ -425,7 +425,6 @@ with PdfPages(latest_pdf) as pdf:
                     cell.set_facecolor("#e6e6fa")
                     if col == 0:
                         cell.set_text_props(ha="left", weight='bold')
-                        cell.set_ha("left")
                     else:
                         cell.set_text_props(ha="left", weight='bold')
                 else:
@@ -435,7 +434,6 @@ with PdfPages(latest_pdf) as pdf:
                         cell.set_facecolor("#ffffff")
                     if col == 0:
                         cell.set_text_props(ha="left")
-                        cell.set_ha("left")
                     else:
                         cell.set_text_props(ha="left")
 
@@ -481,7 +479,6 @@ with PdfPages(latest_pdf) as pdf:
                     cell.set_facecolor("#e6e6fa")
                     if col == 0:
                         cell.set_text_props(ha="left", weight='bold')
-                        cell.set_ha("left")
                     elif col in [1, 2]:
                         cell.set_text_props(ha="right", weight='bold')
                     else:
@@ -493,7 +490,6 @@ with PdfPages(latest_pdf) as pdf:
                         cell.set_facecolor("#ffffff")
                     if col == 0:
                         cell.set_text_props(ha="left")
-                        cell.set_ha("left")
                     elif col in [1, 2]:
                         cell.set_text_props(ha="right")
                     else:
@@ -540,7 +536,6 @@ with PdfPages(latest_pdf) as pdf:
                     cell.set_facecolor("#e6e6fa")
                     if col == 0:
                         cell.set_text_props(ha="left", weight='bold')
-                        cell.set_ha("left")
                     elif col in [1, 2]:
                         cell.set_text_props(ha="right", weight='bold')
                     else:
@@ -552,7 +547,6 @@ with PdfPages(latest_pdf) as pdf:
                         cell.set_facecolor("#ffffff")
                     if col == 0:
                         cell.set_text_props(ha="left")
-                        cell.set_ha("left")
                     elif col in [1, 2]:
                         cell.set_text_props(ha="right")
                     else:
