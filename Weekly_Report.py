@@ -606,7 +606,7 @@ folder_id = "1i1DAOTnF8SznikYrS-ovrg2TRgth9wwP"
 upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
 upload_to_drive(week_info_path, "Week_number.txt", folder_id)
-upload_to_drive(exec_summary_pdf_path, f"executive_summary_Week_{week_num}_{year}.pdf", folder_id)
+upload_to_drive(exec_summary_pdf_path, "executive_summary.pdf", folder_id)
 
 # === Send Email ===
 if not os.path.exists(latest_pdf):
