@@ -425,7 +425,7 @@ with PdfPages(latest_pdf) as pdf:
                     cell.set_facecolor("#f9f9f9")
                 else:
                     cell.set_facecolor("#ffffff")
-                cell.set_ha("left")
+                cell.set_text_props(ha="left")
 
             ax.set_title("STOPPED ORDERING", fontsize=14, weight="bold", pad=15)
             fig.text(
@@ -480,9 +480,9 @@ with PdfPages(latest_pdf) as pdf:
                     cell.set_facecolor("#ffffff")
                 # Right-align numbers, left-align text
                 if col in [1, 2]:
-                    cell.set_ha("right")
+                    cell.set_text_props(ha="right")
                 else:
-                    cell.set_ha("left")
+                    cell.set_text_props(ha="left")
 
             ax.set_title("DECREASED ORDERS", fontsize=14, weight="bold", pad=15)
             fig.text(
@@ -535,9 +535,9 @@ with PdfPages(latest_pdf) as pdf:
                 else:
                     cell.set_facecolor("#ffffff")
                 if col in [1, 2]:
-                    cell.set_ha("right")
+                    cell.set_text_props(ha="right")
                 else:
-                    cell.set_ha("left")
+                    cell.set_text_props(ha="left")
 
             ax.set_title("INCREASED ORDERS", fontsize=14, weight="bold", pad=15)
             fig.text(
@@ -580,7 +580,7 @@ with PdfPages(latest_pdf) as pdf:
                     cell.set_facecolor("#f9f9f9")
                 else:
                     cell.set_facecolor("#ffffff")
-                cell.set_ha("left")
+                cell.set_text_props(ha="left")
 
             ax.set_title("INACTIVE IN PAST 4 WEEKS", fontsize=14, weight="bold", pad=15)
             fig.text(
