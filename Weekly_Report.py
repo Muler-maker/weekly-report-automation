@@ -434,10 +434,10 @@ with PdfPages(latest_pdf) as pdf:
                         cell.set_facecolor("#ffffff")
                     if col == 0:
                         cell.set_text_props(ha="left")
-                        cell._loc = 'left
+                        cell._loc = 'left'
                     else:
                         cell.set_text_props(ha="left")
-                        cell._loc = 'left
+                        cell._loc = 'left'
 
             ax.set_title("STOPPED ORDERING", fontsize=14, weight="bold", pad=15)
             fig.text(
@@ -492,12 +492,12 @@ with PdfPages(latest_pdf) as pdf:
                         cell.set_facecolor("#ffffff")
                     if col == 0:
                         cell.set_text_props(ha="left")
-                        cell._loc = 'left
+                        cell._loc = 'left'
                     elif col in [1, 2]:
                         cell.set_text_props(ha="right")
                     else:
                         cell.set_text_props(ha="left")
-                        cell._loc = 'left
+                        cell._loc = 'left'
             ax.set_title("DECREASED ORDERS", fontsize=14, weight="bold", pad=15)
             fig.text(
                 0.5, 0.87,
@@ -551,12 +551,12 @@ with PdfPages(latest_pdf) as pdf:
                         cell.set_facecolor("#ffffff")
                     if col == 0:
                         cell.set_text_props(ha="left")
-                        cell._loc = 'left
+                        cell._loc = 'left'
                     elif col in [1, 2]:
                         cell.set_text_props(ha="right")
                     else:
                         cell.set_text_props(ha="left")
-                        cell._loc = 'left
+                        cell._loc = 'left'
             ax.set_title("INCREASED ORDERS", fontsize=14, weight="bold", pad=15)
             fig.text(
                 0.5, 0.87,
@@ -593,11 +593,11 @@ with PdfPages(latest_pdf) as pdf:
                 elif row % 2 == 0:
                     cell.set_facecolor("#f9f9f9")
                     cell.set_text_props(ha="left")
-                    cell._loc = 'left
+                    cell._loc = 'left'
                 else:
                     cell.set_facecolor("#ffffff")
                     cell.set_text_props(ha="left")
-                    cell._loc = 'left
+                    cell._loc = 'left'
             ax.set_title("INACTIVE IN PAST 4 WEEKS", fontsize=14, weight="bold", pad=15)
             fig.text(
                 0.5, 0.87,
