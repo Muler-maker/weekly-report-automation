@@ -333,7 +333,7 @@ exec_response = client.chat.completions.create(
 )
 executive_summary = exec_response.choices[0].message.content.strip()
 # === Save executive summary as a PDF ===
-exec_summary_pdf_path = os.path.join(output_folder, f"executive_summary.pdf")
+exec_summary_pdf_path = os.path.join(output_folder, "executive_summary.pdf")
 
 wrapped_summary = []
 for paragraph in executive_summary.split("\n\n"):
