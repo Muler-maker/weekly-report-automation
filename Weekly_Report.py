@@ -426,15 +426,14 @@ with PdfPages(latest_pdf) as pdf:
                         cell.set_text_props(ha="right", weight='bold')
                     else:
                         cell.set_text_props(ha="left", weight='bold')
-                elif row % 2 == 0:
-                    cell.set_facecolor("#f9f9f9")
-                    if col in [1, 2]:
-                        cell.set_text_props(ha="right")
-                    else:
-                        cell.set_text_props(ha="left")
                 else:
-                    cell.set_facecolor("#ffffff")
-                    if col in [1, 2]:
+                    if row % 2 == 0:
+                        cell.set_facecolor("#f9f9f9")
+                    else:
+                        cell.set_facecolor("#ffffff")
+                    if col == 0:
+                        cell.set_text_props(ha="left")  # Enforce left alignment for Customer column
+                    elif col in [1, 2]:
                         cell.set_text_props(ha="right")
                     else:
                         cell.set_text_props(ha="left")
@@ -493,15 +492,14 @@ with PdfPages(latest_pdf) as pdf:
                         cell.set_text_props(ha="right", weight='bold')
                     else:
                         cell.set_text_props(ha="left", weight='bold')
-                elif row % 2 == 0:
-                    cell.set_facecolor("#f9f9f9")
-                    if col in [1, 2]:
-                        cell.set_text_props(ha="right")
-                    else:
-                        cell.set_text_props(ha="left")
                 else:
-                    cell.set_facecolor("#ffffff")
-                    if col in [1, 2]:
+                    if row % 2 == 0:
+                        cell.set_facecolor("#f9f9f9")
+                    else:
+                        cell.set_facecolor("#ffffff")
+                    if col == 0:
+                        cell.set_text_props(ha="left")  # Enforce left alignment for Customer column
+                    elif col in [1, 2]:
                         cell.set_text_props(ha="right")
                     else:
                         cell.set_text_props(ha="left")
@@ -561,15 +559,14 @@ with PdfPages(latest_pdf) as pdf:
                         cell.set_text_props(ha="right", weight='bold')
                     else:
                         cell.set_text_props(ha="left", weight='bold')
-                elif row % 2 == 0:
-                    cell.set_facecolor("#f9f9f9")
-                    if col in [1, 2]:
-                        cell.set_text_props(ha="right")
-                    else:
-                        cell.set_text_props(ha="left")
                 else:
-                    cell.set_facecolor("#ffffff")
-                    if col in [1, 2]:
+                    if row % 2 == 0:
+                        cell.set_facecolor("#f9f9f9")
+                    else:
+                        cell.set_facecolor("#ffffff")
+                    if col == 0:
+                        cell.set_text_props(ha="left")  # Enforce left alignment for Customer column
+                    elif col in [1, 2]:
                         cell.set_text_props(ha="right")
                     else:
                         cell.set_text_props(ha="left")
