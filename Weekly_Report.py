@@ -415,7 +415,7 @@ with PdfPages(latest_pdf) as pdf:
                 colWidths=[0.8, 0.2]
             )
             table.auto_set_font_size(False)
-            table.set_fontsize(7)
+            table.set_fontsize(8)
             table.scale(1.0, 1.4)
 
             # Improve alignment and styling
@@ -473,7 +473,7 @@ with PdfPages(latest_pdf) as pdf:
                 colWidths=[0.68, 0.8, 0.8, 0.16]  # More space for customer name
             )
             table.auto_set_font_size(False)
-            table.set_fontsize(7)
+            table.set_fontsize(8)
             table.scale(1.0, 1.4)
             for (row, col), cell in table.get_celld().items():
                 cell.PAD = 0.2
@@ -531,7 +531,7 @@ with PdfPages(latest_pdf) as pdf:
                 colWidths=[0.68, 0.8, 0.8, 0.16]  # Adjust as needed for your data
             )
             table.auto_set_font_size(False)
-            table.set_fontsize(7)
+            table.set_fontsize(8)
             table.scale(1.0, 1.4)
             for (row, col), cell in table.get_celld().items():
                 cell.PAD = 0.2
@@ -581,7 +581,7 @@ with PdfPages(latest_pdf) as pdf:
                 colWidths=[0.9]
             )
             table.auto_set_font_size(False)
-            table.set_fontsize(7)
+            table.set_fontsize(8)
             table.scale(1.0, 1.4)
             for (row, col), cell in table.get_celld().items():
                 cell.PAD = 0.2
