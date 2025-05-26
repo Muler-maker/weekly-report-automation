@@ -466,7 +466,7 @@ with PdfPages(latest_pdf) as pdf:
             fig, ax = plt.subplots(figsize=(11, fig_height + 1))
             ax.axis("off")
             # Set colWidths: [Customer, Change, % Change, Account Manager]
-            colWidths = [0.55, 0.15, 0.15, 0.15]
+            colWidths = [0.64, 0.12, 0.12, 0.12]
             table = ax.table(
                 cellText=decreased_df.values,
                 colLabels=decreased_df.columns,
@@ -533,7 +533,7 @@ with PdfPages(latest_pdf) as pdf:
             fig_height = max(4.5, 0.4 + 0.3 * len(increased_df))
             fig, ax = plt.subplots(figsize=(11, fig_height + 1))
             ax.axis("off")
-            colWidths = [0.55, 0.15, 0.15, 0.15]
+            colWidths = [0.64, 0.12, 0.12, 0.12]
             table = ax.table(
                 cellText=increased_df.values,
                 colLabels=increased_df.columns,
