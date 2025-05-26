@@ -448,7 +448,7 @@ with PdfPages(latest_pdf) as pdf:
             pdf.savefig(fig, bbox_inches="tight")
             plt.close(fig)
 
-                # --- DECREASED ORDERS TABLE ---
+                   # --- DECREASED ORDERS TABLE ---
         if decreased:
             decreased_df = pd.DataFrame([
                 [
@@ -465,48 +465,58 @@ with PdfPages(latest_pdf) as pdf:
             fig_height = max(4.5, 0.4 + 0.3 * len(decreased_df))
             fig, ax = plt.subplots(figsize=(11, fig_height + 1))
             ax.axis("off")
+            # Set colWidths: [Customer, Change, % Change, Account Manager]
+            colWidths = [0.55, 0.15, 0.15, 0.15]
             table = ax.table(
                 cellText=decreased_df.values,
                 colLabels=decreased_df.columns,
                 loc="upper left",
-                cellLoc="left",
-                colWidths=[0.68, 0.8, 0.8, 0.16]  # More space for customer name
+                cellLoc="center",    # Default: center for all cells, will override Customer later
+                colWidths=colWidths
             )
+            # Set larger font size for table
             table.auto_set_font_size(False)
-            table.set_fontsize(8)
+            table.set_fontsize(12)
             table.scale(1.0, 1.4)
             for (row, col), cell in table.get_celld().items():
                 cell.PAD = 0.2
+                # Header row formatting
                 if row == 0:
                     cell.set_facecolor("#e6e6fa")
-                    if col in [0, 3]:
-                        cell.set_text_props(ha="left", weight='bold')
+                    cell.set_text_props(weight='bold')
+                    # Align "Customer" header left, rest center
+                    if col == 0:
+                        cell.set_text_props(ha="left")
                         cell._loc = 'left'
                     else:
-                        cell.set_text_props(ha="right", weight='bold')
-                        cell._loc = 'right'
+                        cell.set_text_props(ha="center")
+                        cell._loc = 'center'
                 else:
+                    # Stripe effect
                     if row % 2 == 0:
                         cell.set_facecolor("#f9f9f9")
                     else:
                         cell.set_facecolor("#ffffff")
-                    if col in [0, 3]:
+                    # Align "Customer" column left, others center
+                    if col == 0:
                         cell.set_text_props(ha="left")
                         cell._loc = 'left'
                     else:
-                        cell.set_text_props(ha="right")
-                        cell._loc = 'right'
-            ax.set_title("DECREASED ORDERS", fontsize=14, weight="bold", pad=15)
+                        cell.set_text_props(ha="center")
+                        cell._loc = 'center'
+            ax.set_title("DECREASED ORDERS", fontsize=16, weight="bold", pad=15)
             fig.text(
                 0.5, 0.87,
                 "These customers ordered less in the last 8 weeks compared to the 8 weeks prior.",
-                fontsize=10, ha="center"
+                fontsize=12, ha="center"
             )
             pdf.savefig(fig, bbox_inches="tight")
             plt.close(fig)
 
 
-           # --- INCREASED ORDERS TABLE ---
+
+
+          # --- INCREASED ORDERS TABLE ---
         if increased:
             increased_df = pd.DataFrame([
                 [
@@ -523,46 +533,49 @@ with PdfPages(latest_pdf) as pdf:
             fig_height = max(4.5, 0.4 + 0.3 * len(increased_df))
             fig, ax = plt.subplots(figsize=(11, fig_height + 1))
             ax.axis("off")
+            colWidths = [0.55, 0.15, 0.15, 0.15]
             table = ax.table(
                 cellText=increased_df.values,
                 colLabels=increased_df.columns,
                 loc="upper left",
-                cellLoc="left",
-                colWidths=[0.68, 0.8, 0.8, 0.16]  # Adjust as needed for your data
+                cellLoc="center",   # Default: center for all cells, override for Customer column
+                colWidths=colWidths
             )
             table.auto_set_font_size(False)
-            table.set_fontsize(8)
+            table.set_fontsize(12)
             table.scale(1.0, 1.4)
             for (row, col), cell in table.get_celld().items():
                 cell.PAD = 0.2
+                # Header row formatting
                 if row == 0:
                     cell.set_facecolor("#e6e6fa")
-                    if col in [0, 3]:
-                        cell.set_text_props(ha="left", weight='bold')
+                    cell.set_text_props(weight='bold')
+                    if col == 0:
+                        cell.set_text_props(ha="left")
                         cell._loc = 'left'
                     else:
-                        cell.set_text_props(ha="right", weight='bold')
-                        cell._loc = 'right'
+                        cell.set_text_props(ha="center")
+                        cell._loc = 'center'
                 else:
                     if row % 2 == 0:
                         cell.set_facecolor("#f9f9f9")
                     else:
                         cell.set_facecolor("#ffffff")
-                    if col in [0, 3]:
+                    if col == 0:
                         cell.set_text_props(ha="left")
                         cell._loc = 'left'
                     else:
-                        cell.set_text_props(ha="right")
-                        cell._loc = 'right'
-            ax.set_title("INCREASED ORDERS", fontsize=14, weight="bold", pad=15)
+                        cell.set_text_props(ha="center")
+                        cell._loc = 'center'
+            ax.set_title("INCREASED ORDERS", fontsize=16, weight="bold", pad=15)
             fig.text(
                 0.5, 0.87,
                 "These customers increased their order amounts in the last 8 weeks compared to the 8 weeks prior.",
-                fontsize=10, ha="center"
+                fontsize=12, ha="center"
             )
             pdf.savefig(fig, bbox_inches="tight")
             plt.close(fig)
-        
+
 
         # --- INACTIVE IN PAST 4 WEEKS TABLE ---
         if inactive_recent_4:
