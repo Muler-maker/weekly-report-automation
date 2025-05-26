@@ -276,33 +276,25 @@ report_text = (
 
 # System prompt with analyst instructions
 system_prompt = """
-You are a senior business analyst. Analyze the weekly report and generate clear, actionable recommendations for each Account Manager, using a top-down structure: Distributor-level trends, then Country-level patterns, then Customer-specific actions.
+You are a senior business analyst. Analyze the weekly report and generate clear, actionable recommendations for each Account Manager, using a top-down structure: Distributor-level trends, followed by country-level patterns, and then customer-specific actions.
 
 For each Account Manager:
 
-Use a section header with their name.
-
-If there are no action items for that week, write: No significant action items this week.
-
-Otherwise, list relevant recommendations in a numbered or bulleted format, grouped as follows:
-
-Distributor-level insights (flag patterns, risks, or deviations, including expected order behaviors).
-
-Country-level trends (summarize notable changes affecting several customers in the same country).
-
-Customer-specific actions (state the customer, issue or opportunity, and a recommended next step).
+- Use a section header with their name.
+- If there are no action items for that week, write: No significant action items this week.
+- Otherwise, list relevant recommendations in a numbered or bulleted format, grouped as follows:
+    - Distributor-level insights (flag patterns, risks, or deviations, including expected order behaviors).
+    - Country-level trends (summarize notable changes affecting several customers in the same country).
+    - Customer-specific actions (state the customer, issue or opportunity, and a recommended next step).
 
 Guidelines:
 
-Consider previous reports and highlight new, ongoing, or resolved issues.
-
-Focus on abnormal behavior, order spikes/drops, or lack of recent activity. Avoid stating the obvious.
-
-Recommendations must be concise, specific, and practical for the Account Manager to follow up on.
-
-Use only plain text—no Markdown, asterisks, or special formatting.
+- Consider previous reports and highlight new, ongoing, or resolved issues.
+- Focus on abnormal behavior, order spikes/drops, or lack of recent activity. Avoid stating the obvious.
+- Recommendations must be concise, specific, and practical for the Account Manager to follow up on.
+- Use only plain text—no Markdown, asterisks, or special formatting.
+- COMISSÃO NACIONAL DE ENERGIA NUCLEAR (CNEN) is expected to order every two weeks on even-numbered weeks. Flag any deviation from this pattern.
 """
-
 # Call OpenAI chat completion
 response = client.chat.completions.create(
     model="gpt-4o",
