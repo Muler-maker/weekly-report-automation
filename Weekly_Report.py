@@ -331,7 +331,7 @@ exec_response = client.chat.completions.create(
         {"role": "user", "content": report_text}
     ]
 )
-
+executive_summary = exec_response.choices[0].message.content.strip()
 # === Save executive summary as a PDF ===
 exec_summary_pdf_path = os.path.join(output_folder, f"executive_summary_Week_{week_num}_{year}.pdf")
 
