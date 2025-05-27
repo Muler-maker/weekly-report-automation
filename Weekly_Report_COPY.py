@@ -422,21 +422,21 @@ def parse_parentheses_info(question):
     country = ""
     customer = ""
 
-    # Extract only the FINAL parenthesis group in the question
-    match = re.search(r"\((Distributor:[^()]*)\)$", question.strip())
+    # Find the final parenthesis group at the end of the question, if it starts with Distributor:
+    match = re.search(r"\((Distributor:[^)]*)\)\s*$", question)
     if match:
         metadata = match.group(1)
-        # Now extract fields from that metadata
-        parts = dict(
-            part.strip().split(": ", 1)
+        # Split fields by ';' and parse key-value pairs
+        fields = dict(
+            part.strip().split(":", 1)
             for part in metadata.split(";")
-            if ": " in part
+            if ":" in part
         )
-        distributor = parts.get("Distributor", "").strip()
-        country = parts.get("Country", "").strip()
-        customer = parts.get("Customer", "").strip()
+        distributor = fields.get("Distributor", "").strip()
+        country = fields.get("Country", "").strip()
+        customer = fields.get("Customer", "").strip()
 
-    # If customer not specified, fallback to distributor
+    # Fallback: if customer not specified, use distributor
     if not customer:
         customer = distributor
 
@@ -453,7 +453,7 @@ for q in questions_by_am:
         distributors,
         countries,
         customers,
-        re.sub(r"\s*\(Distributor:[^)]+\)", "", q['Question']).strip(),
+        remove_metadata_parenthesis(q['Question']),   # <--- CLEANED question
         "",  # Comments / Feedback
         "Open",
         datetime.now().strftime("%Y-%m-%d")
@@ -770,13 +770,18 @@ with PdfPages(latest_pdf) as pdf:
 
     # === Add ChatGPT insights pages (paginated) ===
     # In the PDF formatting section
-    insight_lines = [re.sub(r"\s*\(Distributor:[^)]*\)$", "", line).strip() for line in insights.split("\n")]
-    wrapped_insights = []
-    for line in insight_lines:
-        wrapped_insights.extend(
-            textwrap.wrap(line, width=100, break_long_words=False) if len(line) > 100 else [line]
-        )
+def remove_metadata_parenthesis(text):
+    # Removes a parenthesis block at the end of a line that contains Distributor: ... (plus optional Country/Customer)
+    return re.sub(r"\s*\([^()]*Distributor:[^)]*\)\s*$", "", text).strip()
 
+insight_lines = [remove_metadata_parenthesis(line) for line in insights.split("\n")]
+
+wrapped_insights = []
+for line in insight_lines:
+    if len(line) > 100:
+        wrapped_insights.extend(textwrap.wrap(line, width=100, break_long_words=False))
+    else:
+        wrapped_insights.append(line)
 
     lines_per_page = 35
     for page_start in range(0, len(wrapped_insights), lines_per_page):
