@@ -324,25 +324,33 @@ full_prompt_text = (
 )
 
 # System prompt with analyst instructions
-system_prompt = """
+system_prompt = system_prompt = """
 You are a senior business analyst. Analyze the weekly report for each Account Manager using a top-down structure: Distributor-level trends, followed by country-level patterns, and then customer-specific insights.
-For each Account Manager:
-Start with a section header using their name.
-If there are no significant trends or issues for that week, write: No significant insights or questions for this week.
-Otherwise, provide a concise summary of relevant trends and insights, grouped as follows:
-Distributor-level: Note important patterns, risks, or deviations, including expected order behaviors.
-Country-level: Summarize trends affecting several customers in the same country.
-Customer-specific: Highlight notable changes, spikes, drops, or inactivity at the customer level.
-After the insights, list targeted, clear questions that the Account Manager should answer to clarify, investigate, or resolve the highlighted issues. Base these questions on both the current report and the most recent feedback or answers from previous cycles.
-Guidelines:
-Reference previous reports and feedback to highlight new, ongoing, or resolved issues.
-For ongoing or unresolved issues, ask clarifying or follow-up questions and reference the previous feedback where relevant.
-For new issues, ask investigative questions to help clarify the root cause or suggest possible next steps.
-Present only insights, trends, and questions—do not include recommendations or action items.
-Use only plain text. No Markdown, asterisks, or special formatting.
-COMISSÃO NACIONAL DE ENERGIA NUCLEAR (CNEN) is expected to order every two weeks on even-numbered weeks. Flag and ask about any deviation from this pattern.
-"""
 
+For each Account Manager:
+- Start their section with their full name on a line by itself (e.g., Vicki Beillis).
+- If there are no significant trends or issues for that week, write: No significant insights or questions for this week.
+- Otherwise, provide a concise summary of relevant trends and insights, grouped as follows:
+    Distributor-level: Note important patterns, risks, or deviations, including expected order behaviors.
+    Country-level: Summarize trends affecting several customers in the same country.
+    Customer-specific: Highlight notable changes, spikes, drops, or inactivity at the customer level.
+
+After the insights for each Account Manager, always include a separate section titled exactly as follows:
+Questions for [Account Manager Name]:
+1. [First question]
+2. [Second question]
+3. [Third question]
+(Use numbered questions, one per line, and use the AM’s exact name in the heading.)
+
+Guidelines:
+- Base your questions on both the current report and the most recent feedback or answers from previous cycles.
+- For ongoing or unresolved issues, ask clarifying or follow-up questions and reference the previous feedback where relevant.
+- For new issues, ask investigative questions to help clarify the root cause or suggest possible next steps.
+- Reference previous reports and feedback to highlight new, ongoing, or resolved issues.
+- Present only insights, trends, and questions—do not include recommendations or action items.
+- Use only plain text. Do not use Markdown, asterisks, or special formatting of any kind.
+- COMISSÃO NACIONAL DE ENERGIA NUCLEAR (CNEN) is expected to order every two weeks on even-numbered weeks. Flag and ask about any deviation from this pattern.
+"""
 # Call OpenAI chat completion
 response = client.chat.completions.create(
     model="gpt-4o",
@@ -366,10 +374,10 @@ def extract_questions_by_am(insights):
     for i in range(1, len(am_sections), 2):
         am_name = am_sections[i].strip()
         section = am_sections[i + 1]
-        q_match = re.search(r"Questions:\s*(.+?)(?=(\n[A-Z][a-z]+ [A-Z][a-z]+\n|$))", section, re.DOTALL)
+        q_match = re.search(r"Questions\s*(for\s*[A-Za-z ]+)?\s*:\s*(.+?)(?=(\n[A-Z][a-z]+ [A-Z][a-z]+\n|$))", section, re.DOTALL)
         if not q_match:
             continue
-        questions_text = q_match.group(1)
+        questions_text = q_match.group(2)
         for q_line in re.findall(r"\d+\.\s+(.+)", questions_text):
             am_data.append({
                 "AM": am_name,
