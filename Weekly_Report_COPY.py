@@ -337,10 +337,10 @@ For each Account Manager:
 
 After the insights for each Account Manager, always include a separate section titled exactly as follows:
 Questions for [Account Manager Name]:
-1. [First question]
-2. [Second question]
-3. [Third question]
-(Use numbered questions, one per line, and use the AM’s exact name in the heading.)
+1. [First question] (Distributor: [Distributor Name(s)])
+2. [Second question] (Distributor: [Distributor Name(s)])
+3. [Third question] (Distributor: [Distributor Name(s)])
+(Use numbered questions, one per line, and use the AM’s exact name in the heading. Each question must explicitly specify the relevant distributor(s) in parentheses exactly as shown.)
 
 Guidelines:
 - Base your questions on both the current report and the most recent feedback or answers from previous cycles.
