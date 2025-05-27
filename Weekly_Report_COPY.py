@@ -769,11 +769,11 @@ with PdfPages(latest_pdf) as pdf:
             plt.close(fig)
 
     # === Add ChatGPT insights pages (paginated) ===
-    # In the PDF formatting section
+# === Function to remove Distributor metadata in parenthesis at the end of lines ===
 def remove_metadata_parenthesis(text):
-    # Removes a parenthesis block at the end of a line that contains Distributor: ... (plus optional Country/Customer)
     return re.sub(r"\s*\([^()]*Distributor:[^)]*\)\s*$", "", text).strip()
 
+# === Clean insight lines and wrap long lines ===
 insight_lines = [remove_metadata_parenthesis(line) for line in insights.split("\n")]
 
 wrapped_insights = []
@@ -783,17 +783,13 @@ for line in insight_lines:
     else:
         wrapped_insights.append(line)
 
-    lines_per_page = 35
-    for page_start in range(0, len(wrapped_insights), lines_per_page):
-        fig = plt.figure(figsize=(9.5, 11))
-        plt.axis("off")
-        page_lines = wrapped_insights[page_start:page_start + lines_per_page]
-        for i, line in enumerate(page_lines):
-            y = 1 - (i + 1) * 0.028
-            fig.text(0.06, y, line, fontsize=10, ha="left", va="top", family="DejaVu Sans")
-        pdf.savefig(fig)
-        plt.close(fig)
-
+# === Paginate and add to PDF ===
+lines_per_page = 35
+for page_start in range(0, len(wrapped_insights), lines_per_page):
+    fig = plt.figure(figsize=(9.5, 11))
+    plt.axis("off")
+    page_lines = wrapped_insights[page_start:page_star]()
+    
     # === Top 5 Charts by Product ===
     products = {
         "Lutetium  (177Lu) chloride N.C.A.": "Top 5 N.C.A. Customers",
