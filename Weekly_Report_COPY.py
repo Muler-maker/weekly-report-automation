@@ -406,26 +406,16 @@ def extract_questions_by_am(insights):
             })
     return am_data
 
-def extract_customers_from_question(question, customer_names):
-    found = []
-    q_lower = question.lower()
-    for cname in customer_names:
-        if cname.lower() in q_lower:
-            found.append(cname)
-    return list(set(found))  # Unique list
-
 questions_by_am = extract_questions_by_am(insights)
 customer_names = sorted(df["Customer"].dropna().unique(), key=lambda x: -len(x))  # Longest first
-
 def extract_customers_from_question(question, customer_names):
     found = []
-    q_lower = question.lower()
     for cname in customer_names:
-        if cname.lower() in q_lower:
+        # Match full customer name as a whole word, case-insensitive
+        pattern = r'\b' + re.escape(cname) + r'\b'
+        if re.search(pattern, question, flags=re.IGNORECASE):
             found.append(cname)
-    return list(set(found))  # Unique customers mentioned
-
-import re
+    return list(set(found))
 
 def parse_parentheses_info(question):
     distributor = ""
