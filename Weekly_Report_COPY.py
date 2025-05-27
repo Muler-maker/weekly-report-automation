@@ -22,6 +22,27 @@ from googleapiclient.http import MediaFileUpload
 import json
 
 # === Utility Functions ===
+def build_feedback_context(feedback_df, week_num, year):
+    """
+    Formats recent feedback for use in the prompt.
+    Only includes items not marked 'done', or items from the current week/year.
+    """
+    context_lines = []
+    for idx, row in feedback_df.iterrows():
+        if (
+            (str(row['Status']).lower() != 'done')
+            or (str(row['Week']) == str(week_num) and str(row['Year']) == str(year))
+        ):
+            line = (
+                f"Account Manager: {row['AM']}\n"
+                f"Distributor: {row['Distributor']} | Country: {row['Country/Countries']} | Customers: {row['Customers']}\n"
+                f"Last question: {row['Question']}\n"
+                f"AM answer: {row['Comments / Feedback']}\n"
+                f"Status: {row['Status']}, Date: {row['Feedback Date']}\n"
+                "------"
+            )
+            context_lines.append(line)
+    return "\n".join(context_lines)
 
 def remove_trailing_distributor_parenthesis(text):
     """
