@@ -310,6 +310,8 @@ if os.path.exists(insight_history_path):
 
 # === Build feedback context from the Feedback loop sheet ===
 feedback_context = build_feedback_context(feedback_df, week_num, year)
+if not feedback_context.strip():
+    feedback_context = "No previous feedback available for this period."
 
 # === Combine feedback, summary report, and distributor info for ChatGPT ===
 full_prompt_text = (
