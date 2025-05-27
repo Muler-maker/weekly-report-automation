@@ -386,21 +386,30 @@ def extract_questions_by_am(insights):
     return am_data
 
 questions_by_am = extract_questions_by_am(insights)
+# --- Add the helper function here ---
+def get_am_info(df, am_name):
+    sub_df = df[df["Account Manager"] == am_name]
+    distributors = ', '.join(sorted(sub_df["Distributor"].dropna().unique()))
+    countries = ', '.join(sorted(sub_df["Country"].dropna().unique()))
+    customers = ', '.join(sorted(sub_df["Customer"].dropna().unique()))
+    return distributors, countries, customers
 
 new_rows = []
 for q in questions_by_am:
+    distributors, countries, customers = get_am_info(df, q['AM'])
     new_rows.append([
         week_num,
         year,
         q['AM'],
-        "",  # Distributor (optional mapping)
-        "",  # Country/Countries (optional mapping)
-        "",  # Customers (optional mapping)
+        distributors,
+        countries,
+        customers,
         q['Question'],
         "",  # Comments/Feedback
         "Open",
         datetime.now().strftime("%Y-%m-%d")
     ])
+
 
 if new_rows:
     feedback_ws.append_rows(new_rows, value_input_option="USER_ENTERED")
