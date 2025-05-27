@@ -22,7 +22,8 @@ from googleapiclient.http import MediaFileUpload
 import json
 
 # === Utility Functions ===
-import re
+def wrap_text(text, width=20):
+    return '\n'.join(textwrap.wrap(str(text), width=width))
 
 def extract_metadata_from_question(text):
     metadata_pattern = r"\(\s*Distributor:\s*(.*?)\s*;\s*Country:\s*(.*?)\s*;\s*Customer:\s*(.*?)\s*\)\s*$"
