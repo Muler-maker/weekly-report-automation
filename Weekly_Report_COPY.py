@@ -31,27 +31,35 @@ def remove_trailing_distributor_parenthesis(text):
 
 def parse_parentheses_info(text):
     """
-    Extracts Distributor, Country, and Customer from a parenthesis at the end of the line.
-    Ensures that if the customer equals the distributor, both fields are filled with that value.
+    Extracts Distributor, Country, and Customer from a parenthesis at the end of the line,
+    in the format: (Distributor: ...; Country: ...; Customer: ...)
+    Returns a tuple: (distributors, countries, customers)
+    If the pattern is not found, returns ('', '', '')
+    If Customer is missing or identical to Distributor, Customer will be set to Distributor.
     """
-    match = re.search(r'\(([^)]*Distributor[^)]*)\)$', text)
-    if not match:
-        return ('', '', '')
-    meta = match.group(1)
-
-    dist = re.search(r'Distributor:\s*([^;]*)', meta)
-    country = re.search(r'Country:\s*([^;]*)', meta)
-    cust = re.search(r'Customer:\s*([^;]*)', meta)
-
-    distributors = dist.group(1).strip() if dist else ''
-    countries = country.group(1).strip() if country else ''
-    customers = cust.group(1).strip() if cust else ''
-
-    # NEW LOGIC: if customer is empty or equals distributor, explicitly assign both
-    if not customers or customers == distributors:
+    # Match (Distributor: ...; Country: ...; Customer: ...)
+    match = re.search(
+        r'\(\s*Distributor:\s*([^;]+?)\s*;\s*Country:\s*([^;]+?)\s*;\s*Customer:\s*([^)]+?)\s*\)\s*$',
+        text
+    )
+    if match:
+        distributors = match.group(1).strip()
+        countries = match.group(2).strip()
+        customers = match.group(3).strip()
+        if not customers or customers == distributors:
+            customers = distributors
+        return (distributors, countries, customers)
+    # Fallback: (Distributor: ...; Country: ...)
+    match2 = re.search(
+        r'\(\s*Distributor:\s*([^;]+?)\s*;\s*Country:\s*([^)]+?)\s*\)\s*$',
+        text
+    )
+    if match2:
+        distributors = match2.group(1).strip()
+        countries = match2.group(2).strip()
         customers = distributors
-
-    return (distributors, countries, customers)
+        return (distributors, countries, customers)
+    return ('', '', '')
 def wrap_text(text, width=20):
     return '\n'.join(textwrap.wrap(str(text), width=width))
 
