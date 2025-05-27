@@ -386,17 +386,35 @@ def extract_questions_by_am(insights):
     return am_data
 
 questions_by_am = extract_questions_by_am(insights)
-# --- Add the helper function here ---
-def get_am_info(df, am_name):
-    sub_df = df[df["Account Manager"] == am_name]
-    distributors = ', '.join(sorted(sub_df["Distributor"].dropna().unique()))
-    countries = ', '.join(sorted(sub_df["Country"].dropna().unique()))
-    customers = ', '.join(sorted(sub_df["Customer"].dropna().unique()))
-    return distributors, countries, customers
+
+# Get all customer names, sorted longest first to avoid substring issues
+customer_names = sorted(df["Customer"].dropna().unique(), key=lambda x: -len(x))
+
+def extract_customers_from_question(question, customer_names):
+    found = []
+    q_lower = question.lower()
+    for cname in customer_names:
+        if cname.lower() in q_lower:
+            found.append(cname)
+    return list(set(found))  # Unique list, in case of repeats
 
 new_rows = []
 for q in questions_by_am:
-    distributors, countries, customers = get_am_info(df, q['AM'])
+    customer_list = extract_customers_from_question(q['Question'], customer_names)
+    if customer_list:
+        relevant_distributors = set()
+        relevant_countries = set()
+        for customer in customer_list:
+            subdf = df[df["Customer"] == customer]
+            relevant_distributors.update(subdf["Distributor"].dropna().unique())
+            relevant_countries.update(subdf["Country"].dropna().unique())
+        distributors = ", ".join(sorted(relevant_distributors))
+        countries = ", ".join(sorted(relevant_countries))
+        customers = ", ".join(sorted(customer_list))
+    else:
+        distributors = ""
+        countries = ""
+        customers = ""
     new_rows.append([
         week_num,
         year,
@@ -409,7 +427,6 @@ for q in questions_by_am:
         "Open",
         datetime.now().strftime("%Y-%m-%d")
     ])
-
 
 if new_rows:
     feedback_ws.append_rows(new_rows, value_input_option="USER_ENTERED")
