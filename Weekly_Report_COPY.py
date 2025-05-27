@@ -445,30 +445,6 @@ def extract_customers_from_question(question, customer_names):
             found.append(cname)
     return list(set(found))
 
-def parse_parentheses_info(question):
-    distributor = ""
-    country = ""
-    customer = ""
-
-    # Find the final parenthesis group at the end of the question, if it starts with Distributor:
-    match = re.search(r"\((Distributor:[^)]*)\)\s*$", question)
-    if match:
-        metadata = match.group(1)
-        # Split fields by ';' and parse key-value pairs
-        fields = dict(
-            part.strip().split(":", 1)
-            for part in metadata.split(";")
-            if ":" in part
-        )
-        distributor = fields.get("Distributor", "").strip()
-        country = fields.get("Country", "").strip()
-        customer = fields.get("Customer", "").strip()
-
-    # Fallback: if customer not specified, use distributor
-    if not customer:
-        customer = distributor
-
-    return distributor, country, customer
 new_rows = []
 for q in questions_by_am:
     # Use parsing function to get distributor, country, and customer from question parentheses
