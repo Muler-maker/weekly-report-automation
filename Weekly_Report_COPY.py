@@ -355,6 +355,51 @@ response = client.chat.completions.create(
 insights = response.choices[0].message.content.strip()
 print("\n💡 GPT Insights:\n", insights)
 
+# === ADD THIS BLOCK HERE ===
+
+import re
+from datetime import datetime
+
+def extract_questions_by_am(insights):
+    am_sections = re.split(r"\n([A-Z][a-z]+ [A-Z][a-z]+)\n", "\n" + insights)
+    am_data = []
+    for i in range(1, len(am_sections), 2):
+        am_name = am_sections[i].strip()
+        section = am_sections[i + 1]
+        q_match = re.search(r"Questions:\s*(.+?)(?=(\n[A-Z][a-z]+ [A-Z][a-z]+\n|$))", section, re.DOTALL)
+        if not q_match:
+            continue
+        questions_text = q_match.group(1)
+        for q_line in re.findall(r"\d+\.\s+(.+)", questions_text):
+            am_data.append({
+                "AM": am_name,
+                "Question": q_line.strip()
+            })
+    return am_data
+
+questions_by_am = extract_questions_by_am(insights)
+
+new_rows = []
+for q in questions_by_am:
+    new_rows.append([
+        week_num,
+        year,
+        q['AM'],
+        "",  # Distributor (optional mapping)
+        "",  # Country/Countries (optional mapping)
+        "",  # Customers (optional mapping)
+        q['Question'],
+        "",  # Comments/Feedback
+        "Open",
+        datetime.now().strftime("%Y-%m-%d")
+    ])
+
+if new_rows:
+    feedback_ws.append_rows(new_rows, value_input_option="USER_ENTERED")
+    print(f"✅ Added {len(new_rows)} new questions to Feedback loop worksheet.")
+else:
+    print("No new questions found to add to the Feedback loop worksheet.")
+
 # === Generate Executive Summary ===
 exec_summary_prompt ="""
 You are a senior business analyst. Based on the report below, write a very short executive summary in the form of one or two concise paragraphs, suitable for company leadership.
