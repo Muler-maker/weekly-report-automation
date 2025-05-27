@@ -786,7 +786,7 @@ lines_per_page = 35
 for page_start in range(0, len(wrapped_insights), lines_per_page):
     fig = plt.figure(figsize=(9.5, 11))
     plt.axis("off")
-    page_lines = wrapped_insights[page_start:page_star]()
+    page_lines = wrapped_insights[page_start:page_start + lines_per_page]
     
     # === Top 5 Charts by Product ===
     products = {
