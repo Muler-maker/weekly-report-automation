@@ -422,20 +422,25 @@ def parse_parentheses_info(question):
     country = ""
     customer = ""
 
-    # Regex to extract Distributor, Country, Customer from parentheses
-    pattern = r"\(([^)]*Distributor:\s*([^;]+)(?:;\s*Country:\s*([^;]+))?(?:;\s*Customer:\s*([^;]+))?)\)"
-    match = re.search(pattern, question)
+    # Extract only the FINAL parenthesis group in the question
+    match = re.search(r"\((Distributor:[^()]*)\)$", question.strip())
     if match:
-        distributor = match.group(2).strip()
-        country = match.group(3).strip() if match.group(3) else ""
-        customer = match.group(4).strip() if match.group(4) else ""
+        metadata = match.group(1)
+        # Now extract fields from that metadata
+        parts = dict(
+            part.strip().split(": ", 1)
+            for part in metadata.split(";")
+            if ": " in part
+        )
+        distributor = parts.get("Distributor", "").strip()
+        country = parts.get("Country", "").strip()
+        customer = parts.get("Customer", "").strip()
 
-    # If customer not specified, fallback to distributor name for customer
+    # If customer not specified, fallback to distributor
     if not customer:
         customer = distributor
 
     return distributor, country, customer
-
 new_rows = []
 for q in questions_by_am:
     # Use parsing function to get distributor, country, and customer from question parentheses
@@ -764,7 +769,8 @@ with PdfPages(latest_pdf) as pdf:
             plt.close(fig)
 
     # === Add ChatGPT insights pages (paginated) ===
-    insight_lines = [re.sub(r"\s*\(Distributor:[^)]+\)", "", line).strip() for line in insights.split("\n")]
+    # In the PDF formatting section
+    insight_lines = [re.sub(r"\s*\(Distributor:[^)]*\)$", "", line).strip() for line in insights.split("\n")]
     wrapped_insights = []
     for line in insight_lines:
         wrapped_insights.extend(
