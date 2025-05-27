@@ -22,98 +22,41 @@ from googleapiclient.http import MediaFileUpload
 import json
 
 # === Utility Functions ===
-def remove_trailing_distributor_parenthesis(text):
-    """
-    Removes a parenthesis at the end of the line that includes 'Distributor'.
-    """
-    return re.sub(r'\([^()]*Distributor[^()]*\)$', '', text).rstrip()
+import re
 
-def parse_parentheses_info(text):
-    """
-    Extracts Distributor, Country, and Customer from metadata at the end of the question.
-    Returns (distributors, countries, customers) as comma-separated strings,
-    never leaving a field blank, expanding as per business rules.
-    """
-    # Find metadata: (Distributor: ...; Country: ...; Customer: ...)
-    match = re.search(
-        r'\(\s*Distributor:\s*([^;]+?)\s*;\s*Country:\s*([^;]+?)\s*;\s*Customer:\s*([^)]+?)\s*\)\s*$',
-        text
-    )
+def extract_metadata_from_question(text):
+    metadata_pattern = r"\(\s*Distributor:\s*(.*?)\s*;\s*Country:\s*(.*?)\s*;\s*Customer:\s*(.*?)\s*\)\s*$"
+    match = re.search(metadata_pattern, text)
+
     if match:
-        distributors = [d.strip() for d in match.group(1).split(',')]
-        countries = [c.strip() for c in match.group(2).split(',')]
-        customers = [c.strip() for c in match.group(3).split(',')]
+        distributors = [x.strip() for x in re.split(r",\s*", match.group(1))]
+        countries = [x.strip() for x in re.split(r",\s*", match.group(2))]
+        customers = [x.strip() for x in re.split(r",\s*", match.group(3))]
 
-        # Expand any field if empty or "N/A"
-        if not any(distributors) or distributors == ['N/A']:
-            all_distributors = set()
-            for country in countries:
-                all_distributors.update(country_to_distributors.get(country, []))
-            distributors = list(all_distributors) if all_distributors else list(df['Distributor'].unique())
-        if not any(countries) or countries == ['N/A']:
-            all_countries = set()
-            for distributor in distributors:
-                all_countries.update(distributor_to_countries.get(distributor, []))
-            countries = list(all_countries) if all_countries else list(df['Country'].unique())
-        if not any(customers) or customers == ['N/A']:
-            all_customers = set()
-            for distributor in distributors:
-                for country in countries:
-                    all_customers.update(distributor_country_to_customers.get((distributor, country), []))
-            if not all_customers:
-                for distributor in distributors:
-                    all_customers.update(distributor_to_customers.get(distributor, []))
-                for country in countries:
-                    all_customers.update(country_to_customers.get(country, []))
-                if not all_customers:
-                    all_customers = set(df['Customer'].unique())
-            customers = list(all_customers)
+        # Remove metadata from question
+        question_clean = re.sub(metadata_pattern, "", text).strip()
+        
+        return question_clean, distributors, countries, customers
 
-        # Fallback if any field is still empty (shouldn't happen, but just in case)
-        if not any(distributors) or not any(countries) or not any(customers):
-            return (
-                ", ".join(sorted(set(df['Distributor'].dropna().unique()))),
-                ", ".join(sorted(set(df['Country'].dropna().unique()))),
-                ", ".join(sorted(set(df['Customer'].dropna().unique())))
-            )
+    metadata_pattern2 = r"\(\s*Distributor:\s*(.*?)\s*;\s*Country:\s*(.*?)\s*\)\s*$"
+    match2 = re.search(metadata_pattern2, text)
 
-        return (
-            ", ".join(sorted(set(distributors))),
-            ", ".join(sorted(set(countries))),
-            ", ".join(sorted(set(customers)))
-        )
-
-    # If only Distributor and Country
-    match2 = re.search(
-        r'\(\s*Distributor:\s*([^;]+?)\s*;\s*Country:\s*([^)]+?)\s*\)\s*$',
-        text
-    )
     if match2:
-        distributors = [d.strip() for d in match2.group(1).split(',')]
-        countries = [c.strip() for c in match2.group(2).split(',')]
-        all_customers = set()
+        distributors = [x.strip() for x in re.split(r",\s*", match2.group(1))]
+        countries = [x.strip() for x in re.split(r",\s*", match2.group(2))]
+
+        customers_set = set()
         for distributor in distributors:
             for country in countries:
-                all_customers.update(distributor_country_to_customers.get((distributor, country), []))
-        customers = list(all_customers)
-        if not any(distributors) or not any(countries) or not any(customers):
-            return (
-                ", ".join(sorted(set(df['Distributor'].dropna().unique()))),
-                ", ".join(sorted(set(df['Country'].dropna().unique()))),
-                ", ".join(sorted(set(df['Customer'].dropna().unique())))
-            )
-        return (
-            ", ".join(sorted(set(distributors))),
-            ", ".join(sorted(set(countries))),
-            ", ".join(sorted(set(customers)))
-        )
+                customers_set.update(distributor_country_to_customers.get((distributor, country), []))
+        customers = sorted(customers_set)
 
-    # Ultimate fallback (no match at all)
-    return (
-        ", ".join(sorted(set(df['Distributor'].dropna().unique()))),
-        ", ".join(sorted(set(df['Country'].dropna().unique()))),
-        ", ".join(sorted(set(df['Customer'].dropna().unique())))
-    )
+        question_clean = re.sub(metadata_pattern2, "", text).strip()
+        return question_clean, distributors, countries, customers
+
+    question_clean = re.sub(r"\(.*?\)\s*$", "", text).strip()
+    return question_clean, ["N/A"], ["N/A"], ["N/A"]
+
 
 def build_feedback_context(feedback_df, week_num, year):
     """
@@ -572,21 +515,21 @@ def extract_customers_from_question(question, customer_names):
 
 new_rows = []
 for q in questions_by_am:
-    # Use parsing function to get distributor, country, and customer from question parentheses
-    distributors, countries, customers = parse_parentheses_info(q['Question'])
+    question_clean, distributors, countries, customers = extract_metadata_from_question(q['Question'])
 
     new_rows.append([
         week_num,
         year,
         q['AM'],
-        distributors,
-        countries,
-        customers,
-        remove_trailing_distributor_parenthesis(q['Question']),   # <--- CLEANED question
+        ", ".join(distributors),
+        ", ".join(countries),
+        ", ".join(customers),
+        question_clean,   # Cleaned question text
         "",  # Comments / Feedback
         "Open",
         datetime.now().strftime("%Y-%m-%d")
     ])
+
 
 if new_rows:
     feedback_ws.append_rows(new_rows, value_input_option="USER_ENTERED")
@@ -899,7 +842,7 @@ with PdfPages(latest_pdf) as pdf:
 
     # === Add ChatGPT insights pages (paginated) ===
 # === Clean insight lines and wrap long lines ===
-insight_lines = [remove_trailing_distributor_parenthesis(line) for line in insights.split("\n")]
+insight_lines = [extract_metadata_from_question(line)[0] for line in insights.split("\n")]
 
 wrapped_insights = []
 for line in insight_lines:
