@@ -31,23 +31,27 @@ def remove_trailing_distributor_parenthesis(text):
 
 def parse_parentheses_info(text):
     """
-    Extracts Distributor, Country, and Customer from a parenthesis at the end of the line
-    in the format: (Distributor: ...; Country: ...; Customer: ...)
-    Returns a tuple: (distributors, countries, customers)
-    If the pattern is not found, returns ('', '', '')
+    Extracts Distributor, Country, and Customer from a parenthesis at the end of the line.
+    Ensures that if the customer equals the distributor, both fields are filled with that value.
     """
     match = re.search(r'\(([^)]*Distributor[^)]*)\)$', text)
     if not match:
         return ('', '', '')
     meta = match.group(1)
+
     dist = re.search(r'Distributor:\s*([^;]*)', meta)
     country = re.search(r'Country:\s*([^;]*)', meta)
     cust = re.search(r'Customer:\s*([^;]*)', meta)
+
     distributors = dist.group(1).strip() if dist else ''
     countries = country.group(1).strip() if country else ''
     customers = cust.group(1).strip() if cust else ''
-    return (distributors, countries, customers)
 
+    # NEW LOGIC: if customer is empty or equals distributor, explicitly assign both
+    if not customers or customers == distributors:
+        customers = distributors
+
+    return (distributors, countries, customers)
 def wrap_text(text, width=20):
     return '\n'.join(textwrap.wrap(str(text), width=width))
 
