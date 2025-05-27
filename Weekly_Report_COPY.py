@@ -425,27 +425,31 @@ def extract_customers_from_question(question, customer_names):
             found.append(cname)
     return list(set(found))  # Unique customers mentioned
 
+import re
+
+def parse_parentheses_info(question):
+    distributor = ""
+    country = ""
+    customer = ""
+
+    # Regex to extract Distributor, Country, Customer from parentheses
+    pattern = r"\(([^)]*Distributor:\s*([^;]+)(?:;\s*Country:\s*([^;]+))?(?:;\s*Customer:\s*([^;]+))?)\)"
+    match = re.search(pattern, question)
+    if match:
+        distributor = match.group(2).strip()
+        country = match.group(3).strip() if match.group(3) else ""
+        customer = match.group(4).strip() if match.group(4) else ""
+
+    # If customer not specified, fallback to distributor name for customer
+    if not customer:
+        customer = distributor
+
+    return distributor, country, customer
+
 new_rows = []
 for q in questions_by_am:
-    # Extract customers explicitly mentioned in the question text
-    customer_list = extract_customers_from_question(q['Question'], customer_names)
-
-    if customer_list:
-        # For these customers, find their distributors and countries
-        relevant_distributors = set()
-        relevant_countries = set()
-        for customer in customer_list:
-            subdf = df[df["Customer"] == customer]
-            relevant_distributors.update(subdf["Distributor"].dropna().unique())
-            relevant_countries.update(subdf["Country"].dropna().unique())
-
-        distributors = ", ".join(sorted(relevant_distributors))
-        countries = ", ".join(sorted(relevant_countries))
-        customers = ", ".join(sorted(customer_list))  # EXACT customers parsed from question
-    else:
-        distributors = ""
-        countries = ""
-        customers = ""
+    # Use parsing function to get distributor, country, and customer from question parentheses
+    distributors, countries, customers = parse_parentheses_info(q['Question'])
 
     new_rows.append([
         week_num,
@@ -465,6 +469,7 @@ if new_rows:
     print(f"✅ Added {len(new_rows)} new questions to Feedback loop worksheet.")
 else:
     print("No new questions found to add to the Feedback loop worksheet.")
+
 
 exec_summary_prompt ="""
 You are a senior business analyst. Based on the report below, write a very short executive summary in the form of one or two concise paragraphs, suitable for company leadership.
