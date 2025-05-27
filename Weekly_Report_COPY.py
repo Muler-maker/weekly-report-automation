@@ -45,6 +45,17 @@ def build_feedback_context(feedback_df, week_num, year):
 script_dir = os.path.dirname(os.path.abspath(__file__)) if '__file__' in globals() else os.getcwd()
 SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1uJAArBkHXgFvY_JPIieKRjiOYd9-Ys7Ii9nXT3fWbUg"
 
+import re
+from datetime import datetime
+
+def extract_distributors_from_question(question):
+    match = re.search(r"\(Distributor:\s*([^)]+)\)", question)
+    if not match:
+        return []
+    dist_text = match.group(1)
+    distributors = re.split(r",\s*|\s+and\s+", dist_text, flags=re.I)
+    return [d.strip() for d in distributors if d.strip()]
+
 # === Authenticate Google Sheets (do this before loading sheets) ===
 SERVICE_ACCOUNT_FILE = os.path.join(script_dir, 'credentials.json')
 SCOPES = [
@@ -400,30 +411,27 @@ def extract_customers_from_question(question, customer_names):
 
 new_rows = []
 for q in questions_by_am:
-    customer_list = extract_customers_from_question(q['Question'], customer_names)
-    if customer_list:
-        relevant_distributors = set()
-        relevant_countries = set()
-        for customer in customer_list:
-            subdf = df[df["Customer"] == customer]
-            relevant_distributors.update(subdf["Distributor"].dropna().unique())
-            relevant_countries.update(subdf["Country"].dropna().unique())
-        distributors = ", ".join(sorted(relevant_distributors))
-        countries = ", ".join(sorted(relevant_countries))
-        customers = ", ".join(sorted(customer_list))
-    else:
-        distributors = ""
-        countries = ""
-        customers = ""
+    distributors = extract_distributors_from_question(q['Question'])
+    countries = set()
+    customers = set()
+    for dist in distributors:
+        # Case-insensitive matching distributor names in df
+        sub_df = df[df["Distributor"].str.lower() == dist.lower()]
+        countries.update(sub_df["Country"].dropna().unique())
+        customers.update(sub_df["Customer"].dropna().unique())
+    distributors_str = ", ".join(distributors)
+    countries_str = ", ".join(sorted(countries))
+    customers_str = ", ".join(sorted(customers))
+
     new_rows.append([
         week_num,
         year,
         q['AM'],
-        distributors,
-        countries,
-        customers,
+        distributors_str,
+        countries_str,
+        customers_str,
         q['Question'],
-        "",  # Comments/Feedback
+        "",  # Comments / Feedback
         "Open",
         datetime.now().strftime("%Y-%m-%d")
     ])
