@@ -455,7 +455,7 @@ for q in questions_by_am:
         distributors,
         countries,
         customers,
-        remove_metadata_parenthesis(q['Question']),   # <--- CLEANED question
+        remove_trailing_distributor_parenthesis(q['Question']),   # <--- CLEANED question
         "",  # Comments / Feedback
         "Open",
         datetime.now().strftime("%Y-%m-%d")
