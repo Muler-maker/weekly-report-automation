@@ -1,3 +1,4 @@
+# === Imports ===
 import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime, timedelta
@@ -18,8 +19,46 @@ import base64
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 import json
+
 def wrap_text(text, width=20):
     return '\n'.join(textwrap.wrap(str(text), width=width))
+
+def build_feedback_context(feedback_df, week_num, year):
+    context_lines = []
+    for idx, row in feedback_df.iterrows():
+        if (
+            (str(row['Status']).lower() != 'done') or
+            (str(row['Week']) == str(week_num) and str(row['Year']) == str(year))
+        ):
+            line = (
+                f"Account Manager: {row['AM']}\n"
+                f"Distributor: {row['Distributor']} | Country: {row['Country/Countries']} | Customers: {row['Customers']}\n"
+                f"Last question: {row['Question']}\n"
+                f"AM answer: {row['AM Answer']}\n"
+                f"Status: {row['Status']}, Date: {row['Feedback Date']}\n"
+                "------"
+            )
+            context_lines.append(line)
+    return "\n".join(context_lines)
+
+# --- Your utility/setup variables here ---
+script_dir = os.path.dirname(os.path.abspath(__file__)) if '__file__' in globals() else os.getcwd()
+SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1uJAArBkHXgFvY_JPIieKRjiOYd9-Ys7Ii9nXT3fWbUg"
+
+# === Authenticate Google Sheets (do this before loading sheets) ===
+SERVICE_ACCOUNT_FILE = os.path.join(script_dir, 'credentials.json')
+SCOPES = [
+    'https://www.googleapis.com/auth/spreadsheets',
+    'https://www.googleapis.com/auth/drive'
+]
+creds = Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+gc = gspread.authorize(creds)
+
+# === Now load the Feedback loop worksheet ===
+feedback_ws = gc.open_by_url(SPREADSHEET_URL).worksheet("Feedback loop")
+feedback_df = pd.DataFrame(feedback_ws.get_all_records())
+feedback_df.columns = [c.strip() for c in feedback_df.columns]
+
 
 # === Set global font style ===
 plt.rcParams["font.family"] = "DejaVu Sans"
@@ -266,12 +305,20 @@ insight_history_path = os.path.join(output_folder, "insight_history.txt")
 if os.path.exists(insight_history_path):
     with open(insight_history_path, "r", encoding="utf-8") as f:
         past_insights = f.read()
-    # Separate with a clear marker
+    # Combine with a clear marker
     report_text = f"{past_insights}\n\n===== NEW WEEK =====\n\n{report_text}"
-# Add distributor info for GPT analysis (NOT for PDF)
-report_text = (
-    f"{report_text}\n\n=== Distributor info for GPT analysis ===\n" +
-    "\n".join(gpt_distributor_section)
+
+# === Build feedback context from the Feedback loop sheet ===
+feedback_context = build_feedback_context(feedback_df, week_num, year)
+
+# === Combine feedback, summary report, and distributor info for ChatGPT ===
+full_prompt_text = (
+    "Previous feedback from Account Managers (from the Feedback loop sheet):\n"
+    + feedback_context +
+    "\n\n==== New Weekly Report Data ====\n\n"
+    + report_text +
+    "\n\n=== Distributor info for GPT analysis ===\n"
+    + "\n".join(gpt_distributor_section)
 )
 
 # System prompt with analyst instructions
@@ -293,12 +340,13 @@ Present only insights, trends, and questions—do not include recommendations or
 Use only plain text. No Markdown, asterisks, or special formatting.
 COMISSÃO NACIONAL DE ENERGIA NUCLEAR (CNEN) is expected to order every two weeks on even-numbered weeks. Flag and ask about any deviation from this pattern.
 """
+
 # Call OpenAI chat completion
 response = client.chat.completions.create(
     model="gpt-4o",
     messages=[
         {"role": "system", "content": system_prompt},
-        {"role": "user", "content": report_text}
+        {"role": "user", "content": full_prompt_text}
     ]
 )
 
