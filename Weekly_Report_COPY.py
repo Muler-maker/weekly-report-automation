@@ -22,28 +22,6 @@ from googleapiclient.http import MediaFileUpload
 import json
 
 # === Utility Functions ===
-def build_feedback_context(feedback_df, week_num, year):
-    """
-    Formats recent feedback for use in the prompt.
-    Only includes items not marked 'done', or items from the current week/year.
-    """
-    context_lines = []
-    for idx, row in feedback_df.iterrows():
-        if (
-            (str(row['Status']).lower() != 'done')
-            or (str(row['Week']) == str(week_num) and str(row['Year']) == str(year))
-        ):
-            line = (
-                f"Account Manager: {row['AM']}\n"
-                f"Distributor: {row['Distributor']} | Country: {row['Country/Countries']} | Customers: {row['Customers']}\n"
-                f"Last question: {row['Question']}\n"
-                f"AM answer: {row['Comments / Feedback']}\n"
-                f"Status: {row['Status']}, Date: {row['Feedback Date']}\n"
-                "------"
-            )
-            context_lines.append(line)
-    return "\n".join(context_lines)
-
 def remove_trailing_distributor_parenthesis(text):
     """
     Removes a parenthesis at the end of the line that includes 'Distributor'.
@@ -137,26 +115,27 @@ def parse_parentheses_info(text):
         ", ".join(sorted(set(df['Customer'].dropna().unique())))
     )
 
-    # If only Distributor and Country
-    match2 = re.search(
-        r'\(\s*Distributor:\s*([^;]+?)\s*;\s*Country:\s*([^)]+?)\s*\)\s*$',
-        text
-    )
-    if match2:
-        distributors = [d.strip() for d in match2.group(1).split(',')]
-        countries = [c.strip() for c in match2.group(2).split(',')]
-        # Find all customers linked to those distributors in those countries
-        all_customers = set()
-        for distributor in distributors:
-            for country in countries:
-                all_customers.update(distributor_country_to_customers.get((distributor, country), []))
-        customers = list(all_customers)
-        return (
-            ", ".join(sorted(set(distributors))),
-            ", ".join(sorted(set(countries))),
-            ", ".join(sorted(set(customers)))
-        )
-    return ('N/A', 'N/A', 'N/A')
+def build_feedback_context(feedback_df, week_num, year):
+    """
+    Formats recent feedback for use in the prompt.
+    Only includes items not marked 'done', or items from the current week/year.
+    """
+    context_lines = []
+    for idx, row in feedback_df.iterrows():
+        if (
+            (str(row['Status']).lower() != 'done')
+            or (str(row['Week']) == str(week_num) and str(row['Year']) == str(year))
+        ):
+            line = (
+                f"Account Manager: {row['AM']}\n"
+                f"Distributor: {row['Distributor']} | Country: {row['Country/Countries']} | Customers: {row['Customers']}\n"
+                f"Last question: {row['Question']}\n"
+                f"AM answer: {row['Comments / Feedback']}\n"
+                f"Status: {row['Status']}, Date: {row['Feedback Date']}\n"
+                "------"
+            )
+            context_lines.append(line)
+    return "\n".join(context_lines)
 
 # --- Your utility/setup variables here ---
 script_dir = os.path.dirname(os.path.abspath(__file__)) if '__file__' in globals() else os.getcwd()
