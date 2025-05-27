@@ -1,3 +1,4 @@
+# === Imports ===
 import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime, timedelta
@@ -8,7 +9,8 @@ import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import seaborn as sns
 from matplotlib.backends.backend_pdf import PdfPages
-import os, re
+import os
+import re
 from shutil import copyfile
 import textwrap
 from email.message import EmailMessage
@@ -18,8 +20,96 @@ import base64
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 import json
+
+# === Utility Functions ===
 def wrap_text(text, width=20):
     return '\n'.join(textwrap.wrap(str(text), width=width))
+
+def extract_metadata_from_question(text):
+    metadata_pattern = r"\(\s*Distributor:\s*(.*?)\s*;\s*Country:\s*(.*?)\s*;\s*Customer:\s*(.*?)\s*\)\s*$"
+    match = re.search(metadata_pattern, text)
+
+    if match:
+        distributors = [x.strip() for x in re.split(r",\s*", match.group(1))]
+        countries = [x.strip() for x in re.split(r",\s*", match.group(2))]
+        customers = [x.strip() for x in re.split(r",\s*", match.group(3))]
+
+        # Remove metadata from question
+        question_clean = re.sub(metadata_pattern, "", text).strip()
+        
+        return question_clean, distributors, countries, customers
+
+    metadata_pattern2 = r"\(\s*Distributor:\s*(.*?)\s*;\s*Country:\s*(.*?)\s*\)\s*$"
+    match2 = re.search(metadata_pattern2, text)
+
+    if match2:
+        distributors = [x.strip() for x in re.split(r",\s*", match2.group(1))]
+        countries = [x.strip() for x in re.split(r",\s*", match2.group(2))]
+
+        customers_set = set()
+        for distributor in distributors:
+            for country in countries:
+                customers_set.update(distributor_country_to_customers.get((distributor, country), []))
+        customers = sorted(customers_set)
+
+        question_clean = re.sub(metadata_pattern2, "", text).strip()
+        return question_clean, distributors, countries, customers
+
+    question_clean = re.sub(r"\(.*?\)\s*$", "", text).strip()
+    return question_clean, ["N/A"], ["N/A"], ["N/A"]
+
+
+def build_feedback_context(feedback_df, week_num, year):
+    """
+    Formats recent feedback for use in the prompt.
+    Only includes items not marked 'done', or items from the current week/year.
+    """
+    context_lines = []
+    for idx, row in feedback_df.iterrows():
+        if (
+            (str(row['Status']).lower() != 'done')
+            or (str(row['Week']) == str(week_num) and str(row['Year']) == str(year))
+        ):
+            line = (
+                f"Account Manager: {row['AM']}\n"
+                f"Distributor: {row['Distributor']} | Country: {row['Country/Countries']} | Customers: {row['Customers']}\n"
+                f"Last question: {row['Question']}\n"
+                f"AM answer: {row['Comments / Feedback']}\n"
+                f"Status: {row['Status']}, Date: {row['Feedback Date']}\n"
+                "------"
+            )
+            context_lines.append(line)
+    return "\n".join(context_lines)
+
+# --- Your utility/setup variables here ---
+script_dir = os.path.dirname(os.path.abspath(__file__)) if '__file__' in globals() else os.getcwd()
+SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1uJAArBkHXgFvY_JPIieKRjiOYd9-Ys7Ii9nXT3fWbUg"
+
+import re
+from datetime import datetime
+
+def extract_distributors_from_question(question):
+    match = re.search(r"\(Distributor:\s*([^)]+)\)", question)
+    if not match:
+        return []
+    dist_text = match.group(1)
+    distributors = re.split(r",\s*|\s+and\s+", dist_text, flags=re.I)
+    return [d.strip() for d in distributors if d.strip()]
+
+# === Authenticate Google Sheets (do this before loading sheets) ===
+SERVICE_ACCOUNT_FILE = os.path.join(script_dir, 'credentials.json')
+SCOPES = [
+    'https://www.googleapis.com/auth/spreadsheets',
+    'https://www.googleapis.com/auth/drive'
+]
+creds = Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+gc = gspread.authorize(creds)
+
+# === Now load the Feedback loop worksheet ===
+feedback_ws = gc.open_by_url(SPREADSHEET_URL).worksheet("Feedback loop")
+feedback_df = pd.DataFrame(feedback_ws.get_all_records())
+feedback_df.columns = [c.strip() for c in feedback_df.columns]
+
 
 # === Set global font style ===
 plt.rcParams["font.family"] = "DejaVu Sans"
@@ -148,6 +238,26 @@ df = df[pd.to_numeric(df["Week"], errors="coerce").notnull()]
 df["Week"] = df["Week"].astype(int)
 df = df.dropna(subset=["Total_mCi", "Year", "Week"])
 df["YearWeek"] = list(zip(df["Year"], df["Week"]))
+from collections import defaultdict
+
+# Mapping: distributor & country → customers
+distributor_country_to_customers = defaultdict(list)
+country_to_distributors = defaultdict(set)
+country_to_customers = defaultdict(set)
+distributor_to_countries = defaultdict(set)
+distributor_to_customers = defaultdict(set)
+
+for _, row in df.iterrows():
+    distributor = str(row['Distributor']).strip()
+    country = str(row['Country']).strip()
+    customer = str(row['Customer']).strip()
+
+    if distributor and country and customer:
+        distributor_country_to_customers[(distributor, country)].append(customer)
+        country_to_distributors[country].add(distributor)
+        country_to_customers[country].add(customer)
+        distributor_to_countries[distributor].add(country)
+        distributor_to_customers[distributor].add(customer)
 
 # === Define 16-week window ===
 current = today - timedelta(days=today.weekday())
@@ -266,48 +376,169 @@ insight_history_path = os.path.join(output_folder, "insight_history.txt")
 if os.path.exists(insight_history_path):
     with open(insight_history_path, "r", encoding="utf-8") as f:
         past_insights = f.read()
-    # Separate with a clear marker
+    # Combine with a clear marker
     report_text = f"{past_insights}\n\n===== NEW WEEK =====\n\n{report_text}"
-# Add distributor info for GPT analysis (NOT for PDF)
-report_text = (
-    f"{report_text}\n\n=== Distributor info for GPT analysis ===\n" +
-    "\n".join(gpt_distributor_section)
+
+# === Build feedback context from the Feedback loop sheet ===
+feedback_context = build_feedback_context(feedback_df, week_num, year)
+if not feedback_context.strip():
+    feedback_context = "No previous feedback available for this period."
+
+# === Combine feedback, summary report, and distributor info for ChatGPT ===
+full_prompt_text = (
+    "Previous feedback from Account Managers (from the Feedback loop sheet):\n"
+    + feedback_context +
+    "\n\n==== New Weekly Report Data ====\n\n"
+    + report_text +
+    "\n\n=== Distributor info for GPT analysis ===\n"
+    + "\n".join(gpt_distributor_section)
 )
 
 # System prompt with analyst instructions
-system_prompt = """
-You are a senior business analyst. Analyze the weekly report and generate clear, actionable recommendations for each Account Manager, using a top-down structure: Distributor-level trends, followed by country-level patterns, and then customer-specific actions.
+system_prompt = system_prompt = system_prompt = """
+You are a senior business analyst. Analyze the weekly report for each Account Manager using a top-down structure: Distributor-level trends, followed by country-level patterns, and then customer-specific insights.
 
 For each Account Manager:
+Start their section with their full name on a line by itself (e.g., Vicki Beillis).
+If there are no significant trends or issues for that week, write: No significant insights or questions for this week.
+Otherwise, provide a concise summary of relevant trends and insights, grouped as follows:
+Distributor-level: Note important patterns, risks, or deviations, including expected order behaviors.
+Country-level: Summarize trends affecting several customers in the same country.
+Customer-specific: Highlight notable changes, spikes, drops, or inactivity at the customer level.
 
-- Use a section header with their name.
-- If there are no action items for that week, write: No significant action items this week.
-- Otherwise, list relevant recommendations in a numbered or bulleted format, grouped as follows:
-    - Distributor-level insights (flag patterns, risks, or deviations, including expected order behaviors).
-    - Country-level trends (summarize notable changes affecting several customers in the same country).
-    - Customer-specific actions (state the customer, issue or opportunity, and a recommended next step).
+After the insights for each Account Manager, always include a separate section titled exactly as follows:
+
+Questions for [Account Manager Name]:
+Provide up to 2 questions per Account Manager. If fewer than 2 relevant questions exist, include only those.
+[First question] (Distributor: [Distributor Name(s)]; Country: [Country Name(s)]; Customer: [Customer Name(s)])
+[Second question] (Distributor: [Distributor Name(s)]; Country: [Country Name(s)]; Customer: [Customer Name(s)])
+[Third question] (Distributor: [Distributor Name(s)]; Country: [Country Name(s)]; Customer: [Customer Name(s)])
+(Use numbered questions, one per line, and use the AM’s exact name in the heading. Each question must explicitly specify the relevant distributor(s), country or countries, and customer(s) in parentheses exactly as shown.)
+
+Metadata specification instructions:
+- Every question must include a metadata block, exactly as shown:
+  (Distributor: [Distributor Name(s)]; Country: [Country Name(s)]; Customer: [Customer Name(s)])
+- All three fields—Distributor, Country, Customer—must always be filled. Never leave a field blank.
+  If a field is not directly mentioned in the question, infer or expand as follows (using the provided data):
+    - If Distributor and Country are given, but not Customer:
+        List all customers linked to that distributor in that country, separated by commas.
+    - If only Country is given:
+        List all distributors and all customers in that country.
+    - If only Distributor is given:
+        List all countries and all customers for that distributor.
+    - If Customer is missing or matches Distributor:
+        Fill both fields with that value.
+    - If there is no valid value, use "N/A".
+    - Separate multiple values with commas in each field.
+- Use semicolons to separate the three metadata fields.
+- Use this exact metadata format for every question.
+
+Example Formatting:
+
+Question:
+What might explain the decrease in orders from Sinotau Pharmaceutical Group in China?
+Metadata:
+(Distributor: Sinotau Pharmaceutical Group; Country: China; Customer: Sinotau Pharmaceutical Group (Guangdong), Sinotau Pharmaceutical Group (Beijing))
+
+Question:
+Are there general order trends in Germany this month?
+Metadata:
+(Distributor: DSD Pharma GmbH, ABC Distributors; Country: Germany; Customer: University Hospital, Berlin Clinic)
+
+Question:
+Is Sinotau Pharmaceutical Group maintaining order volumes globally?
+Metadata:
+(Distributor: Sinotau Pharmaceutical Group; Country: China, Singapore; Customer: Sinotau (Guangdong), Sinotau (Beijing), Sinotau (Singapore))
+
+Question:
+Is COMISSÃO NACIONAL DE ENERGIA NUCLEAR (CNEN) maintaining their expected schedule?
+Metadata:
+(Distributor: COMISSÃO NACIONAL DE ENERGIA NUCLEAR (CNEN); Country: Brazil; Customer: COMISSÃO NACIONAL DE ENERGIA NUCLEAR (CNEN))
+
+Additional instructions on specifying customers and countries in questions:
+- When a customer is different from the distributor, specify the customer’s name and country in the question body, phrased like:
+  "the [Customer Name] customer in [Country]"
+  followed by "of distributor [Distributor Name(s)]".
+- If the customer and distributor are the same entity, omit the Customer field in the body but always fill it in the metadata.
+- Ensure countries correspond to the customer(s) mentioned.
 
 Guidelines:
-
-- Consider previous reports and highlight new, ongoing, or resolved issues.
-- Focus on abnormal behavior, order spikes/drops, or lack of recent activity. Avoid stating the obvious.
-- Recommendations must be concise, specific, and practical for the Account Manager to follow up on.
-- Use only plain text—no Markdown, asterisks, or special formatting.
-- COMISSÃO NACIONAL DE ENERGIA NUCLEAR (CNEN) is expected to order every two weeks on even-numbered weeks. Flag any deviation from this pattern.
+- Base your questions on both the current report and the most recent feedback or answers from previous cycles.
+- For ongoing or unresolved issues, ask clarifying or follow-up questions and reference previous feedback where relevant.
+- For new issues, ask investigative questions to help clarify the root cause or suggest possible next steps.
+- Reference previous reports and feedback to highlight new, ongoing, or resolved issues.
+- Present only insights, trends, and questions—do not include recommendations or action items.
+- Use only plain text. No Markdown, asterisks, or any special formatting.
+- COMISSÃO NACIONAL DE ENERGIA NUCLEAR (CNEN) is expected to order every two weeks on even-numbered weeks. Flag and ask about any deviation from this pattern.
 """
 # Call OpenAI chat completion
 response = client.chat.completions.create(
     model="gpt-4o",
     messages=[
         {"role": "system", "content": system_prompt},
-        {"role": "user", "content": report_text}
+        {"role": "user", "content": full_prompt_text}
     ]
 )
 
 insights = response.choices[0].message.content.strip()
 print("\n💡 GPT Insights:\n", insights)
 
-# === Generate Executive Summary ===
+import re
+from datetime import datetime
+
+def extract_questions_by_am(insights):
+    am_sections = re.split(r"\n([A-Z][a-z]+ [A-Z][a-z]+)\n", "\n" + insights)
+    am_data = []
+    for i in range(1, len(am_sections), 2):
+        am_name = am_sections[i].strip()
+        section = am_sections[i + 1]
+        q_match = re.search(r"Questions\s*(for\s*[A-Za-z ]+)?\s*:\s*(.+?)(?=(\n[A-Z][a-z]+ [A-Z][a-z]+\n|$))", section, re.DOTALL)
+        if not q_match:
+            continue
+        questions_text = q_match.group(2)
+        for q_line in re.findall(r"\d+\.\s+(.+)", questions_text):
+            am_data.append({
+                "AM": am_name,
+                "Question": q_line.strip()
+            })
+    return am_data
+
+questions_by_am = extract_questions_by_am(insights)
+customer_names = sorted(df["Customer"].dropna().unique(), key=lambda x: -len(x))  # Longest first
+def extract_customers_from_question(question, customer_names):
+    found = []
+    for cname in customer_names:
+        # Match full customer name as a whole word, case-insensitive
+        pattern = r'\b' + re.escape(cname) + r'\b'
+        if re.search(pattern, question, flags=re.IGNORECASE):
+            found.append(cname)
+    return list(set(found))
+
+new_rows = []
+for q in questions_by_am:
+    question_clean, distributors, countries, customers = extract_metadata_from_question(q['Question'])
+
+    new_rows.append([
+        week_num,
+        year,
+        q['AM'],
+        ", ".join(distributors),
+        ", ".join(countries),
+        ", ".join(customers),
+        question_clean,   # Cleaned question text
+        "",  # Comments / Feedback
+        "Open",
+        datetime.now().strftime("%Y-%m-%d")
+    ])
+
+
+if new_rows:
+    feedback_ws.append_rows(new_rows, value_input_option="USER_ENTERED")
+    print(f"✅ Added {len(new_rows)} new questions to Feedback loop worksheet.")
+else:
+    print("No new questions found to add to the Feedback loop worksheet.")
+
+
 exec_summary_prompt ="""
 You are a senior business analyst. Based on the report below, write a very short executive summary in the form of one or two concise paragraphs, suitable for company leadership.
 
@@ -610,65 +841,75 @@ with PdfPages(latest_pdf) as pdf:
             pdf.savefig(fig, bbox_inches="tight")
             plt.close(fig)
 
-    # === Add ChatGPT insights pages (paginated) ===
-    insight_lines = insights.split("\n")
-    wrapped_insights = []
-    for line in insight_lines:
-        wrapped_insights.extend(
-            textwrap.wrap(line, width=100, break_long_words=False) if len(line) > 100 else [line]
-        )
+        # === Add ChatGPT insights pages (paginated) ===
+        insight_lines = [extract_metadata_from_question(line)[0] for line in insights.split("\n")]
 
-    lines_per_page = 35
-    for page_start in range(0, len(wrapped_insights), lines_per_page):
-        fig = plt.figure(figsize=(9.5, 11))
-        plt.axis("off")
-        page_lines = wrapped_insights[page_start:page_start + lines_per_page]
-        for i, line in enumerate(page_lines):
-            y = 1 - (i + 1) * 0.028
-            fig.text(0.06, y, line, fontsize=10, ha="left", va="top", family="DejaVu Sans")
-        pdf.savefig(fig)
-        plt.close(fig)
+        wrapped_insights = []
+        for line in insight_lines:
+            if len(line) > 100:
+                wrapped_insights.extend(textwrap.wrap(line, width=100, break_long_words=False))
+            else:
+                wrapped_insights.append(line)
 
-    # === Top 5 Charts by Product ===
-    products = {
-        "Lutetium  (177Lu) chloride N.C.A.": "Top 5 N.C.A. Customers",
-        "Lutetium (177Lu) chloride C.A": "Top 5 C.A. Customers",
-        "Terbium-161 chloride n.c.a": "Top 5 Terbium Customers"
-    }
+        lines_per_page = 35
+        if not wrapped_insights:
+            fig = plt.figure(figsize=(9.5, 11))
+            plt.axis("off")
+            fig.text(0.5, 0.5, "No insights available this week.", ha="center", fontsize=14)
+            pdf.savefig(fig)
+            plt.close(fig)
+        else:
+            for page_start in range(0, len(wrapped_insights), lines_per_page):
+                fig = plt.figure(figsize=(9.5, 11))
+                plt.axis("off")
+                page_lines = wrapped_insights[page_start:page_start + lines_per_page]
+                for i, line in enumerate(page_lines):
+                    y = 1 - (i + 1) * 0.028
+                    fig.text(0.06, y, line, fontsize=10, ha="left", va="top")
+                pdf.savefig(fig)
+                plt.close(fig)
 
-    for product_name, title in products.items():
-        product_df = recent_df[recent_df["Product"] == product_name]
-        if product_df.empty:
-            continue
-        top_customers = product_df.groupby("Customer")["Total_mCi"].sum().sort_values(ascending=False).head(5).index
-        plot_df = product_df[product_df["Customer"].isin(top_customers)].copy()
-        plot_df["WrappedCustomer"] = plot_df["Customer"].apply(lambda x: '\n'.join(textwrap.wrap(x, 12)))
-        plot_df["WeekLabel"] = plot_df["Year"].astype(str) + "-W" + plot_df["Week"].astype(str).str.zfill(2)
+        # === Add Top 5 Charts by Product ===
+        products = {
+            "Lutetium  (177Lu) chloride N.C.A.": "Top 5 N.C.A. Customers",
+            "Lutetium (177Lu) chloride C.A": "Top 5 C.A. Customers",
+            "Terbium-161 chloride n.c.a": "Top 5 Terbium Customers"
+        }
 
-        pivot_df = plot_df.pivot_table(
-            index="WeekLabel",
-            columns="WrappedCustomer",
-            values="Total_mCi",
-            aggfunc="sum"
-        ).fillna(0)
-        pivot_df = pivot_df.reindex(sorted(
-            pivot_df.index,
-            key=lambda x: (int(x.split("-W")[0]), int(x.split("-W")[1]))
-        ))
+        for product_name, title in products.items():
+            product_df = recent_df[recent_df["Product"] == product_name]
+            if product_df.empty:
+                continue
+            top_customers = product_df.groupby("Customer")["Total_mCi"].sum().sort_values(ascending=False).head(5).index
+            plot_df = product_df[product_df["Customer"].isin(top_customers)].copy()
+            plot_df["WrappedCustomer"] = plot_df["Customer"].apply(lambda x: '\n'.join(textwrap.wrap(x, 12)))
+            plot_df["WeekLabel"] = plot_df["Year"].astype(str) + "-W" + plot_df["Week"].astype(str).str.zfill(2)
 
-        fig, ax = plt.subplots(figsize=(8, 4.5))
-        pivot_df.plot(ax=ax, marker='o')
+            pivot_df = plot_df.pivot_table(
+                index="WeekLabel",
+                columns="WrappedCustomer",
+                values="Total_mCi",
+                aggfunc="sum"
+            ).fillna(0)
+            pivot_df = pivot_df.reindex(sorted(
+                pivot_df.index,
+                key=lambda x: (int(x.split("-W")[0]), int(x.split("-W")[1]))
+            ))
 
-        ax.set_title(title, fontsize=16, weight='bold')
-        ax.set_xlabel("Week of Supply", fontsize=11)
-        ax.set_ylabel("Total mCi Ordered", fontsize=11)
-        ax.tick_params(axis='x', rotation=45)
-        ax.grid(True, linestyle='--', alpha=0.5)
-        ax.legend(title="Customer", bbox_to_anchor=(1.02, 1), loc='upper left')
+            fig, ax = plt.subplots(figsize=(8, 4.5))
+            pivot_df.plot(ax=ax, marker='o')
 
-        fig.tight_layout(pad=2.0)
-        pdf.savefig(fig, bbox_inches="tight")
-        plt.close(fig)
+            ax.set_title(title, fontsize=16, weight='bold')
+            ax.set_xlabel("Week of Supply", fontsize=11)
+            ax.set_ylabel("Total mCi Ordered", fontsize=11)
+            ax.tick_params(axis='x', rotation=45)
+            ax.grid(True, linestyle='--', alpha=0.5)
+            ax.legend(title="Customer", bbox_to_anchor=(1.02, 1), loc='upper left')
+
+            fig.tight_layout(pad=2.0)
+            pdf.savefig(fig)
+            plt.close(fig)
+
 
 print("DEBUG: PDF file size right after creation:", os.path.getsize(latest_pdf))
 
@@ -692,4 +933,4 @@ with open(week_info_path, "w") as f:
 # === Upload PDFs to Google Drive Folder ===
 upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
-upload_to_drive(week_info_path, "Week_number.txt", folder_id)
+upload_to_drive(week_info_path, f"Week_number.txt", folder_id)
