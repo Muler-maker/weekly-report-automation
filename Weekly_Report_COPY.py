@@ -34,7 +34,7 @@ def build_feedback_context(feedback_df, week_num, year):
                 f"Account Manager: {row['AM']}\n"
                 f"Distributor: {row['Distributor']} | Country: {row['Country/Countries']} | Customers: {row['Customers']}\n"
                 f"Last question: {row['Question']}\n"
-                f"AM answer: {row['AM Answer']}\n"
+                f"AM answer: {row['Comments / Feedback']}\n"  # or whatever your actual column name is
                 f"Status: {row['Status']}, Date: {row['Feedback Date']}\n"
                 "------"
             )
