@@ -390,8 +390,6 @@ response = client.chat.completions.create(
 insights = response.choices[0].message.content.strip()
 print("\n💡 GPT Insights:\n", insights)
 
-# === ADD THIS BLOCK HERE ===
-
 import re
 from datetime import datetime
 
@@ -412,10 +410,6 @@ def extract_questions_by_am(insights):
             })
     return am_data
 
-questions_by_am = extract_questions_by_am(insights)
-# Sorted list of all customers (longest names first to avoid substring issues)
-customer_names = sorted(df["Customer"].dropna().unique(), key=lambda x: -len(x))
-
 def extract_customers_from_question(question, customer_names):
     found = []
     q_lower = question.lower()
@@ -424,9 +418,12 @@ def extract_customers_from_question(question, customer_names):
             found.append(cname)
     return list(set(found))  # Unique list
 
+questions_by_am = extract_questions_by_am(insights)
+customer_names = sorted(df["Customer"].dropna().unique(), key=lambda x: -len(x))
+
 new_rows = []
 for q in questions_by_am:
-    # Extract relevant customers mentioned in question
+    # Extract relevant customers mentioned in the question
     customer_list = extract_customers_from_question(q['Question'], customer_names)
 
     if customer_list:
@@ -436,9 +433,13 @@ for q in questions_by_am:
             subdf = df[df["Customer"] == customer]
             relevant_distributors.update(subdf["Distributor"].dropna().unique())
             relevant_countries.update(subdf["Country"].dropna().unique())
+
         distributors = ", ".join(sorted(relevant_distributors))
         countries = ", ".join(sorted(relevant_countries))
-        customers = ", ".join(sorted(customer_list))
+
+        # Exclude customers that are also distributors to avoid duplication
+        filtered_customers = [c for c in customer_list if c not in relevant_distributors]
+        customers = ", ".join(sorted(filtered_customers))
     else:
         distributors = ""
         countries = ""
@@ -463,51 +464,6 @@ if new_rows:
 else:
     print("No new questions found to add to the Feedback loop worksheet.")
 
-# Get all customer names, sorted longest first to avoid substring issues
-customer_names = sorted(df["Customer"].dropna().unique(), key=lambda x: -len(x))
-
-def extract_customers_from_question(question, customer_names):
-    found = []
-    q_lower = question.lower()
-    for cname in customer_names:
-        if cname.lower() in q_lower:
-            found.append(cname)
-    return list(set(found))  # Unique list, in case of repeats
-
-new_rows = []
-for q in questions_by_am:
-    distributors = extract_distributors_from_question(q['Question'])
-    countries = set()
-    customers = set()
-    for dist in distributors:
-        # Case-insensitive matching distributor names in df
-        sub_df = df[df["Distributor"].str.lower() == dist.lower()]
-        countries.update(sub_df["Country"].dropna().unique())
-        customers.update(sub_df["Customer"].dropna().unique())
-    distributors_str = ", ".join(distributors)
-    countries_str = ", ".join(sorted(countries))
-    customers_str = ", ".join(sorted(customers))
-
-    new_rows.append([
-        week_num,
-        year,
-        q['AM'],
-        distributors_str,
-        countries_str,
-        customers_str,
-        q['Question'],
-        "",  # Comments / Feedback
-        "Open",
-        datetime.now().strftime("%Y-%m-%d")
-    ])
-
-if new_rows:
-    feedback_ws.append_rows(new_rows, value_input_option="USER_ENTERED")
-    print(f"✅ Added {len(new_rows)} new questions to Feedback loop worksheet.")
-else:
-    print("No new questions found to add to the Feedback loop worksheet.")
-
-# === Generate Executive Summary ===
 exec_summary_prompt ="""
 You are a senior business analyst. Based on the report below, write a very short executive summary in the form of one or two concise paragraphs, suitable for company leadership.
 
