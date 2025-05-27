@@ -31,55 +31,111 @@ def remove_trailing_distributor_parenthesis(text):
 
 def parse_parentheses_info(text):
     """
-    Extracts Distributor, Country, and Customer from a parenthesis at the end of the line,
-    in the format: (Distributor: ...; Country: ...; Customer: ...)
-    Returns a tuple: (distributors, countries, customers)
-    If the pattern is not found, returns ('', '', '')
-    If Customer is missing or identical to Distributor, Customer will be set to Distributor.
+    Extracts Distributor, Country, and Customer from metadata at the end of the question.
+    Returns (distributors, countries, customers) as comma-separated strings,
+    never leaving a field blank, expanding as per business rules.
     """
-    # Match (Distributor: ...; Country: ...; Customer: ...)
+    # Find metadata: (Distributor: ...; Country: ...; Customer: ...)
     match = re.search(
         r'\(\s*Distributor:\s*([^;]+?)\s*;\s*Country:\s*([^;]+?)\s*;\s*Customer:\s*([^)]+?)\s*\)\s*$',
         text
     )
     if match:
-        distributors = match.group(1).strip()
-        countries = match.group(2).strip()
-        customers = match.group(3).strip()
-        if not customers or customers == distributors:
-            customers = distributors
-        return (distributors, countries, customers)
-    # Fallback: (Distributor: ...; Country: ...)
+        distributors = [d.strip() for d in match.group(1).split(',')]
+        countries = [c.strip() for c in match.group(2).split(',')]
+        customers = [c.strip() for c in match.group(3).split(',')]
+
+        # Expand any field if empty or "N/A"
+        if not any(distributors) or distributors == ['N/A']:
+            all_distributors = set()
+            for country in countries:
+                all_distributors.update(country_to_distributors.get(country, []))
+            distributors = list(all_distributors) if all_distributors else list(df['Distributor'].unique())
+        if not any(countries) or countries == ['N/A']:
+            all_countries = set()
+            for distributor in distributors:
+                all_countries.update(distributor_to_countries.get(distributor, []))
+            countries = list(all_countries) if all_countries else list(df['Country'].unique())
+        if not any(customers) or customers == ['N/A']:
+            all_customers = set()
+            for distributor in distributors:
+                for country in countries:
+                    all_customers.update(distributor_country_to_customers.get((distributor, country), []))
+            if not all_customers:
+                for distributor in distributors:
+                    all_customers.update(distributor_to_customers.get(distributor, []))
+                for country in countries:
+                    all_customers.update(country_to_customers.get(country, []))
+                if not all_customers:
+                    all_customers = set(df['Customer'].unique())
+            customers = list(all_customers)
+
+        # Fallback if any field is still empty (shouldn't happen, but just in case)
+        if not any(distributors) or not any(countries) or not any(customers):
+            return (
+                ", ".join(sorted(set(df['Distributor'].dropna().unique()))),
+                ", ".join(sorted(set(df['Country'].dropna().unique()))),
+                ", ".join(sorted(set(df['Customer'].dropna().unique())))
+            )
+
+        return (
+            ", ".join(sorted(set(distributors))),
+            ", ".join(sorted(set(countries))),
+            ", ".join(sorted(set(customers)))
+        )
+
+    # If only Distributor and Country
     match2 = re.search(
         r'\(\s*Distributor:\s*([^;]+?)\s*;\s*Country:\s*([^)]+?)\s*\)\s*$',
         text
     )
     if match2:
-        distributors = match2.group(1).strip()
-        countries = match2.group(2).strip()
-        customers = distributors
-        return (distributors, countries, customers)
-    return ('', '', '')
-def wrap_text(text, width=20):
-    return '\n'.join(textwrap.wrap(str(text), width=width))
-
-def build_feedback_context(feedback_df, week_num, year):
-    context_lines = []
-    for idx, row in feedback_df.iterrows():
-        if (
-            (str(row['Status']).lower() != 'done') or
-            (str(row['Week']) == str(week_num) and str(row['Year']) == str(year))
-        ):
-            line = (
-                f"Account Manager: {row['AM']}\n"
-                f"Distributor: {row['Distributor']} | Country: {row['Country/Countries']} | Customers: {row['Customers']}\n"
-                f"Last question: {row['Question']}\n"
-                f"AM answer: {row['Comments / Feedback']}\n"
-                f"Status: {row['Status']}, Date: {row['Feedback Date']}\n"
-                "------"
+        distributors = [d.strip() for d in match2.group(1).split(',')]
+        countries = [c.strip() for c in match2.group(2).split(',')]
+        all_customers = set()
+        for distributor in distributors:
+            for country in countries:
+                all_customers.update(distributor_country_to_customers.get((distributor, country), []))
+        customers = list(all_customers)
+        if not any(distributors) or not any(countries) or not any(customers):
+            return (
+                ", ".join(sorted(set(df['Distributor'].dropna().unique()))),
+                ", ".join(sorted(set(df['Country'].dropna().unique()))),
+                ", ".join(sorted(set(df['Customer'].dropna().unique())))
             )
-            context_lines.append(line)
-    return "\n".join(context_lines)
+        return (
+            ", ".join(sorted(set(distributors))),
+            ", ".join(sorted(set(countries))),
+            ", ".join(sorted(set(customers)))
+        )
+
+    # Ultimate fallback (no match at all)
+    return (
+        ", ".join(sorted(set(df['Distributor'].dropna().unique()))),
+        ", ".join(sorted(set(df['Country'].dropna().unique()))),
+        ", ".join(sorted(set(df['Customer'].dropna().unique())))
+    )
+
+    # If only Distributor and Country
+    match2 = re.search(
+        r'\(\s*Distributor:\s*([^;]+?)\s*;\s*Country:\s*([^)]+?)\s*\)\s*$',
+        text
+    )
+    if match2:
+        distributors = [d.strip() for d in match2.group(1).split(',')]
+        countries = [c.strip() for c in match2.group(2).split(',')]
+        # Find all customers linked to those distributors in those countries
+        all_customers = set()
+        for distributor in distributors:
+            for country in countries:
+                all_customers.update(distributor_country_to_customers.get((distributor, country), []))
+        customers = list(all_customers)
+        return (
+            ", ".join(sorted(set(distributors))),
+            ", ".join(sorted(set(countries))),
+            ", ".join(sorted(set(customers)))
+        )
+    return ('N/A', 'N/A', 'N/A')
 
 # --- Your utility/setup variables here ---
 script_dir = os.path.dirname(os.path.abspath(__file__)) if '__file__' in globals() else os.getcwd()
@@ -238,6 +294,26 @@ df = df[pd.to_numeric(df["Week"], errors="coerce").notnull()]
 df["Week"] = df["Week"].astype(int)
 df = df.dropna(subset=["Total_mCi", "Year", "Week"])
 df["YearWeek"] = list(zip(df["Year"], df["Week"]))
+from collections import defaultdict
+
+# Mapping: distributor & country → customers
+distributor_country_to_customers = defaultdict(list)
+country_to_distributors = defaultdict(set)
+country_to_customers = defaultdict(set)
+distributor_to_countries = defaultdict(set)
+distributor_to_customers = defaultdict(set)
+
+for _, row in df.iterrows():
+    distributor = str(row['Distributor']).strip()
+    country = str(row['Country']).strip()
+    customer = str(row['Customer']).strip()
+
+    if distributor and country and customer:
+        distributor_country_to_customers[(distributor, country)].append(customer)
+        country_to_distributors[country].add(distributor)
+        country_to_customers[country].add(customer)
+        distributor_to_countries[distributor].add(country)
+        distributor_to_customers[distributor].add(customer)
 
 # === Define 16-week window ===
 current = today - timedelta(days=today.weekday())
@@ -375,7 +451,7 @@ full_prompt_text = (
 )
 
 # System prompt with analyst instructions
-system_prompt = system_prompt = """
+system_prompt = system_prompt = system_prompt = """
 You are a senior business analyst. Analyze the weekly report for each Account Manager using a top-down structure: Distributor-level trends, followed by country-level patterns, and then customer-specific insights.
 
 For each Account Manager:
@@ -385,6 +461,7 @@ Otherwise, provide a concise summary of relevant trends and insights, grouped as
 Distributor-level: Note important patterns, risks, or deviations, including expected order behaviors.
 Country-level: Summarize trends affecting several customers in the same country.
 Customer-specific: Highlight notable changes, spikes, drops, or inactivity at the customer level.
+
 After the insights for each Account Manager, always include a separate section titled exactly as follows:
 
 Questions for [Account Manager Name]:
@@ -393,26 +470,62 @@ Provide up to 2 questions per Account Manager. If fewer than 2 relevant question
 [Second question] (Distributor: [Distributor Name(s)]; Country: [Country Name(s)]; Customer: [Customer Name(s)])
 [Third question] (Distributor: [Distributor Name(s)]; Country: [Country Name(s)]; Customer: [Customer Name(s)])
 (Use numbered questions, one per line, and use the AM’s exact name in the heading. Each question must explicitly specify the relevant distributor(s), country or countries, and customer(s) in parentheses exactly as shown.)
-Additional instructions on specifying customers and countries in questions:
-When a customer is different from the distributor, specify the customer’s name and country in the question body, phrased like:
-"the [Customer Name] customer in [Country]"
-followed by "of distributor [Distributor Name(s)]".
-If the customer and distributor are the same entity, omit the Customer field in the parentheses.
-Ensure countries correspond to the customer(s) mentioned.
-Use semicolons to separate Distributor, Country, and Customer fields inside the parentheses.
 
-Examples:
-"What factors explain the recent order changes for the University Hospital customer in Germany of distributor DSD Pharma GmbH? (Distributor: DSD Pharma GmbH; Country: Germany; Customer: University Hospital)"
-"Is COMISSÃO NACIONAL DE ENERGIA NUCLEAR (CNEN) maintaining their expected ordering schedule? (Distributor: COMISSÃO NACIONAL DE ENERGIA NUCLEAR (CNEN); Country: Brazil)"
+Metadata specification instructions:
+- Every question must include a metadata block, exactly as shown:
+  (Distributor: [Distributor Name(s)]; Country: [Country Name(s)]; Customer: [Customer Name(s)])
+- All three fields—Distributor, Country, Customer—must always be filled. Never leave a field blank.
+  If a field is not directly mentioned in the question, infer or expand as follows (using the provided data):
+    - If Distributor and Country are given, but not Customer:
+        List all customers linked to that distributor in that country, separated by commas.
+    - If only Country is given:
+        List all distributors and all customers in that country.
+    - If only Distributor is given:
+        List all countries and all customers for that distributor.
+    - If Customer is missing or matches Distributor:
+        Fill both fields with that value.
+    - If there is no valid value, use "N/A".
+    - Separate multiple values with commas in each field.
+- Use semicolons to separate the three metadata fields.
+- Use this exact metadata format for every question.
+
+Example Formatting:
+
+Question:
+What might explain the decrease in orders from Sinotau Pharmaceutical Group in China?
+Metadata:
+(Distributor: Sinotau Pharmaceutical Group; Country: China; Customer: Sinotau Pharmaceutical Group (Guangdong), Sinotau Pharmaceutical Group (Beijing))
+
+Question:
+Are there general order trends in Germany this month?
+Metadata:
+(Distributor: DSD Pharma GmbH, ABC Distributors; Country: Germany; Customer: University Hospital, Berlin Clinic)
+
+Question:
+Is Sinotau Pharmaceutical Group maintaining order volumes globally?
+Metadata:
+(Distributor: Sinotau Pharmaceutical Group; Country: China, Singapore; Customer: Sinotau (Guangdong), Sinotau (Beijing), Sinotau (Singapore))
+
+Question:
+Is COMISSÃO NACIONAL DE ENERGIA NUCLEAR (CNEN) maintaining their expected schedule?
+Metadata:
+(Distributor: COMISSÃO NACIONAL DE ENERGIA NUCLEAR (CNEN); Country: Brazil; Customer: COMISSÃO NACIONAL DE ENERGIA NUCLEAR (CNEN))
+
+Additional instructions on specifying customers and countries in questions:
+- When a customer is different from the distributor, specify the customer’s name and country in the question body, phrased like:
+  "the [Customer Name] customer in [Country]"
+  followed by "of distributor [Distributor Name(s)]".
+- If the customer and distributor are the same entity, omit the Customer field in the body but always fill it in the metadata.
+- Ensure countries correspond to the customer(s) mentioned.
 
 Guidelines:
-Base your questions on both the current report and the most recent feedback or answers from previous cycles.
-For ongoingor unresolved issues, ask clarifying or follow-up questions and reference previous feedback where relevant.
-For new issues, ask investigative questions to help clarify the root cause or suggest possible next steps.
-Reference previous reports and feedback to highlight new, ongoing, or resolved issues.
-Present only insights, trends, and questions — do not include recommendations or action items.
-Use only plain text. No Markdown, asterisks, or any special formatting.
-COMISSÃO NACIONAL DE ENERGIA NUCLEAR (CNEN) is expected to order every two weeks on even-numbered weeks. Flag and ask about any deviation from this pattern.
+- Base your questions on both the current report and the most recent feedback or answers from previous cycles.
+- For ongoing or unresolved issues, ask clarifying or follow-up questions and reference previous feedback where relevant.
+- For new issues, ask investigative questions to help clarify the root cause or suggest possible next steps.
+- Reference previous reports and feedback to highlight new, ongoing, or resolved issues.
+- Present only insights, trends, and questions—do not include recommendations or action items.
+- Use only plain text. No Markdown, asterisks, or any special formatting.
+- COMISSÃO NACIONAL DE ENERGIA NUCLEAR (CNEN) is expected to order every two weeks on even-numbered weeks. Flag and ask about any deviation from this pattern.
 """
 # Call OpenAI chat completion
 response = client.chat.completions.create(
