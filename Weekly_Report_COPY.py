@@ -690,6 +690,7 @@ with open(week_info_path, "w") as f:
     f.write(f"{week_num},{year}")
 
 # === Upload PDFs to Google Drive Folder ===
-upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
-upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
-upload_to_drive(week_info_path, "Week_number.txt", folder_id)
+upload_to_drive(summary_pdf, f"Feedback_Report_Week_{week_num}_{year}.pdf", folder_id)
+upload_to_drive(latest_copy_path, "Latest_Feedback_Report.pdf", folder_id)
+upload_to_drive(week_info_path, f"Feedback_Week_Info_{week_num}_{year}.txt", folder_id)
+
