@@ -20,8 +20,13 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 import json
 # === Function to remove Distributor metadata in parenthesis at the end of lines ===
-def remove_metadata_parenthesis(text):
-    return re.sub(r"\s*\([^()]*Distributor:[^)]*\)\s*$", "", text).strip()
+import re
+
+def remove_trailing_distributor_parenthesis(text):
+    """
+    Removes a parenthesis at the end of the line that includes 'Distributor'.
+    """
+    return re.sub(r'\([^()]*Distributor[^()]*\)$', '', text).rstrip()
 def wrap_text(text, width=20):
     return '\n'.join(textwrap.wrap(str(text), width=width))
 
