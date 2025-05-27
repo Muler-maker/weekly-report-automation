@@ -339,44 +339,40 @@ system_prompt = system_prompt = """
 You are a senior business analyst. Analyze the weekly report for each Account Manager using a top-down structure: Distributor-level trends, followed by country-level patterns, and then customer-specific insights.
 
 For each Account Manager:
-
 Start their section with their full name on a line by itself (e.g., Vicki Beillis).
-
 If there are no significant trends or issues for that week, write: No significant insights or questions for this week.
-
 Otherwise, provide a concise summary of relevant trends and insights, grouped as follows:
-    Distributor-level: Note important patterns, risks, or deviations, including expected order behaviors.
-    Country-level: Summarize trends affecting several customers in the same country.
-    Customer-specific: Highlight notable changes, spikes, drops, or inactivity at the customer level.
-
+Distributor-level: Note important patterns, risks, or deviations, including expected order behaviors.
+Country-level: Summarize trends affecting several customers in the same country.
+Customer-specific: Highlight notable changes, spikes, drops, or inactivity at the customer level.
 After the insights for each Account Manager, always include a separate section titled exactly as follows:
+
 Questions for [Account Manager Name]:
-1. [First question] (Distributor: [Distributor Name(s)]; Country: [Country Name(s)]; Customer: [Customer Name(s)])
-2. [Second question] (Distributor: [Distributor Name(s)]; Country: [Country Name(s)]; Customer: [Customer Name(s)])
-3. [Third question] (Distributor: [Distributor Name(s)]; Country: [Country Name(s)]; Customer: [Customer Name(s)])
-
+Provide up to 5 questions per Account Manager. If fewer than 5 relevant questions exist, include only those.
+[First question] (Distributor: [Distributor Name(s)]; Country: [Country Name(s)]; Customer: [Customer Name(s)])
+[Second question] (Distributor: [Distributor Name(s)]; Country: [Country Name(s)]; Customer: [Customer Name(s)])
+[Third question] (Distributor: [Distributor Name(s)]; Country: [Country Name(s)]; Customer: [Customer Name(s)])
 (Use numbered questions, one per line, and use the AM’s exact name in the heading. Each question must explicitly specify the relevant distributor(s), country or countries, and customer(s) in parentheses exactly as shown.)
-
 Additional instructions on specifying customers and countries in questions:
-- When a customer is different from the distributor, specify the customer’s name and country in the question body, phrased like:
-  "the [Customer Name] customer in [Country]"
-  followed by "of distributor [Distributor Name(s)]".
-- If the customer and distributor are the same entity, omit the Customer field in the parentheses.
-- Ensure the countries correspond to the customer(s) mentioned.
-- Use semicolons to separate Distributor, Country, and Customer fields inside the parentheses.
+When a customer is different from the distributor, specify the customer’s name and country in the question body, phrased like:
+"the [Customer Name] customer in [Country]"
+followed by "of distributor [Distributor Name(s)]".
+If the customer and distributor are the same entity, omit the Customer field in the parentheses.
+Ensure countries correspond to the customer(s) mentioned.
+Use semicolons to separate Distributor, Country, and Customer fields inside the parentheses.
 
 Examples:
-- "What factors explain the recent order changes for the University Hospital customer in Germany of distributor DSD Pharma GmbH? (Distributor: DSD Pharma GmbH; Country: Germany; Customer: University Hospital)"
-- "Is COMISSÃO NACIONAL DE ENERGIA NUCLEAR (CNEN) maintaining their expected ordering schedule? (Distributor: COMISSÃO NACIONAL DE ENERGIA NUCLEAR (CNEN); Country: Brazil)"
+"What factors explain the recent order changes for the University Hospital customer in Germany of distributor DSD Pharma GmbH? (Distributor: DSD Pharma GmbH; Country: Germany; Customer: University Hospital)"
+"Is COMISSÃO NACIONAL DE ENERGIA NUCLEAR (CNEN) maintaining their expected ordering schedule? (Distributor: COMISSÃO NACIONAL DE ENERGIA NUCLEAR (CNEN); Country: Brazil)"
 
 Guidelines:
-- Base your questions on both the current report and the most recent feedback or answers from previous cycles.
-- For ongoing or unresolved issues, ask clarifying or follow-up questions and reference previous feedback where relevant.
-- For new issues, ask investigative questions to help clarify the root cause or suggest possible next steps.
-- Reference previous reports and feedback to highlight new, ongoing, or resolved issues.
-- Present only insights, trends, and questions — do not include recommendations or action items.
-- Use only plain text. No Markdown, asterisks, or any special formatting.
-- COMISSÃO NACIONAL DE ENERGIA NUCLEAR (CNEN) is expected to order every two weeks on even-numbered weeks. Flag and ask about any deviation from this pattern.
+Base your questions on both the current report and the most recent feedback or answers from previous cycles.
+For ongoingor unresolved issues, ask clarifying or follow-up questions and reference previous feedback where relevant.
+For new issues, ask investigative questions to help clarify the root cause or suggest possible next steps.
+Reference previous reports and feedback to highlight new, ongoing, or resolved issues.
+Present only insights, trends, and questions — do not include recommendations or action items.
+Use only plain text. No Markdown, asterisks, or any special formatting.
+COMISSÃO NACIONAL DE ENERGIA NUCLEAR (CNEN) is expected to order every two weeks on even-numbered weeks. Flag and ask about any deviation from this pattern.
 """
 # Call OpenAI chat completion
 response = client.chat.completions.create(
@@ -419,14 +415,23 @@ def extract_customers_from_question(question, customer_names):
     return list(set(found))  # Unique list
 
 questions_by_am = extract_questions_by_am(insights)
-customer_names = sorted(df["Customer"].dropna().unique(), key=lambda x: -len(x))
+customer_names = sorted(df["Customer"].dropna().unique(), key=lambda x: -len(x))  # Longest first
+
+def extract_customers_from_question(question, customer_names):
+    found = []
+    q_lower = question.lower()
+    for cname in customer_names:
+        if cname.lower() in q_lower:
+            found.append(cname)
+    return list(set(found))  # Unique customers mentioned
 
 new_rows = []
 for q in questions_by_am:
-    # Extract relevant customers mentioned in the question
+    # Extract customers explicitly mentioned in the question text
     customer_list = extract_customers_from_question(q['Question'], customer_names)
 
     if customer_list:
+        # For these customers, find their distributors and countries
         relevant_distributors = set()
         relevant_countries = set()
         for customer in customer_list:
@@ -436,10 +441,7 @@ for q in questions_by_am:
 
         distributors = ", ".join(sorted(relevant_distributors))
         countries = ", ".join(sorted(relevant_countries))
-
-        # Exclude customers that are also distributors to avoid duplication
-        filtered_customers = [c for c in customer_list if c not in relevant_distributors]
-        customers = ", ".join(sorted(filtered_customers))
+        customers = ", ".join(sorted(customer_list))  # EXACT customers parsed from question
     else:
         distributors = ""
         countries = ""
@@ -453,7 +455,7 @@ for q in questions_by_am:
         countries,
         customers,
         q['Question'],
-        "",  # Comments/Feedback
+        "",  # Comments / Feedback
         "Open",
         datetime.now().strftime("%Y-%m-%d")
     ])
