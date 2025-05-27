@@ -9,7 +9,8 @@ import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import seaborn as sns
 from matplotlib.backends.backend_pdf import PdfPages
-import os, re
+import os
+import re
 from shutil import copyfile
 import textwrap
 from email.message import EmailMessage
@@ -19,14 +20,34 @@ import base64
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 import json
-# === Function to remove Distributor metadata in parenthesis at the end of lines ===
-import re
+
+# === Utility Functions ===
 
 def remove_trailing_distributor_parenthesis(text):
     """
     Removes a parenthesis at the end of the line that includes 'Distributor'.
     """
     return re.sub(r'\([^()]*Distributor[^()]*\)$', '', text).rstrip()
+
+def parse_parentheses_info(text):
+    """
+    Extracts Distributor, Country, and Customer from a parenthesis at the end of the line
+    in the format: (Distributor: ...; Country: ...; Customer: ...)
+    Returns a tuple: (distributors, countries, customers)
+    If the pattern is not found, returns ('', '', '')
+    """
+    match = re.search(r'\(([^)]*Distributor[^)]*)\)$', text)
+    if not match:
+        return ('', '', '')
+    meta = match.group(1)
+    dist = re.search(r'Distributor:\s*([^;]*)', meta)
+    country = re.search(r'Country:\s*([^;]*)', meta)
+    cust = re.search(r'Customer:\s*([^;]*)', meta)
+    distributors = dist.group(1).strip() if dist else ''
+    countries = country.group(1).strip() if country else ''
+    customers = cust.group(1).strip() if cust else ''
+    return (distributors, countries, customers)
+
 def wrap_text(text, width=20):
     return '\n'.join(textwrap.wrap(str(text), width=width))
 
@@ -41,7 +62,7 @@ def build_feedback_context(feedback_df, week_num, year):
                 f"Account Manager: {row['AM']}\n"
                 f"Distributor: {row['Distributor']} | Country: {row['Country/Countries']} | Customers: {row['Customers']}\n"
                 f"Last question: {row['Question']}\n"
-                f"AM answer: {row['Comments / Feedback']}\n"  # or whatever your actual column name is
+                f"AM answer: {row['Comments / Feedback']}\n"
                 f"Status: {row['Status']}, Date: {row['Feedback Date']}\n"
                 "------"
             )
@@ -777,7 +798,7 @@ with PdfPages(latest_pdf) as pdf:
 
     # === Add ChatGPT insights pages (paginated) ===
 # === Clean insight lines and wrap long lines ===
-insight_lines = [remove_metadata_parenthesis(line) for line in insights.split("\n")]
+insight_lines = [remove_trailing_distributor_parenthesis(line) for line in insights.split("\n")]
 
 wrapped_insights = []
 for line in insight_lines:
