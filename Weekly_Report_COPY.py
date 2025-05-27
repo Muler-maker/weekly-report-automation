@@ -348,7 +348,7 @@ Customer-specific: Highlight notable changes, spikes, drops, or inactivity at th
 After the insights for each Account Manager, always include a separate section titled exactly as follows:
 
 Questions for [Account Manager Name]:
-Provide up to 5 questions per Account Manager. If fewer than 5 relevant questions exist, include only those.
+Provide up to 2 questions per Account Manager. If fewer than 2 relevant questions exist, include only those.
 [First question] (Distributor: [Distributor Name(s)]; Country: [Country Name(s)]; Customer: [Customer Name(s)])
 [Second question] (Distributor: [Distributor Name(s)]; Country: [Country Name(s)]; Customer: [Customer Name(s)])
 [Third question] (Distributor: [Distributor Name(s)]; Country: [Country Name(s)]; Customer: [Customer Name(s)])
