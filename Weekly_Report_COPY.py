@@ -19,7 +19,9 @@ import base64
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 import json
-
+# === Function to remove Distributor metadata in parenthesis at the end of lines ===
+def remove_metadata_parenthesis(text):
+    return re.sub(r"\s*\([^()]*Distributor:[^)]*\)\s*$", "", text).strip()
 def wrap_text(text, width=20):
     return '\n'.join(textwrap.wrap(str(text), width=width))
 
@@ -769,10 +771,6 @@ with PdfPages(latest_pdf) as pdf:
             plt.close(fig)
 
     # === Add ChatGPT insights pages (paginated) ===
-# === Function to remove Distributor metadata in parenthesis at the end of lines ===
-def remove_metadata_parenthesis(text):
-    return re.sub(r"\s*\([^()]*Distributor:[^)]*\)\s*$", "", text).strip()
-
 # === Clean insight lines and wrap long lines ===
 insight_lines = [remove_metadata_parenthesis(line) for line in insights.split("\n")]
 
