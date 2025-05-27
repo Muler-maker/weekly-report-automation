@@ -774,12 +774,13 @@ with PdfPages(latest_pdf) as pdf:
             plt.close(fig)
 
     # === Add ChatGPT insights pages (paginated) ===
-    insight_lines = insights.split("\n")
+    insight_lines = [re.sub(r"\s*\(Distributor:[^)]+\)", "", line).strip() for line in insights.split("\n")]
     wrapped_insights = []
     for line in insight_lines:
         wrapped_insights.extend(
             textwrap.wrap(line, width=100, break_long_words=False) if len(line) > 100 else [line]
         )
+
 
     lines_per_page = 35
     for page_start in range(0, len(wrapped_insights), lines_per_page):
