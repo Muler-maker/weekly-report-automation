@@ -458,7 +458,7 @@ for q in questions_by_am:
         distributors,
         countries,
         customers,
-        q['Question'],
+        re.sub(r"\s*\(Distributor:[^)]+\)", "", q['Question']).strip(),,
         "",  # Comments / Feedback
         "Open",
         datetime.now().strftime("%Y-%m-%d")
