@@ -624,24 +624,6 @@ with open(insight_history_path, "a") as f:
 
 # === PDF Generation and email sending follow ===
 latest_pdf = os.path.join(output_folder, f"Weekly_Orders_Report_Week_{week_num}_{year}.pdf")
-# === Diagnostic Test PDF Generation ===
-from matplotlib.backends.backend_pdf import PdfPages
-import matplotlib.pyplot as plt
-import os
-
-diagnostic_pdf_path = os.path.join(output_folder, "diagnostic_test.pdf")
-
-try:
-    with PdfPages(diagnostic_pdf_path) as test_pdf:
-        fig = plt.figure(figsize=(8.5, 11))
-        plt.axis("off")
-        fig.text(0.5, 0.5, "✅ PDF rendering is working.", ha="center", fontsize=18)
-        test_pdf.savefig(fig)
-        plt.close(fig)
-    print("✅ Diagnostic PDF created:", diagnostic_pdf_path)
-    print("File size:", os.path.getsize(diagnostic_pdf_path), "bytes")
-except Exception as e:
-    print("❌ Diagnostic PDF generation failed:", str(e))
 
 with PdfPages(latest_pdf) as pdf:
     print("DEBUG: Entered PdfPages block")
@@ -682,224 +664,221 @@ with PdfPages(latest_pdf) as pdf:
         plt.close(fig)
 
         # --- STOPPED ORDERING TABLE ---
-# --- STOPPED ORDERING TABLE ---
-if stopped:
-    stopped_sorted = sorted(stopped, key=lambda x: customer_to_manager.get(x[0], "Other"))
-    stopped_df = pd.DataFrame([
-        [name, wrap_text(customer_to_manager.get(name, "Other"))]
-        for name, _ in stopped_sorted
-    ], columns=["Customer", "Account Manager"])
+        if stopped:
+            stopped_sorted = sorted(stopped, key=lambda x: customer_to_manager.get(x[0], "Other"))
+            stopped_df = pd.DataFrame([
+                [name, wrap_text(customer_to_manager.get(name, "Other"))]
+                for name, _ in stopped_sorted
+            ], columns=["Customer", "Account Manager"])
 
-    fig_height = max(4.5, 0.4 + 0.3 * len(stopped_df))
-    fig, ax = plt.subplots(figsize=(11, fig_height + 1))
-    ax.axis("off")
+            fig_height = max(4.5, 0.4 + 0.3 * len(stopped_df))
+            fig, ax = plt.subplots(figsize=(11, fig_height + 1))
+            ax.axis("off")
 
-    table = ax.table(
-        cellText=stopped_df.values,
-        colLabels=stopped_df.columns,
-        loc="upper left",
-        cellLoc="left",
-        colWidths=[0.8, 0.2]
-    )
+            table = ax.table(
+                cellText=stopped_df.values,
+                colLabels=stopped_df.columns,
+                loc="upper left",
+                cellLoc="left",
+                colWidths=[0.8, 0.2]
+            )
 
-    table.auto_set_font_size(False)
-    table.set_fontsize(7.5)
-    table.scale(1.0, 1.4)
+            table.auto_set_font_size(False)
+            table.set_fontsize(7.5)
+            table.scale(1.0, 1.4)
 
-    for (row, col), cell in table.get_celld().items():
-        cell.PAD = 0.2
-        if row == 0:
-            cell.set_facecolor("#e6e6fa")
-            cell.set_text_props(weight='bold', ha="left")
-        else:
-            cell.set_facecolor("#f9f9f9" if row % 2 == 0 else "#ffffff")
-            cell.set_text_props(ha="left")
-            cell._loc = 'left'
+            for (row, col), cell in table.get_celld().items():
+                cell.PAD = 0.2
+                if row == 0:
+                    cell.set_facecolor("#e6e6fa")
+                    cell.set_text_props(weight='bold', ha="left")
+                else:
+                    cell.set_facecolor("#f9f9f9" if row % 2 == 0 else "#ffffff")
+                    cell.set_text_props(ha="left")
+                    cell._loc = 'left'
 
-    ax.set_title("STOPPED ORDERING", fontsize=14, weight="bold", pad=15)
-    fig.text(
-        0.5, 0.87,
-        "Customers who stopped ordering in the last 4 weeks but did order in the 4 weeks before.",
-        fontsize=10, ha="center"
-    )
-    pdf.savefig(fig, bbox_inches="tight")
-    plt.close(fig)
+            ax.set_title("STOPPED ORDERING", fontsize=14, weight="bold", pad=15)
+            fig.text(
+                0.5, 0.87,
+                "Customers who stopped ordering in the last 4 weeks but did order in the 4 weeks before.",
+                fontsize=10, ha="center"
+            )
+            pdf.savefig(fig, bbox_inches="tight")
+            plt.close(fig)
 
-                   # --- DECREASED ORDERS TABLE ---
-if decreased:
-    for am, am_rows in sorted(decreased_by_am.items()):
-        decreased_df = pd.DataFrame([
-            [
-                name,
-                f"{curr - prev:+.0f}",
-                f"{(curr - prev) / prev * 100:+.1f}%" if prev else "+100%",
-                wrap_text(am),
-                (curr - prev) / prev * 100 if prev else 100
-            ]
-            for name, prev, curr, _ in am_rows
-        ], columns=["Customer", "Change (mCi)", "% Change", "Account Manager", "PercentValue"])
+        # --- DECREASED ORDERS TABLE ---
+        if decreased:
+            for am, am_rows in sorted(decreased_by_am.items()):
+                decreased_df = pd.DataFrame([
+                    [
+                        name,
+                        f"{curr - prev:+.0f}",
+                        f"{(curr - prev) / prev * 100:+.1f}%" if prev else "+100%",
+                        wrap_text(am),
+                        (curr - prev) / prev * 100 if prev else 100
+                    ]
+                    for name, prev, curr, _ in am_rows
+                ], columns=["Customer", "Change (mCi)", "% Change", "Account Manager", "PercentValue"])
 
-        decreased_df = decreased_df.sort_values("PercentValue", ascending=True).drop(columns="PercentValue")
-        fig_height = max(4.5, 0.4 + 0.3 * len(decreased_df))
-        fig, ax = plt.subplots(figsize=(11, fig_height + 1))
-        ax.axis("off")
+                decreased_df = decreased_df.sort_values("PercentValue", ascending=True).drop(columns="PercentValue")
+                fig_height = max(4.5, 0.4 + 0.3 * len(decreased_df))
+                fig, ax = plt.subplots(figsize=(11, fig_height + 1))
+                ax.axis("off")
 
-        colWidths = [0.64, 0.11, 0.11, 0.14]
-        table = ax.table(
-            cellText=decreased_df.values,
-            colLabels=decreased_df.columns,
-            loc="upper left",
-            cellLoc="center",
-            colWidths=colWidths
-        )
+                colWidths = [0.64, 0.11, 0.11, 0.14]
+                table = ax.table(
+                    cellText=decreased_df.values,
+                    colLabels=decreased_df.columns,
+                    loc="upper left",
+                    cellLoc="center",
+                    colWidths=colWidths
+                )
 
-        table.auto_set_font_size(False)
-        table.set_fontsize(7.5)
-        table.scale(1.0, 1.4)
+                table.auto_set_font_size(False)
+                table.set_fontsize(7.5)
+                table.scale(1.0, 1.4)
 
-        for (row, col), cell in table.get_celld().items():
-            cell.PAD = 0.2
-            if row == 0:
-                cell.set_facecolor("#e6e6fa")
-                cell.set_text_props(weight='bold')
-                cell._loc = 'left' if col == 0 else 'center'
-            else:
-                cell.set_facecolor("#f9f9f9" if row % 2 == 0 else "#ffffff")
-                cell.set_text_props(ha="left" if col == 0 else "center")
-                cell._loc = 'left' if col == 0 else 'center'
+                for (row, col), cell in table.get_celld().items():
+                    cell.PAD = 0.2
+                    if row == 0:
+                        cell.set_facecolor("#e6e6fa")
+                        cell.set_text_props(weight='bold')
+                        cell._loc = 'left' if col == 0 else 'center'
+                    else:
+                        cell.set_facecolor("#f9f9f9" if row % 2 == 0 else "#ffffff")
+                        cell.set_text_props(ha="left" if col == 0 else "center")
+                        cell._loc = 'left' if col == 0 else 'center'
 
-        ax.set_title(f"DECREASED ORDERS – {am}", fontsize=14, weight="bold", pad=15)
-        fig.text(
-            0.5, 0.87,
-            f"Customers managed by {am} who decreased orders in the last 8 weeks vs. prior 8.",
-            fontsize=10, ha="center"
-        )
-        pdf.savefig(fig, bbox_inches="tight")
-        plt.close(fig)
+                ax.set_title(f"DECREASED ORDERS – {am}", fontsize=14, weight="bold", pad=15)
+                fig.text(
+                    0.5, 0.87,
+                    f"Customers managed by {am} who decreased orders in the last 8 weeks vs. prior 8.",
+                    fontsize=10, ha="center"
+                )
+                pdf.savefig(fig, bbox_inches="tight")
+                plt.close(fig)
 
-          # --- INCREASED ORDERS TABLE ---
-if increased:
-    for am, am_rows in sorted(increased_by_am.items()):
-        increased_df = pd.DataFrame([
-            [
-                name,
-                f"{curr - prev:+.0f}",
-                f"{(curr - prev) / prev * 100:+.1f}%" if prev else "+100%",
-                wrap_text(am),
-                (curr - prev) / prev * 100 if prev else 100  # Sort helper
-            ]
-            for name, prev, curr, _ in am_rows
-        ], columns=["Customer", "Change (mCi)", "% Change", "Account Manager", "PercentValue"])
+        # --- INCREASED ORDERS TABLE ---
+        if increased:
+            for am, am_rows in sorted(increased_by_am.items()):
+                increased_df = pd.DataFrame([
+                    [
+                        name,
+                        f"{curr - prev:+.0f}",
+                        f"{(curr - prev) / prev * 100:+.1f}%" if prev else "+100%",
+                        wrap_text(am),
+                        (curr - prev) / prev * 100 if prev else 100
+                    ]
+                    for name, prev, curr, _ in am_rows
+                ], columns=["Customer", "Change (mCi)", "% Change", "Account Manager", "PercentValue"])
 
-        increased_df = increased_df.sort_values("PercentValue", ascending=False).drop(columns="PercentValue")
-        fig_height = max(4.5, 0.4 + 0.3 * len(increased_df))
-        fig, ax = plt.subplots(figsize=(11, fig_height + 1))
-        ax.axis("off")
+                increased_df = increased_df.sort_values("PercentValue", ascending=False).drop(columns="PercentValue")
+                fig_height = max(4.5, 0.4 + 0.3 * len(increased_df))
+                fig, ax = plt.subplots(figsize=(11, fig_height + 1))
+                ax.axis("off")
 
-        colWidths = [0.64, 0.11, 0.11, 0.14]
-        table = ax.table(
-            cellText=increased_df.values,
-            colLabels=increased_df.columns,
-            loc="upper left",
-            cellLoc="center",
-            colWidths=colWidths
-        )
+                colWidths = [0.64, 0.11, 0.11, 0.14]
+                table = ax.table(
+                    cellText=increased_df.values,
+                    colLabels=increased_df.columns,
+                    loc="upper left",
+                    cellLoc="center",
+                    colWidths=colWidths
+                )
 
-        table.auto_set_font_size(False)
-        table.set_fontsize(7.5)
-        table.scale(1.0, 1.4)
+                table.auto_set_font_size(False)
+                table.set_fontsize(7.5)
+                table.scale(1.0, 1.4)
 
-        for (row, col), cell in table.get_celld().items():
-            cell.PAD = 0.2
-            if row == 0:
-                cell.set_facecolor("#e6e6fa")
-                cell.set_text_props(weight='bold')
-                cell._loc = 'left' if col == 0 else 'center'
-            else:
-                cell.set_facecolor("#f9f9f9" if row % 2 == 0 else "#ffffff")
-                cell.set_text_props(ha="left" if col == 0 else "center")
-                cell._loc = 'left' if col == 0 else 'center'
+                for (row, col), cell in table.get_celld().items():
+                    cell.PAD = 0.2
+                    if row == 0:
+                        cell.set_facecolor("#e6e6fa")
+                        cell.set_text_props(weight='bold')
+                        cell._loc = 'left' if col == 0 else 'center'
+                    else:
+                        cell.set_facecolor("#f9f9f9" if row % 2 == 0 else "#ffffff")
+                        cell.set_text_props(ha="left" if col == 0 else "center")
+                        cell._loc = 'left' if col == 0 else 'center'
 
-        ax.set_title(f"INCREASED ORDERS – {am}", fontsize=14, weight="bold", pad=15)
-        fig.text(
-            0.5, 0.87,
-            f"Customers managed by {am} who increased orders in the last 8 weeks vs. prior 8.",
-            fontsize=10, ha="center"
-        )
-        pdf.savefig(fig, bbox_inches="tight")
-        plt.close(fig)
+                ax.set_title(f"INCREASED ORDERS – {am}", fontsize=14, weight="bold", pad=15)
+                fig.text(
+                    0.5, 0.87,
+                    f"Customers managed by {am} who increased orders in the last 8 weeks vs. prior 8.",
+                    fontsize=10, ha="center"
+                )
+                pdf.savefig(fig, bbox_inches="tight")
+                plt.close(fig)
 
         # --- INACTIVE IN PAST 4 WEEKS TABLE ---
-# --- INACTIVE IN PAST 4 WEEKS TABLE ---
-if inactive_recent_4:
-    inactive_sorted = sorted(inactive_recent_4, key=lambda name: customer_to_manager.get(name, "Other"))
-    inactive_df = pd.DataFrame([
-        [name, wrap_text(customer_to_manager.get(name, "Other"))]
-        for name in inactive_sorted
-    ], columns=["Customer", "Account Manager"])
+        if inactive_recent_4:
+            inactive_sorted = sorted(inactive_recent_4, key=lambda name: customer_to_manager.get(name, "Other"))
+            inactive_df = pd.DataFrame([
+                [name, wrap_text(customer_to_manager.get(name, "Other"))]
+                for name in inactive_sorted
+            ], columns=["Customer", "Account Manager"])
 
-    fig_height = max(4.5, 0.4 + 0.3 * len(inactive_df))
-    fig, ax = plt.subplots(figsize=(11, fig_height + 1))
-    ax.axis("off")
+            fig_height = max(4.5, 0.4 + 0.3 * len(inactive_df))
+            fig, ax = plt.subplots(figsize=(11, fig_height + 1))
+            ax.axis("off")
 
-    table = ax.table(
-        cellText=inactive_df.values,
-        colLabels=inactive_df.columns,
-        loc="upper left",
-        cellLoc="left",
-        colWidths=[0.8, 0.2]
-    )
+            table = ax.table(
+                cellText=inactive_df.values,
+                colLabels=inactive_df.columns,
+                loc="upper left",
+                cellLoc="left",
+                colWidths=[0.8, 0.2]
+            )
 
-    table.auto_set_font_size(False)
-    table.set_fontsize(7.5)
-    table.scale(1.0, 1.4)
+            table.auto_set_font_size(False)
+            table.set_fontsize(7.5)
+            table.scale(1.0, 1.4)
 
-    for (row, col), cell in table.get_celld().items():
-        cell.PAD = 0.2
-        if row == 0:
-            cell.set_facecolor("#e6e6fa")
-            cell.set_text_props(weight='bold', ha="left")
-        else:
-            cell.set_facecolor("#f9f9f9" if row % 2 == 0 else "#ffffff")
-            cell.set_text_props(ha="left")
-            cell._loc = 'left'
+            for (row, col), cell in table.get_celld().items():
+                cell.PAD = 0.2
+                if row == 0:
+                    cell.set_facecolor("#e6e6fa")
+                    cell.set_text_props(weight='bold', ha="left")
+                else:
+                    cell.set_facecolor("#f9f9f9" if row % 2 == 0 else "#ffffff")
+                    cell.set_text_props(ha="left")
+                    cell._loc = 'left'
 
-    ax.set_title("INACTIVE IN PAST 4 WEEKS", fontsize=14, weight="bold", pad=15)
-    fig.text(
-        0.5, 0.87,
-        "Customers who were active 4–8 weeks ago but not in the most recent 4 weeks.",
-        fontsize=10, ha="center"
-    )
-    pdf.savefig(fig, bbox_inches="tight")
-    plt.close(fig)
+            ax.set_title("INACTIVE IN PAST 4 WEEKS", fontsize=14, weight="bold", pad=15)
+            fig.text(
+                0.5, 0.87,
+                "Customers who were active 4–8 weeks ago but not in the most recent 4 weeks.",
+                fontsize=10, ha="center"
+            )
+            pdf.savefig(fig, bbox_inches="tight")
+            plt.close(fig)
 
-    # === Add ChatGPT insights pages (paginated) ===
-    insight_lines = [extract_metadata_from_question(line)[0] for line in insights.split("\n")]
+        # === ChatGPT Insights Pages ===
+        insight_lines = [extract_metadata_from_question(line)[0] for line in insights.split("\n")]
+        wrapped_insights = []
+        for line in insight_lines:
+            if len(line) > 100:
+                wrapped_insights.extend(textwrap.wrap(line, width=100, break_long_words=False))
+            else:
+                wrapped_insights.append(line)
 
-    wrapped_insights = []
-    for line in insight_lines:
-        if len(line) > 100:
-            wrapped_insights.extend(textwrap.wrap(line, width=100, break_long_words=False))
-        else:
-            wrapped_insights.append(line)
-
-    lines_per_page = 35
-    if not wrapped_insights:
-        fig = plt.figure(figsize=(9.5, 11))
-        plt.axis("off")
-        fig.text(0.5, 0.5, "No insights available this week.", ha="center", fontsize=14)
-        pdf.savefig(fig)
-        plt.close(fig)
-    else:
-        for page_start in range(0, len(wrapped_insights), lines_per_page):
+        lines_per_page = 35
+        if not wrapped_insights:
             fig = plt.figure(figsize=(9.5, 11))
             plt.axis("off")
-            page_lines = wrapped_insights[page_start:page_start + lines_per_page]
-            for i, line in enumerate(page_lines):
-                y = 1 - (i + 1) * 0.028
-                fig.text(0.06, y, line, fontsize=10, ha="left", va="top")
+            fig.text(0.5, 0.5, "No insights available this week.", ha="center", fontsize=14)
             pdf.savefig(fig)
             plt.close(fig)
+        else:
+            for page_start in range(0, len(wrapped_insights), lines_per_page):
+                fig = plt.figure(figsize=(9.5, 11))
+                plt.axis("off")
+                page_lines = wrapped_insights[page_start:page_start + lines_per_page]
+                for i, line in enumerate(page_lines):
+                    y = 1 - (i + 1) * 0.028
+                    fig.text(0.06, y, line, fontsize=10, ha="left", va="top")
+                pdf.savefig(fig)
+                plt.close(fig)
 
 # === After the PDF file is closed ===
 print("DEBUG: PDF file size right after creation:", os.path.getsize(latest_pdf))
