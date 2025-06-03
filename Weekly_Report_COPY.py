@@ -663,23 +663,43 @@ with PdfPages(latest_pdf) as pdf:
         pdf.savefig(fig, bbox_inches="tight")
         plt.close(fig)
         # === Summary Table: Overall Categories ===
+        total_decreased = sum(curr - prev for v in decreased_by_am.values() for _, prev, curr, _ in v)
+        total_increased = sum(curr - prev for v in increased_by_am.values() for _, prev, curr, _ in v)
+
         summary_df = pd.DataFrame([
             ["Stopped Ordering", len(stopped), "–"],
-            ["Decreased Orders", sum(len(v) for v in decreased_by_am.values()), f"{sum(curr - prev for v in decreased_by_am.values() for _, prev, curr, _ in v):+}"],
-            ["Increased Orders", sum(len(v) for v in increased_by_am.values()), f"{sum(curr - prev for v in increased_by_am.values() for _, prev, curr, _ in v):+}"],
+            ["Decreased Orders", sum(len(v) for v in decreased_by_am.values()), f"{total_decreased:+.1f}"],
+            ["Increased Orders", sum(len(v) for v in increased_by_am.values()), f"{total_increased:+.1f}"],
             ["Inactive (last 4 wks)", len(inactive_recent_4), "–"]
         ], columns=["Category", "# of Customers", "Total Δ (mCi)"])
-        
-        fig, ax = plt.subplots(figsize=(8.5, 2.2))
+
+        fig_height = max(2.2, 0.4 + 0.3 * len(summary_df))
+        fig, ax = plt.subplots(figsize=(8.5, fig_height))
         ax.axis("off")
-        table = ax.table(cellText=summary_df.values, colLabels=summary_df.columns, loc="center", cellLoc="center")
+
+        table = ax.table(
+            cellText=summary_df.values,
+            colLabels=summary_df.columns,
+            loc="center",
+            cellLoc="center"
+        )
         table.auto_set_font_size(False)
-        table.set_fontsize(10)
-        table.scale(1.1, 1.5)
+        table.set_fontsize(9.5)
+        table.scale(1.1, 1.4)
+
+        for (row, col), cell in table.get_celld().items():
+            cell.PAD = 0.2
+            if row == 0:
+                cell.set_facecolor("#e6e6fa")
+                cell.set_text_props(weight='bold', ha="center")
+            else:
+                cell.set_facecolor("#f9f9f9" if row % 2 == 0 else "#ffffff")
+                cell.set_text_props(ha="center")
+
         ax.set_title("Summary by Category", fontsize=14, weight='bold', pad=10)
         pdf.savefig(fig, bbox_inches="tight")
         plt.close(fig)
-        
+
         # === Summary Table: By Account Manager ===
         am_list = set(
             list(decreased_by_am.keys()) +
@@ -693,17 +713,77 @@ with PdfPages(latest_pdf) as pdf:
             num_inactive = sum(1 for name in inactive_recent_4 if customer_to_manager.get(name, "Other") == am)
             num_stopped = sum(1 for name, _ in stopped if customer_to_manager.get(name, "Other") == am)
             am_summary.append([am, num_plus, num_minus, num_inactive, num_stopped])
-        
+
         am_df = pd.DataFrame(am_summary, columns=["Account Manager", "+ Customers", "– Customers", "Inactive", "Stopped"])
-        fig, ax = plt.subplots(figsize=(8.5, 0.6 + 0.4 * len(am_df)))
+        fig_height = max(2.5, 0.4 + 0.3 * len(am_df))
+        fig, ax = plt.subplots(figsize=(8.5, fig_height))
         ax.axis("off")
-        table = ax.table(cellText=am_df.values, colLabels=am_df.columns, loc="center", cellLoc="center")
+
+        table = ax.table(
+            cellText=am_df.values,
+            colLabels=am_df.columns,
+            loc="center",
+            cellLoc="center"
+        )
         table.auto_set_font_size(False)
-        table.set_fontsize(10)
-        table.scale(1.1, 1.5)
+        table.set_fontsize(9.5)
+        table.scale(1.1, 1.4)
+
+        for (row, col), cell in table.get_celld().items():
+            cell.PAD = 0.2
+            if row == 0:
+                cell.set_facecolor("#e6e6fa")
+                cell.set_text_props(weight='bold', ha="center")
+            else:
+                cell.set_facecolor("#f9f9f9" if row % 2 == 0 else "#ffffff")
+                cell.set_text_props(ha="center")
+
         ax.set_title("Summary by Account Manager", fontsize=14, weight='bold', pad=10)
         pdf.savefig(fig, bbox_inches="tight")
         plt.close(fig)
+  # === Add Top 5 Charts by Product ===
+        products = {
+            "Lutetium  (177Lu) chloride N.C.A.": "Top 5 N.C.A. Customers",
+            "Lutetium (177Lu) chloride C.A": "Top 5 C.A. Customers",
+            "Terbium-161 chloride n.c.a": "Top 5 Terbium Customers"
+        }
+
+        for product_name, title in products.items():
+            product_df = recent_df[recent_df["Product"] == product_name]
+            if product_df.empty:
+                continue
+
+            top_customers = product_df.groupby("Customer")["Total_mCi"].sum().sort_values(ascending=False).head(5).index
+            plot_df = product_df[product_df["Customer"].isin(top_customers)].copy()
+            plot_df["WrappedCustomer"] = plot_df["Customer"].apply(lambda x: '\n'.join(textwrap.wrap(x, 12)))
+            plot_df["WeekLabel"] = plot_df["Year"].astype(str) + "-W" + plot_df["Week"].astype(str).str.zfill(2)
+
+            pivot_df = plot_df.pivot_table(
+                index="WeekLabel",
+                columns="WrappedCustomer",
+                values="Total_mCi",
+                aggfunc="sum"
+            ).fillna(0)
+
+            # Sort weeks in calendar order
+            pivot_df = pivot_df.reindex(sorted(
+                pivot_df.index,
+                key=lambda x: (int(x.split("-W")[0]), int(x.split("-W")[1]))
+            ))
+
+            fig, ax = plt.subplots(figsize=(8, 4.5))
+            pivot_df.plot(ax=ax, marker='o')
+
+            ax.set_title(title, fontsize=16, weight='bold')
+            ax.set_xlabel("Week of Supply", fontsize=11)
+            ax.set_ylabel("Total mCi Ordered", fontsize=11)
+            ax.tick_params(axis='x', rotation=45)
+            ax.grid(True, linestyle='--', alpha=0.5)
+            ax.legend(title="Customer", bbox_to_anchor=(1.02, 1), loc='upper left')
+
+            fig.tight_layout(pad=2.0)
+            pdf.savefig(fig)
+            plt.close(fig)
 
         # --- STOPPED ORDERING TABLE ---
         if stopped:
@@ -921,50 +1001,6 @@ with PdfPages(latest_pdf) as pdf:
                     fig.text(0.06, y, line, fontsize=10, ha="left", va="top")
                 pdf.savefig(fig)
                 plt.close(fig)
-
-        # === Add Top 5 Charts by Product ===
-        products = {
-            "Lutetium  (177Lu) chloride N.C.A.": "Top 5 N.C.A. Customers",
-            "Lutetium (177Lu) chloride C.A": "Top 5 C.A. Customers",
-            "Terbium-161 chloride n.c.a": "Top 5 Terbium Customers"
-        }
-
-        for product_name, title in products.items():
-            product_df = recent_df[recent_df["Product"] == product_name]
-            if product_df.empty:
-                continue
-
-            top_customers = product_df.groupby("Customer")["Total_mCi"].sum().sort_values(ascending=False).head(5).index
-            plot_df = product_df[product_df["Customer"].isin(top_customers)].copy()
-            plot_df["WrappedCustomer"] = plot_df["Customer"].apply(lambda x: '\n'.join(textwrap.wrap(x, 12)))
-            plot_df["WeekLabel"] = plot_df["Year"].astype(str) + "-W" + plot_df["Week"].astype(str).str.zfill(2)
-
-            pivot_df = plot_df.pivot_table(
-                index="WeekLabel",
-                columns="WrappedCustomer",
-                values="Total_mCi",
-                aggfunc="sum"
-            ).fillna(0)
-
-            # Sort weeks in calendar order
-            pivot_df = pivot_df.reindex(sorted(
-                pivot_df.index,
-                key=lambda x: (int(x.split("-W")[0]), int(x.split("-W")[1]))
-            ))
-
-            fig, ax = plt.subplots(figsize=(8, 4.5))
-            pivot_df.plot(ax=ax, marker='o')
-
-            ax.set_title(title, fontsize=16, weight='bold')
-            ax.set_xlabel("Week of Supply", fontsize=11)
-            ax.set_ylabel("Total mCi Ordered", fontsize=11)
-            ax.tick_params(axis='x', rotation=45)
-            ax.grid(True, linestyle='--', alpha=0.5)
-            ax.legend(title="Customer", bbox_to_anchor=(1.02, 1), loc='upper left')
-
-            fig.tight_layout(pad=2.0)
-            pdf.savefig(fig)
-            plt.close(fig)
 
 # === After the PDF file is closed ===
 print("DEBUG: PDF file size right after creation:", os.path.getsize(latest_pdf))
