@@ -855,77 +855,35 @@ if inactive_recent_4:
     pdf.savefig(fig, bbox_inches="tight")
     plt.close(fig)
 
+    # === Add ChatGPT insights pages (paginated) ===
+    insight_lines = [extract_metadata_from_question(line)[0] for line in insights.split("\n")]
 
-        # === Add ChatGPT insights pages (paginated) ===
-        insight_lines = [extract_metadata_from_question(line)[0] for line in insights.split("\n")]
+    wrapped_insights = []
+    for line in insight_lines:
+        if len(line) > 100:
+            wrapped_insights.extend(textwrap.wrap(line, width=100, break_long_words=False))
+        else:
+            wrapped_insights.append(line)
 
-        wrapped_insights = []
-        for line in insight_lines:
-            if len(line) > 100:
-                wrapped_insights.extend(textwrap.wrap(line, width=100, break_long_words=False))
-            else:
-                wrapped_insights.append(line)
-
-        lines_per_page = 35
-        if not wrapped_insights:
+    lines_per_page = 35
+    if not wrapped_insights:
+        fig = plt.figure(figsize=(9.5, 11))
+        plt.axis("off")
+        fig.text(0.5, 0.5, "No insights available this week.", ha="center", fontsize=14)
+        pdf.savefig(fig)
+        plt.close(fig)
+    else:
+        for page_start in range(0, len(wrapped_insights), lines_per_page):
             fig = plt.figure(figsize=(9.5, 11))
             plt.axis("off")
-            fig.text(0.5, 0.5, "No insights available this week.", ha="center", fontsize=14)
-            pdf.savefig(fig)
-            plt.close(fig)
-        else:
-            for page_start in range(0, len(wrapped_insights), lines_per_page):
-                fig = plt.figure(figsize=(9.5, 11))
-                plt.axis("off")
-                page_lines = wrapped_insights[page_start:page_start + lines_per_page]
-                for i, line in enumerate(page_lines):
-                    y = 1 - (i + 1) * 0.028
-                    fig.text(0.06, y, line, fontsize=10, ha="left", va="top")
-                pdf.savefig(fig)
-                plt.close(fig)
-
-        # === Add Top 5 Charts by Product ===
-        products = {
-            "Lutetium  (177Lu) chloride N.C.A.": "Top 5 N.C.A. Customers",
-            "Lutetium (177Lu) chloride C.A": "Top 5 C.A. Customers",
-            "Terbium-161 chloride n.c.a": "Top 5 Terbium Customers"
-        }
-
-        for product_name, title in products.items():
-            product_df = recent_df[recent_df["Product"] == product_name]
-            if product_df.empty:
-                continue
-            top_customers = product_df.groupby("Customer")["Total_mCi"].sum().sort_values(ascending=False).head(5).index
-            plot_df = product_df[product_df["Customer"].isin(top_customers)].copy()
-            plot_df["WrappedCustomer"] = plot_df["Customer"].apply(lambda x: '\n'.join(textwrap.wrap(x, 12)))
-            plot_df["WeekLabel"] = plot_df["Year"].astype(str) + "-W" + plot_df["Week"].astype(str).str.zfill(2)
-
-            pivot_df = plot_df.pivot_table(
-                index="WeekLabel",
-                columns="WrappedCustomer",
-                values="Total_mCi",
-                aggfunc="sum"
-            ).fillna(0)
-            pivot_df = pivot_df.reindex(sorted(
-                pivot_df.index,
-                key=lambda x: (int(x.split("-W")[0]), int(x.split("-W")[1]))
-            ))
-
-            fig, ax = plt.subplots(figsize=(8, 4.5))
-            pivot_df.plot(ax=ax, marker='o')
-
-            ax.set_title(title, fontsize=16, weight='bold')
-            ax.set_xlabel("Week of Supply", fontsize=11)
-            ax.set_ylabel("Total mCi Ordered", fontsize=11)
-            ax.tick_params(axis='x', rotation=45)
-            ax.grid(True, linestyle='--', alpha=0.5)
-            ax.legend(title="Customer", bbox_to_anchor=(1.02, 1), loc='upper left')
-
-            fig.tight_layout(pad=2.0)
+            page_lines = wrapped_insights[page_start:page_start + lines_per_page]
+            for i, line in enumerate(page_lines):
+                y = 1 - (i + 1) * 0.028
+                fig.text(0.06, y, line, fontsize=10, ha="left", va="top")
             pdf.savefig(fig)
             plt.close(fig)
 
-
+# === After the PDF file is closed ===
 print("DEBUG: PDF file size right after creation:", os.path.getsize(latest_pdf))
 
 # === Save report with additional filenames ===
