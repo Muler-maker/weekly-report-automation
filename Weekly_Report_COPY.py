@@ -624,6 +624,24 @@ with open(insight_history_path, "a") as f:
 
 # === PDF Generation and email sending follow ===
 latest_pdf = os.path.join(output_folder, f"Weekly_Orders_Report_Week_{week_num}_{year}.pdf")
+# === Diagnostic Test PDF Generation ===
+from matplotlib.backends.backend_pdf import PdfPages
+import matplotlib.pyplot as plt
+import os
+
+diagnostic_pdf_path = os.path.join(output_folder, "diagnostic_test.pdf")
+
+try:
+    with PdfPages(diagnostic_pdf_path) as test_pdf:
+        fig = plt.figure(figsize=(8.5, 11))
+        plt.axis("off")
+        fig.text(0.5, 0.5, "✅ PDF rendering is working.", ha="center", fontsize=18)
+        test_pdf.savefig(fig)
+        plt.close(fig)
+    print("✅ Diagnostic PDF created:", diagnostic_pdf_path)
+    print("File size:", os.path.getsize(diagnostic_pdf_path), "bytes")
+except Exception as e:
+    print("❌ Diagnostic PDF generation failed:", str(e))
 
 with PdfPages(latest_pdf) as pdf:
     print("DEBUG: Entered PdfPages block")
