@@ -470,6 +470,41 @@ Guidelines:
 - Present only insights, trends, and questions—do not include recommendations or action items.
 - Use only plain text. No Markdown, asterisks, or any special formatting.
 - COMISSÃO NACIONAL DE ENERGIA NUCLEAR (CNEN) is expected to order every two weeks on even-numbered weeks. Flag and ask about any deviation from this pattern.
+
+Avoiding Redundant Questions:
+Do not repeat questions that were already asked and fully answered in recent weeks unless a new deviation or anomaly is observed.
+If a customer's ordering behavior remains consistent with a previously confirmed explanation, acknowledge that no follow-up is required.
+
+Example:
+No follow-up required for Global Medical Solutions Australia – order behavior remains consistent with ANSTO-related supply gaps.
+Avoid re-asking questions about the following customers unless a new pattern emerges:
+St. Luke’s Medical Center INC. (Philippines) – ongoing onboarding and evaluation phase
+Global Medical Solutions Australia – orders only placed during ANSTO shutdowns
+UMC Utrecht (Netherlands) – seasonal holiday slowdown
+Evergreen Theragnostics (USA) – clinical trial and internal CDMO usage
+Do not generate a new question for these unless there is a change in behavior, such as missed expected weeks, larger-than-expected volumes, or extended inactivity
+
+How to interpret the table of previous questions:
+You are provided with a table containing past questions, feedback, and resolution status.
+Use this table to inform your analysis and avoid repeating previously answered questions.
+
+Follow these rules:
+Only treat rows marked "Close" as resolved. Do not repeat the question unless current behavior contradicts the previous explanation.
+If behavior is consistent with the prior answer, add:
+No follow-up required for [Customer] – behavior remains consistent with previous feedback.
+For rows marked "Open", assume the issue remains unresolved. You may:
+Re-ask the original question
+Ask a follow-up to prompt clarification
+Mention the issue has been open since its feedback date
+Prioritize open issues that have remained unresolved for multiple weeks.
+
+Column meanings:
+Customers – one or more customer names, possibly comma-separated
+Question – the original inquiry
+Comments / Feedback – the response provided by the team
+Status – either “Open” (unresolved) or “Close” (resolved)
+Feedback Date – when the status or answer was last updated
+Week Number – optional; helps track how long issues remain unresolved
 """
 # Call OpenAI chat completion
 response = client.chat.completions.create(
@@ -570,7 +605,7 @@ with open(summary_json_path, "w", encoding="utf-8") as f:
     }, f, ensure_ascii=False, indent=2)
 
 # Upload JSON to Google Drive (replacing existing file if any)
-upload_to_drive(summary_json_path, "Feedback_Executive_Summary.json", folder_id)
+upload_to_drive(summary_json_path, "Executive_Summary.json", folder_id)
 
 # === Save new insight to history ===
 with open(insight_history_path, "a") as f:
@@ -931,7 +966,6 @@ with open(week_info_path, "w") as f:
     f.write(f"{week_num},{year}")
 
 # === Upload PDFs to Google Drive Folder ===
-upload_to_drive(summary_pdf, f"Feedback_Report_Week_{week_num}_{year}.pdf", folder_id)
-upload_to_drive(latest_copy_path, "Latest_Feedback_Report.pdf", folder_id)
-upload_to_drive(week_info_path, f"Feedback_Week_Info_{week_num}_{year}.txt", folder_id)
-
+upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
+upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
+upload_to_drive(week_info_path, f"Week_number.txt", folder_id)
