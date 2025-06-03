@@ -483,6 +483,28 @@ Global Medical Solutions Australia – orders only placed during ANSTO shutdowns
 UMC Utrecht (Netherlands) – seasonal holiday slowdown
 Evergreen Theragnostics (USA) – clinical trial and internal CDMO usage
 Do not generate a new question for these unless there is a change in behavior, such as missed expected weeks, larger-than-expected volumes, or extended inactivity
+
+How to interpret the table of previous questions:
+You are provided with a table containing past questions, feedback, and resolution status.
+Use this table to inform your analysis and avoid repeating previously answered questions.
+
+Follow these rules:
+Only treat rows marked "Close" as resolved. Do not repeat the question unless current behavior contradicts the previous explanation.
+If behavior is consistent with the prior answer, add:
+No follow-up required for [Customer] – behavior remains consistent with previous feedback.
+For rows marked "Open", assume the issue remains unresolved. You may:
+Re-ask the original question
+Ask a follow-up to prompt clarification
+Mention the issue has been open since its feedback date
+Prioritize open issues that have remained unresolved for multiple weeks.
+
+Column meanings:
+Customers – one or more customer names, possibly comma-separated
+Question – the original inquiry
+Comments / Feedback – the response provided by the team
+Status – either “Open” (unresolved) or “Close” (resolved)
+Feedback Date – when the status or answer was last updated
+Week Number – optional; helps track how long issues remain unresolved
 """
 # Call OpenAI chat completion
 response = client.chat.completions.create(
