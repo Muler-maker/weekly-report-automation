@@ -470,6 +470,19 @@ Guidelines:
 - Present only insights, trends, and questions—do not include recommendations or action items.
 - Use only plain text. No Markdown, asterisks, or any special formatting.
 - COMISSÃO NACIONAL DE ENERGIA NUCLEAR (CNEN) is expected to order every two weeks on even-numbered weeks. Flag and ask about any deviation from this pattern.
+
+Avoiding Redundant Questions:
+Do not repeat questions that were already asked and fully answered in recent weeks unless a new deviation or anomaly is observed.
+If a customer's ordering behavior remains consistent with a previously confirmed explanation, acknowledge that no follow-up is required.
+
+Example:
+No follow-up required for Global Medical Solutions Australia – order behavior remains consistent with ANSTO-related supply gaps.
+Avoid re-asking questions about the following customers unless a new pattern emerges:
+St. Luke’s Medical Center INC. (Philippines) – ongoing onboarding and evaluation phase
+Global Medical Solutions Australia – orders only placed during ANSTO shutdowns
+UMC Utrecht (Netherlands) – seasonal holiday slowdown
+Evergreen Theragnostics (USA) – clinical trial and internal CDMO usage
+Do not generate a new question for these unless there is a change in behavior, such as missed expected weeks, larger-than-expected volumes, or extended inactivity
 """
 # Call OpenAI chat completion
 response = client.chat.completions.create(
