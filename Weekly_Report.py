@@ -285,6 +285,16 @@ for customer in all_customers:
         increased.append((customer, prev, curr, manager))
     elif curr < prev:
         decreased.append((customer, prev, curr, manager))
+from collections import defaultdict
+
+increased_by_am = defaultdict(list)
+decreased_by_am = defaultdict(list)
+
+for row in increased:
+    increased_by_am[row[3]].append(row)  # row = (customer, prev, curr, manager)
+
+for row in decreased:
+    decreased_by_am[row[3]].append(row)
 
 # === Build mapping: customer to distributor ===
 customer_to_distributor = df.set_index("Customer")["Distributor"].to_dict()
@@ -652,19 +662,141 @@ with PdfPages(latest_pdf) as pdf:
 
         pdf.savefig(fig, bbox_inches="tight")
         plt.close(fig)
+        # === Summary Table: Overall Categories ===
+        total_decreased = sum(curr - prev for v in decreased_by_am.values() for _, prev, curr, _ in v)
+        total_increased = sum(curr - prev for v in increased_by_am.values() for _, prev, curr, _ in v)
+
+        summary_df = pd.DataFrame([
+            ["Stopped Ordering", len(stopped), "–"],
+            ["Decreased Orders", sum(len(v) for v in decreased_by_am.values()), f"{total_decreased:+.1f}"],
+            ["Increased Orders", sum(len(v) for v in increased_by_am.values()), f"{total_increased:+.1f}"],
+            ["Inactive (last 4 wks)", len(inactive_recent_4), "–"]
+        ], columns=["Category", "# of Customers", "Total Δ (mCi)"])
+
+        fig_height = max(2.2, 0.4 + 0.3 * len(summary_df))
+        fig, ax = plt.subplots(figsize=(8.5, fig_height))
+        ax.axis("off")
+
+        table = ax.table(
+            cellText=summary_df.values,
+            colLabels=summary_df.columns,
+            loc="center",
+            cellLoc="center"
+        )
+        table.auto_set_font_size(False)
+        table.set_fontsize(9.5)
+        table.scale(1.1, 1.4)
+
+        for (row, col), cell in table.get_celld().items():
+            cell.PAD = 0.2
+            if row == 0:
+                cell.set_facecolor("#e6e6fa")
+                cell.set_text_props(weight='bold', ha="center")
+            else:
+                cell.set_facecolor("#f9f9f9" if row % 2 == 0 else "#ffffff")
+                cell.set_text_props(ha="center")
+
+        ax.set_title("Summary by Category", fontsize=14, weight='bold', pad=10)
+        pdf.savefig(fig, bbox_inches="tight")
+        plt.close(fig)
+
+        # === Summary Table: By Account Manager ===
+        am_list = set(
+            list(decreased_by_am.keys()) +
+            list(increased_by_am.keys()) +
+            [customer_to_manager.get(name, "Other") for name in inactive_recent_4 + [x[0] for x in stopped]]
+        )
+        am_summary = []
+        for am in sorted(am_list):
+            num_plus = len(increased_by_am.get(am, []))
+            num_minus = len(decreased_by_am.get(am, []))
+            num_inactive = sum(1 for name in inactive_recent_4 if customer_to_manager.get(name, "Other") == am)
+            num_stopped = sum(1 for name, _ in stopped if customer_to_manager.get(name, "Other") == am)
+            am_summary.append([am, num_plus, num_minus, num_inactive, num_stopped])
+
+        am_df = pd.DataFrame(am_summary, columns=["Account Manager", "+ Customers", "– Customers", "Inactive", "Stopped"])
+        fig_height = max(2.5, 0.4 + 0.3 * len(am_df))
+        fig, ax = plt.subplots(figsize=(8.5, fig_height))
+        ax.axis("off")
+
+        table = ax.table(
+            cellText=am_df.values,
+            colLabels=am_df.columns,
+            loc="center",
+            cellLoc="center"
+        )
+        table.auto_set_font_size(False)
+        table.set_fontsize(9.5)
+        table.scale(1.1, 1.4)
+
+        for (row, col), cell in table.get_celld().items():
+            cell.PAD = 0.2
+            if row == 0:
+                cell.set_facecolor("#e6e6fa")
+                cell.set_text_props(weight='bold', ha="center")
+            else:
+                cell.set_facecolor("#f9f9f9" if row % 2 == 0 else "#ffffff")
+                cell.set_text_props(ha="center")
+
+        ax.set_title("Summary by Account Manager", fontsize=14, weight='bold', pad=10)
+        pdf.savefig(fig, bbox_inches="tight")
+        plt.close(fig)
+  # === Add Top 5 Charts by Product ===
+        products = {
+            "Lutetium  (177Lu) chloride N.C.A.": "Top 5 N.C.A. Customers",
+            "Lutetium (177Lu) chloride C.A": "Top 5 C.A. Customers",
+            "Terbium-161 chloride n.c.a": "Top 5 Terbium Customers"
+        }
+
+        for product_name, title in products.items():
+            product_df = recent_df[recent_df["Product"] == product_name]
+            if product_df.empty:
+                continue
+
+            top_customers = product_df.groupby("Customer")["Total_mCi"].sum().sort_values(ascending=False).head(5).index
+            plot_df = product_df[product_df["Customer"].isin(top_customers)].copy()
+            plot_df["WrappedCustomer"] = plot_df["Customer"].apply(lambda x: '\n'.join(textwrap.wrap(x, 12)))
+            plot_df["WeekLabel"] = plot_df["Year"].astype(str) + "-W" + plot_df["Week"].astype(str).str.zfill(2)
+
+            pivot_df = plot_df.pivot_table(
+                index="WeekLabel",
+                columns="WrappedCustomer",
+                values="Total_mCi",
+                aggfunc="sum"
+            ).fillna(0)
+
+            # Sort weeks in calendar order
+            pivot_df = pivot_df.reindex(sorted(
+                pivot_df.index,
+                key=lambda x: (int(x.split("-W")[0]), int(x.split("-W")[1]))
+            ))
+
+            fig, ax = plt.subplots(figsize=(8, 4.5))
+            pivot_df.plot(ax=ax, marker='o')
+
+            ax.set_title(title, fontsize=16, weight='bold')
+            ax.set_xlabel("Week of Supply", fontsize=11)
+            ax.set_ylabel("Total mCi Ordered", fontsize=11)
+            ax.tick_params(axis='x', rotation=45)
+            ax.grid(True, linestyle='--', alpha=0.5)
+            ax.legend(title="Customer", bbox_to_anchor=(1.02, 1), loc='upper left')
+
+            fig.tight_layout(pad=2.0)
+            pdf.savefig(fig)
+            plt.close(fig)
 
         # --- STOPPED ORDERING TABLE ---
         if stopped:
-            stopped_df = pd.DataFrame(
-                [
-                    [name, wrap_text(mgr)]
-                    for name, mgr in stopped
-                ],
-                columns=["Customer", "Account Manager"]
-            )
+            stopped_sorted = sorted(stopped, key=lambda x: customer_to_manager.get(x[0], "Other"))
+            stopped_df = pd.DataFrame([
+                [name, wrap_text(customer_to_manager.get(name, "Other"))]
+                for name, _ in stopped_sorted
+            ], columns=["Customer", "Account Manager"])
+
             fig_height = max(4.5, 0.4 + 0.3 * len(stopped_df))
             fig, ax = plt.subplots(figsize=(11, fig_height + 1))
             ax.axis("off")
+
             table = ax.table(
                 cellText=stopped_df.values,
                 colLabels=stopped_df.columns,
@@ -672,30 +804,20 @@ with PdfPages(latest_pdf) as pdf:
                 cellLoc="left",
                 colWidths=[0.8, 0.2]
             )
+
             table.auto_set_font_size(False)
             table.set_fontsize(7.5)
             table.scale(1.0, 1.4)
 
-            # Improve alignment and styling
             for (row, col), cell in table.get_celld().items():
                 cell.PAD = 0.2
                 if row == 0:
                     cell.set_facecolor("#e6e6fa")
-                    if col == 0:
-                        cell.set_text_props(ha="left", weight='bold')
-                    else:
-                        cell.set_text_props(ha="left", weight='bold')
+                    cell.set_text_props(weight='bold', ha="left")
                 else:
-                    if row % 2 == 0:
-                        cell.set_facecolor("#f9f9f9")
-                    else:
-                        cell.set_facecolor("#ffffff")
-                    if col == 0:
-                        cell.set_text_props(ha="left")
-                        cell._loc = 'left'
-                    else:
-                        cell.set_text_props(ha="left")
-                        cell._loc = 'left'
+                    cell.set_facecolor("#f9f9f9" if row % 2 == 0 else "#ffffff")
+                    cell.set_text_props(ha="left")
+                    cell._loc = 'left'
 
             ax.set_title("STOPPED ORDERING", fontsize=14, weight="bold", pad=15)
             fig.text(
@@ -706,167 +828,144 @@ with PdfPages(latest_pdf) as pdf:
             pdf.savefig(fig, bbox_inches="tight")
             plt.close(fig)
 
-                   # --- DECREASED ORDERS TABLE ---
+        # --- DECREASED ORDERS TABLE ---
         if decreased:
-            decreased_df = pd.DataFrame([
-                [
-                    name,
-                    f"{curr - prev:+.0f}",
-                    f"{(curr - prev) / prev * 100:+.1f}%" if prev else "+100%",
-                    wrap_text(mgr),
-                    (curr - prev) / prev * 100 if prev else 100  # Helper column
-                ]
-                for name, prev, curr, mgr in decreased
-            ], columns=["Customer", "Change (mCi)", "% Change", "Account Manager", "PercentValue"])
-            # Sort by PercentValue ascending (worst decreases at top)
-            decreased_df = decreased_df.sort_values("PercentValue", ascending=True).drop(columns="PercentValue")
-            fig_height = max(4.5, 0.4 + 0.3 * len(decreased_df))
-            fig, ax = plt.subplots(figsize=(11, fig_height + 1))
-            ax.axis("off")
-            # Set colWidths: [Customer, Change, % Change, Account Manager]
-            colWidths = [0.64, 0.11, 0.11, 0.14]
-            table = ax.table(
-                cellText=decreased_df.values,
-                colLabels=decreased_df.columns,
-                loc="upper left",
-                cellLoc="center",    # Default: center for all cells, will override Customer later
-                colWidths=colWidths
-            )
-            # Set larger font size for table
-            table.auto_set_font_size(False)
-            table.set_fontsize(7.5)
-            table.scale(1.0, 1.4)
-            for (row, col), cell in table.get_celld().items():
-                cell.PAD = 0.2
-                # Header row formatting
-                if row == 0:
-                    cell.set_facecolor("#e6e6fa")
-                    cell.set_text_props(weight='bold')
-                    # Align "Customer" header left, rest center
-                    if col == 0:
-                        cell.set_text_props(ha="left")
-                        cell._loc = 'left'
+            for am, am_rows in sorted(decreased_by_am.items()):
+                decreased_df = pd.DataFrame([
+                    [
+                        name,
+                        f"{curr - prev:+.0f}",
+                        f"{(curr - prev) / prev * 100:+.1f}%" if prev else "+100%",
+                        wrap_text(am),
+                        (curr - prev) / prev * 100 if prev else 100
+                    ]
+                    for name, prev, curr, _ in am_rows
+                ], columns=["Customer", "Change (mCi)", "% Change", "Account Manager", "PercentValue"])
+
+                decreased_df = decreased_df.sort_values("PercentValue", ascending=True).drop(columns="PercentValue")
+                fig_height = max(4.5, 0.4 + 0.3 * len(decreased_df))
+                fig, ax = plt.subplots(figsize=(11, fig_height + 1))
+                ax.axis("off")
+
+                colWidths = [0.64, 0.11, 0.11, 0.14]
+                table = ax.table(
+                    cellText=decreased_df.values,
+                    colLabels=decreased_df.columns,
+                    loc="upper left",
+                    cellLoc="center",
+                    colWidths=colWidths
+                )
+
+                table.auto_set_font_size(False)
+                table.set_fontsize(7.5)
+                table.scale(1.0, 1.4)
+
+                for (row, col), cell in table.get_celld().items():
+                    cell.PAD = 0.2
+                    if row == 0:
+                        cell.set_facecolor("#e6e6fa")
+                        cell.set_text_props(weight='bold')
+                        cell._loc = 'left' if col == 0 else 'center'
                     else:
-                        cell.set_text_props(ha="center")
-                        cell._loc = 'center'
-                else:
-                    # Stripe effect
-                    if row % 2 == 0:
-                        cell.set_facecolor("#f9f9f9")
-                    else:
-                        cell.set_facecolor("#ffffff")
-                    # Align "Customer" column left, others center
-                    if col == 0:
-                        cell.set_text_props(ha="left")
-                        cell._loc = 'left'
-                    else:
-                        cell.set_text_props(ha="center")
-                        cell._loc = 'center'
-            ax.set_title("DECREASED ORDERS", fontsize=16, weight="bold", pad=15)
-            fig.text(
-                0.5, 0.87,
-                "These customers ordered less in the last 8 weeks compared to the 8 weeks prior.",
-                fontsize=12, ha="center"
-            )
-            pdf.savefig(fig, bbox_inches="tight")
-            plt.close(fig)
+                        cell.set_facecolor("#f9f9f9" if row % 2 == 0 else "#ffffff")
+                        cell.set_text_props(ha="left" if col == 0 else "center")
+                        cell._loc = 'left' if col == 0 else 'center'
 
+                ax.set_title(f"DECREASED ORDERS – {am}", fontsize=14, weight="bold", pad=15)
+                fig.text(
+                    0.5, 0.87,
+                    f"Customers managed by {am} who decreased orders in the last 8 weeks vs. prior 8.",
+                    fontsize=10, ha="center"
+                )
+                pdf.savefig(fig, bbox_inches="tight")
+                plt.close(fig)
 
-
-
-          # --- INCREASED ORDERS TABLE ---
+        # --- INCREASED ORDERS TABLE ---
         if increased:
-            increased_df = pd.DataFrame([
-                [
-                    name,
-                    f"{curr - prev:+.0f}",
-                    f"{(curr - prev) / prev * 100:+.1f}%" if prev else "+100%",
-                    wrap_text(mgr),
-                    (curr - prev) / prev * 100 if prev else 100  # Helper column
-                ]
-                for name, prev, curr, mgr in increased
-            ], columns=["Customer", "Change (mCi)", "% Change", "Account Manager", "PercentValue"])
-            # Sort by PercentValue descending (biggest increases at top)
-            increased_df = increased_df.sort_values("PercentValue", ascending=False).drop(columns="PercentValue")
-            fig_height = max(4.5, 0.4 + 0.3 * len(increased_df))
-            fig, ax = plt.subplots(figsize=(11, fig_height + 1))
-            ax.axis("off")
-            colWidths = [0.64, 0.11, 0.11, 0.14]
-            table = ax.table(
-                cellText=increased_df.values,
-                colLabels=increased_df.columns,
-                loc="upper left",
-                cellLoc="center",   # Default: center for all cells, override for Customer column
-                colWidths=colWidths
-            )
-            table.auto_set_font_size(False)
-            table.set_fontsize(7.5)
-            table.scale(1.0, 1.4)
-            for (row, col), cell in table.get_celld().items():
-                cell.PAD = 0.2
-                # Header row formatting
-                if row == 0:
-                    cell.set_facecolor("#e6e6fa")
-                    cell.set_text_props(weight='bold')
-                    if col == 0:
-                        cell.set_text_props(ha="left")
-                        cell._loc = 'left'
-                    else:
-                        cell.set_text_props(ha="center")
-                        cell._loc = 'center'
-                else:
-                    if row % 2 == 0:
-                        cell.set_facecolor("#f9f9f9")
-                    else:
-                        cell.set_facecolor("#ffffff")
-                    if col == 0:
-                        cell.set_text_props(ha="left")
-                        cell._loc = 'left'
-                    else:
-                        cell.set_text_props(ha="center")
-                        cell._loc = 'center'
-            ax.set_title("INCREASED ORDERS", fontsize=16, weight="bold", pad=15)
-            fig.text(
-                0.5, 0.87,
-                "These customers increased their order amounts in the last 8 weeks compared to the 8 weeks prior.",
-                fontsize=12, ha="center"
-            )
-            pdf.savefig(fig, bbox_inches="tight")
-            plt.close(fig)
+            for am, am_rows in sorted(increased_by_am.items()):
+                increased_df = pd.DataFrame([
+                    [
+                        name,
+                        f"{curr - prev:+.0f}",
+                        f"{(curr - prev) / prev * 100:+.1f}%" if prev else "+100%",
+                        wrap_text(am),
+                        (curr - prev) / prev * 100 if prev else 100
+                    ]
+                    for name, prev, curr, _ in am_rows
+                ], columns=["Customer", "Change (mCi)", "% Change", "Account Manager", "PercentValue"])
 
+                increased_df = increased_df.sort_values("PercentValue", ascending=False).drop(columns="PercentValue")
+                fig_height = max(4.5, 0.4 + 0.3 * len(increased_df))
+                fig, ax = plt.subplots(figsize=(11, fig_height + 1))
+                ax.axis("off")
+
+                colWidths = [0.64, 0.11, 0.11, 0.14]
+                table = ax.table(
+                    cellText=increased_df.values,
+                    colLabels=increased_df.columns,
+                    loc="upper left",
+                    cellLoc="center",
+                    colWidths=colWidths
+                )
+
+                table.auto_set_font_size(False)
+                table.set_fontsize(7.5)
+                table.scale(1.0, 1.4)
+
+                for (row, col), cell in table.get_celld().items():
+                    cell.PAD = 0.2
+                    if row == 0:
+                        cell.set_facecolor("#e6e6fa")
+                        cell.set_text_props(weight='bold')
+                        cell._loc = 'left' if col == 0 else 'center'
+                    else:
+                        cell.set_facecolor("#f9f9f9" if row % 2 == 0 else "#ffffff")
+                        cell.set_text_props(ha="left" if col == 0 else "center")
+                        cell._loc = 'left' if col == 0 else 'center'
+
+                ax.set_title(f"INCREASED ORDERS – {am}", fontsize=14, weight="bold", pad=15)
+                fig.text(
+                    0.5, 0.87,
+                    f"Customers managed by {am} who increased orders in the last 8 weeks vs. prior 8.",
+                    fontsize=10, ha="center"
+                )
+                pdf.savefig(fig, bbox_inches="tight")
+                plt.close(fig)
 
         # --- INACTIVE IN PAST 4 WEEKS TABLE ---
         if inactive_recent_4:
-            inactive_df = pd.DataFrame(
-                [[name] for name in inactive_recent_4],
-                columns=["Customer"]
-            )
+            inactive_sorted = sorted(inactive_recent_4, key=lambda name: customer_to_manager.get(name, "Other"))
+            inactive_df = pd.DataFrame([
+                [name, wrap_text(customer_to_manager.get(name, "Other"))]
+                for name in inactive_sorted
+            ], columns=["Customer", "Account Manager"])
+
             fig_height = max(4.5, 0.4 + 0.3 * len(inactive_df))
             fig, ax = plt.subplots(figsize=(11, fig_height + 1))
             ax.axis("off")
+
             table = ax.table(
                 cellText=inactive_df.values,
                 colLabels=inactive_df.columns,
                 loc="upper left",
                 cellLoc="left",
-                colWidths=[0.9]
+                colWidths=[0.8, 0.2]
             )
+
             table.auto_set_font_size(False)
             table.set_fontsize(7.5)
             table.scale(1.0, 1.4)
+
             for (row, col), cell in table.get_celld().items():
                 cell.PAD = 0.2
                 if row == 0:
                     cell.set_facecolor("#e6e6fa")
-                    cell.set_text_props(ha="left", weight='bold')
-                elif row % 2 == 0:
-                    cell.set_facecolor("#f9f9f9")
-                    cell.set_text_props(ha="left")
-                    cell._loc = 'left'
+                    cell.set_text_props(weight='bold', ha="left")
                 else:
-                    cell.set_facecolor("#ffffff")
+                    cell.set_facecolor("#f9f9f9" if row % 2 == 0 else "#ffffff")
                     cell.set_text_props(ha="left")
                     cell._loc = 'left'
+
             ax.set_title("INACTIVE IN PAST 4 WEEKS", fontsize=14, weight="bold", pad=15)
             fig.text(
                 0.5, 0.87,
@@ -876,9 +975,8 @@ with PdfPages(latest_pdf) as pdf:
             pdf.savefig(fig, bbox_inches="tight")
             plt.close(fig)
 
-        # === Add ChatGPT insights pages (paginated) ===
+        # === ChatGPT Insights Pages ===
         insight_lines = [extract_metadata_from_question(line)[0] for line in insights.split("\n")]
-
         wrapped_insights = []
         for line in insight_lines:
             if len(line) > 100:
@@ -904,48 +1002,7 @@ with PdfPages(latest_pdf) as pdf:
                 pdf.savefig(fig)
                 plt.close(fig)
 
-        # === Add Top 5 Charts by Product ===
-        products = {
-            "Lutetium  (177Lu) chloride N.C.A.": "Top 5 N.C.A. Customers",
-            "Lutetium (177Lu) chloride C.A": "Top 5 C.A. Customers",
-            "Terbium-161 chloride n.c.a": "Top 5 Terbium Customers"
-        }
-
-        for product_name, title in products.items():
-            product_df = recent_df[recent_df["Product"] == product_name]
-            if product_df.empty:
-                continue
-            top_customers = product_df.groupby("Customer")["Total_mCi"].sum().sort_values(ascending=False).head(5).index
-            plot_df = product_df[product_df["Customer"].isin(top_customers)].copy()
-            plot_df["WrappedCustomer"] = plot_df["Customer"].apply(lambda x: '\n'.join(textwrap.wrap(x, 12)))
-            plot_df["WeekLabel"] = plot_df["Year"].astype(str) + "-W" + plot_df["Week"].astype(str).str.zfill(2)
-
-            pivot_df = plot_df.pivot_table(
-                index="WeekLabel",
-                columns="WrappedCustomer",
-                values="Total_mCi",
-                aggfunc="sum"
-            ).fillna(0)
-            pivot_df = pivot_df.reindex(sorted(
-                pivot_df.index,
-                key=lambda x: (int(x.split("-W")[0]), int(x.split("-W")[1]))
-            ))
-
-            fig, ax = plt.subplots(figsize=(8, 4.5))
-            pivot_df.plot(ax=ax, marker='o')
-
-            ax.set_title(title, fontsize=16, weight='bold')
-            ax.set_xlabel("Week of Supply", fontsize=11)
-            ax.set_ylabel("Total mCi Ordered", fontsize=11)
-            ax.tick_params(axis='x', rotation=45)
-            ax.grid(True, linestyle='--', alpha=0.5)
-            ax.legend(title="Customer", bbox_to_anchor=(1.02, 1), loc='upper left')
-
-            fig.tight_layout(pad=2.0)
-            pdf.savefig(fig)
-            plt.close(fig)
-
-
+# === After the PDF file is closed ===
 print("DEBUG: PDF file size right after creation:", os.path.getsize(latest_pdf))
 
 # === Save report with additional filenames ===
