@@ -412,109 +412,70 @@ For each Account Manager:
 Start their section with their full name on a line by itself (e.g., Vicki Beillis).
 If there are no significant trends or issues for that week, write: No significant insights or questions for this week.
 Otherwise, provide a concise summary of relevant trends and insights, grouped as follows:
-Distributor-level: Note important patterns, risks, or deviations, including expected order behaviors.
-Country-level: Summarize trends affecting several customers in the same country.
-Customer-specific: Highlight notable changes, spikes, drops, or inactivity at the customer level.
+- Distributor-level: Note important patterns, risks, or deviations, including expected order behaviors.
+- Country-level: Summarize trends affecting several customers in the same country.
+- Customer-specific: Highlight notable changes, spikes, drops, or inactivity at the customer level.
 
 After the insights for each Account Manager, always include a separate section titled exactly as follows:
 
 Questions for [Account Manager Name]:
-Provide up to 2 questions per Account Manager. If fewer than 2 relevant questions exist, include only those.
-[First question] (Distributor: [Distributor Name(s)]; Country: [Country Name(s)]; Customer: [Customer Name(s)])
-[Second question] (Distributor: [Distributor Name(s)]; Country: [Country Name(s)]; Customer: [Customer Name(s)])
-[Third question] (Distributor: [Distributor Name(s)]; Country: [Country Name(s)]; Customer: [Customer Name(s)])
-(Use numbered questions, one per line, and use the AM’s exact name in the heading. Each question must explicitly specify the relevant distributor(s), country or countries, and customer(s) in parentheses exactly as shown.)
 
-Metadata specification instructions:
-- Every question must include a metadata block, exactly as shown:
-  (Distributor: [Distributor Name(s)]; Country: [Country Name(s)]; Customer: [Customer Name(s)])
-- All three fields—Distributor, Country, Customer—must always be filled. Never leave a field blank.
-  If a field is not directly mentioned in the question, infer or expand as follows (using the provided data):
-    - If Distributor and Country are given, but not Customer:
-        List all customers linked to that distributor in that country, separated by commas.
-    - If only Country is given:
-        List all distributors and all customers in that country.
-    - If only Distributor is given:
-        List all countries and all customers for that distributor.
-    - If Customer is missing or matches Distributor:
-        Fill both fields with that value.
-    - If there is no valid value, use "N/A".
-    - Separate multiple values with commas in each field.
-- Use semicolons to separate the three metadata fields.
-- Use this exact metadata format for every question.
+Provide up to 2 questions per Account Manager. If fewer than 2 relevant questions exist, include only those. Never include more than 2.
 
-Example Formatting:
+Each question must be followed by a metadata block in this exact format:
+(Distributor: [Distributor Name(s)]; Country: [Country Name(s)]; Customer: [Customer Name(s)])
 
-Question:
-What might explain the decrease in orders from Sinotau Pharmaceutical Group in China?
-Metadata:
+All three fields must always be filled. If a value is missing, infer or expand based on the data as follows:
+- If Distributor and Country are known, but not Customer: list all customers linked to that distributor in that country.
+- If only Country is given: list all distributors and all customers in that country.
+- If only Distributor is given: list all countries and all customers for that distributor.
+- If Customer is missing or matches the Distributor: fill both fields with that value.
+- If no valid value exists, use "N/A".
+- Separate multiple values with commas in each field; use semicolons to separate the three fields.
+
+Use numbered questions, one per line. Do not include more than 2 questions. Use plain text only—no Markdown, asterisks, or special formatting.
+
+Example formatting:
+1. What might explain the decrease in orders from Sinotau Pharmaceutical Group in China?
 (Distributor: Sinotau Pharmaceutical Group; Country: China; Customer: Sinotau Pharmaceutical Group (Guangdong), Sinotau Pharmaceutical Group (Beijing))
 
-Question:
-Are there general order trends in Germany this month?
-Metadata:
+2. Are there general order trends in Germany this month?
 (Distributor: DSD Pharma GmbH, ABC Distributors; Country: Germany; Customer: University Hospital, Berlin Clinic)
 
-Question:
-Is Sinotau Pharmaceutical Group maintaining order volumes globally?
-Metadata:
-(Distributor: Sinotau Pharmaceutical Group; Country: China, Singapore; Customer: Sinotau (Guangdong), Sinotau (Beijing), Sinotau (Singapore))
+When a customer is different from the distributor, phrase the question as:
+"the [Customer Name] customer in [Country] of distributor [Distributor Name(s)]"
+If the customer and distributor are the same, omit the customer name in the question but always include it in the metadata.
 
-Question:
-Is COMISSÃO NACIONAL DE ENERGIA NUCLEAR (CNEN) maintaining their expected schedule?
-Metadata:
-(Distributor: COMISSÃO NACIONAL DE ENERGIA NUCLEAR (CNEN); Country: Brazil; Customer: COMISSÃO NACIONAL DE ENERGIA NUCLEAR (CNEN))
+Special rule:
+COMISSÃO NACIONAL DE ENERGIA NUCLEAR (CNEN) is expected to order every two weeks on even-numbered weeks. Flag and ask about any deviation from this pattern.
 
-Additional instructions on specifying customers and countries in questions:
-- When a customer is different from the distributor, specify the customer’s name and country in the question body, phrased like:
-  "the [Customer Name] customer in [Country]"
-  followed by "of distributor [Distributor Name(s)]".
-- If the customer and distributor are the same entity, omit the Customer field in the body but always fill it in the metadata.
-- Ensure countries correspond to the customer(s) mentioned.
+=== Avoiding Redundant Questions ===
+- Do not repeat questions already asked and marked "Close" unless current behavior contradicts the prior explanation.
+- If customer behavior remains consistent with previous feedback, write:
+  No follow-up required for [Customer] – behavior remains consistent with previous feedback.
+- Avoid rephrased versions of previously answered questions unless there is a new deviation or issue.
+- Treat questions marked "Close" in the same week as resolved unless a new anomaly is observed.
+- Prioritize unresolved questions marked "Open":
+  - Re-ask the same question.
+  - Ask a clarifying follow-up.
+  - Mention that the issue has remained unresolved since the original feedback date.
 
-Guidelines:
-- Base your questions on both the current report and the most recent feedback or answers from previous cycles.
-- For ongoing or unresolved issues, ask clarifying or follow-up questions and reference previous feedback where relevant.
-- For new issues, ask investigative questions to help clarify the root cause or suggest possible next steps.
-- Reference previous reports and feedback to highlight new, ongoing, or resolved issues.
-- Present only insights, trends, and questions—do not include recommendations or action items.
-- Use only plain text. No Markdown, asterisks, or any special formatting.
-- COMISSÃO NACIONAL DE ENERGIA NUCLEAR (CNEN) is expected to order every two weeks on even-numbered weeks. Flag and ask about any deviation from this pattern.
+Avoid generating any questions for the following unless new behavior emerges:
+- St. Luke’s Medical Center INC. (Philippines) – ongoing onboarding and evaluation phase
+- Global Medical Solutions Australia – orders only placed during ANSTO shutdowns
+- UMC Utrecht (Netherlands) – seasonal holiday slowdown
+- Evergreen Theragnostics (USA) – clinical trial and internal CDMO usage
 
-Avoiding Redundant Questions:
-Do not repeat questions that were already asked and fully answered in recent weeks unless a new deviation or anomaly is observed.
-If a customer's ordering behavior remains consistent with a previously confirmed explanation, acknowledge that no follow-up is required.
+=== About the Previous Questions Table ===
+You are provided with a table of previous questions and feedback. Use this to guide your analysis and avoid repetition.
 
-Example:
-No follow-up required for Global Medical Solutions Australia – order behavior remains consistent with ANSTO-related supply gaps.
-Avoid re-asking questions about the following customers unless a new pattern emerges:
-St. Luke’s Medical Center INC. (Philippines) – ongoing onboarding and evaluation phase
-Global Medical Solutions Australia – orders only placed during ANSTO shutdowns
-UMC Utrecht (Netherlands) – seasonal holiday slowdown
-Evergreen Theragnostics (USA) – clinical trial and internal CDMO usage
-Do not generate a new question for these unless there is a change in behavior, such as missed expected weeks, larger-than-expected volumes, or extended inactivity
-
-How to interpret the table of previous questions:
-You are provided with a table containing past questions, feedback, and resolution status.
-Use this table to inform your analysis and avoid repeating previously answered questions.
-
-Follow these rules:
-Only treat rows marked "Close" as resolved. Do not repeat the question unless current behavior contradicts the previous explanation.
-If behavior is consistent with the prior answer, add:
-No follow-up required for [Customer] – behavior remains consistent with previous feedback.
-For rows marked "Open", assume the issue remains unresolved. You may:
-Re-ask the original question
-Ask a follow-up to prompt clarification
-Mention the issue has been open since its feedback date
-Prioritize open issues that have remained unresolved for multiple weeks.
-
-Column meanings:
-Customers – one or more customer names, possibly comma-separated
-Question – the original inquiry
-Comments / Feedback – the response provided by the team
-Status – either “Open” (unresolved) or “Close” (resolved)
-Feedback Date – when the status or answer was last updated
-Week Number – optional; helps track how long issues remain unresolved
+Columns:
+- Customers – one or more customer names
+- Question – the original inquiry
+- Comments / Feedback – the team’s answer
+- Status – either “Open” or “Close”
+- Feedback Date – when the feedback was last updated
+- Week Number – optional, used to track how long issues remain open
 """
 # Call OpenAI chat completion
 response = client.chat.completions.create(
