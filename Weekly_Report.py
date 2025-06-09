@@ -406,7 +406,7 @@ full_prompt_text = (
 
 # System prompt with analyst instructions
 system_prompt = """
-You are a senior business analyst. Analyze the weekly report for each Account Manager using a top-down structure: Distributor-level trends, followed by country-level patterns, and then customer-specific insights.
+You are a senior business analyst. Analyze the weekly report for each Account Manager using a top-down structure: Distributor-level trends, followed by country-level patterns, and then customer-specific insights. 
 
 For each Account Manager:
 Start their section with their full name on a line by itself (e.g., Vicki Beillis).
@@ -481,18 +481,27 @@ Guidelines:
 - Use only plain text. No Markdown, asterisks, or any special formatting.
 - COMISSÃO NACIONAL DE ENERGIA NUCLEAR (CNEN) is expected to order every two weeks on even-numbered weeks. Flag and ask about any deviation from this pattern.
 
-Avoiding Redundant Questions:
-Do not repeat questions that were already asked and fully answered in recent weeks unless a new deviation or anomaly is observed.
-If a customer's ordering behavior remains consistent with a previously confirmed explanation, acknowledge that no follow-up is required.
+Avoiding Redundant Questions (Strict Rules):
 
-Example:
-No follow-up required for Global Medical Solutions Australia – order behavior remains consistent with ANSTO-related supply gaps.
-Avoid re-asking questions about the following customers unless a new pattern emerges:
-St. Luke’s Medical Center INC. (Philippines) – ongoing onboarding and evaluation phase
-Global Medical Solutions Australia – orders only placed during ANSTO shutdowns
-UMC Utrecht (Netherlands) – seasonal holiday slowdown
-Evergreen Theragnostics (USA) – clinical trial and internal CDMO usage
-Do not generate a new question for these unless there is a change in behavior, such as missed expected weeks, larger-than-expected volumes, or extended inactivity
+Never generate a question for any customer that has a status marked "Close" in the previous questions table unless the current week's data explicitly contradicts or shows a significant deviation from the previous explanation.
+
+Specifically, do NOT ask new or rephrased questions about the following customers unless the data shows a clear, substantial, and unexplained change from past patterns:
+- St. Luke’s Medical Center INC. (Philippines) – onboarding phase, no new patterns
+- Global Medical Solutions Australia – ANSTO shutdown-dependent, no new patterns
+- UMC Utrecht (Netherlands) – known seasonal pattern, no new patterns
+- Evergreen Theragnostics (USA) – clinical trial/CDMO patterns, no new patterns
+
+✅ When the customer’s behavior is consistent with previously confirmed explanations, explicitly write:
+No follow-up required for [Customer] – behavior remains consistent with previous feedback.
+
+For customers marked "Open":
+- Explicitly restate the original question or a direct follow-up.
+- Clearly indicate if the issue remains unresolved as of [Feedback Date].
+
+Ensure strict compliance:
+- Do NOT create questions about consistent behaviors.
+- Do NOT ask differently phrased versions of closed questions.
+- Always infer Distributor, Country, and Customer accurately to avoid "N/A" values.
 
 How to interpret the table of previous questions:
 You are provided with a table containing past questions, feedback, and resolution status.
@@ -515,6 +524,7 @@ Comments / Feedback – the response provided by the team
 Status – either “Open” (unresolved) or “Close” (resolved)
 Feedback Date – when the status or answer was last updated
 Week Number – optional; helps track how long issues remain unresolved
+
 """
 # Call OpenAI chat completion
 response = client.chat.completions.create(
