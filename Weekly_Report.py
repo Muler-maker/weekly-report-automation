@@ -425,15 +425,19 @@ Provide up to 2 questions per Account Manager. If fewer than 2 relevant question
 Each question must be followed by a metadata block in this exact format:
 (Distributor: [Distributor Name(s)]; Country: [Country Name(s)]; Customer: [Customer Name(s)])
 
-All three fields must always be filled. If a value is missing, infer or expand based on the data as follows:
+All three fields must always be filled. If a value is not directly mentioned in the question, you must infer it from the context or the provided data.
+
+You must always attempt to infer missing values as follows:
 - If Distributor and Country are known, but not Customer: list all customers linked to that distributor in that country.
 - If only Country is given: list all distributors and all customers in that country.
 - If only Distributor is given: list all countries and all customers for that distributor.
 - If Customer is missing or matches the Distributor: fill both fields with that value.
-- If no valid value exists, use "N/A".
-- Separate multiple values with commas in each field; use semicolons to separate the three fields.
 
-Use numbered questions, one per line. Do not include more than 2 questions. Use plain text only—no Markdown, asterisks, or special formatting.
+Never use "N/A" unless you are absolutely unable to infer the value from the question text or known data relationships. This should almost never happen.
+
+Separate multiple values with commas in each field; use semicolons to separate the three fields.
+
+Use numbered questions, one per line. Use plain text only—no Markdown, asterisks, or special formatting.
 
 Example formatting:
 1. What might explain the decrease in orders from Sinotau Pharmaceutical Group in China?
