@@ -616,12 +616,56 @@ with open(summary_json_path, "w", encoding="utf-8") as f:
 
 # Upload JSON to Google Drive (replacing existing file if any)
 upload_to_drive(summary_json_path, "Executive_Summary.json", folder_id)
+# === Save Executive Summary also into Google Sheet ===
+# Authenticate again if needed
+gsheet_service = build('sheets', 'v4', credentials=creds)
+
+# Spreadsheet ID for your target Google Sheet
+summary_spreadsheet_id = "185PnDw31D0zAYeUzNaSPQlQGTjmVVX1O9C86FC4JxV8"  # <-- Replace this with your Google Sheet ID
+
+# Check if the sheet exists, if not create it
+sheet_metadata = gsheet_service.spreadsheets().get(spreadsheetId=summary_spreadsheet_id).execute()
+sheet_titles = [s['properties']['title'] for s in sheet_metadata['sheets']]
+
+if "Executive Summary" not in sheet_titles:
+    requests_body = {
+        "requests": [
+            {
+                "addSheet": {
+                    "properties": {
+                        "title": "Executive Summary"
+                    }
+                }
+            }
+        ]
+    }
+    gsheet_service.spreadsheets().batchUpdate(
+        spreadsheetId=summary_spreadsheet_id,
+        body=requests_body
+    ).execute()
+
+# Clear existing content before writing new one
+gsheet_service.spreadsheets().values().clear(
+    spreadsheetId=summary_spreadsheet_id,
+    range="Executive Summary!A1"
+).execute()
+
+# Write executive summary into A1
+gsheet_service.spreadsheets().values().update(
+    spreadsheetId=summary_spreadsheet_id,
+    range="Executive Summary!A1",
+    valueInputOption="RAW",
+    body={
+        "values": [[executive_summary]]
+    }
+).execute()
+
+print("✅ Executive Summary successfully written into Google Sheet.")
 
 # === Save new insight to history ===
 with open(insight_history_path, "a") as f:
     f.write(f"\n\n===== Week {week_num}, {year} =====\n")
     f.write(insights)
-
 # === PDF Generation and email sending follow ===
 latest_pdf = os.path.join(output_folder, f"Weekly_Orders_Report_Week_{week_num}_{year}.pdf")
 
