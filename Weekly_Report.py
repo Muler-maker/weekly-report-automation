@@ -335,7 +335,7 @@ decreased_formatted = sorted([format_row(*x) for x in decreased], key=lambda x: 
 
 summary_lines = [
     "STOPPED ORDERING:",
-    "Customers who stopped ordering in the last 4 weeks but did order in the 4 weeks before.",
+    "Customers who stopped ordering in the last 8 weeks but did order in the 8 weeks before.",
     "Customer Name                     | Account Manager",
     "---------------------------------------------------"
 ] + [f"{x[0]:<35} | {x[1]}" for x in stopped] if stopped else ["- None"]
