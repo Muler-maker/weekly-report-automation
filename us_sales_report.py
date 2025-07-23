@@ -844,7 +844,7 @@ with PdfPages(latest_pdf) as pdf:
             plt.close(fig)
 
         # --- GPT INSIGHTS PAGE ---
-        for fig in make_text_pages("💡 GPT Insights", insights):
+        for fig in make_text_pages("GPT Insights", insights):
             pdf.savefig(fig, bbox_inches="tight")
             plt.close(fig)
 
