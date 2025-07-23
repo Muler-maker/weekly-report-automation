@@ -816,7 +816,26 @@ with PdfPages(latest_pdf) as pdf:
             pdf.savefig(fig, bbox_inches="tight")
             plt.close(fig)
 
-        pdf.savefig(make_text_page("💡 GPT Insights", insights))
+def make_text_page(title, text, lines_per_page=35):
+    import matplotlib.pyplot as plt
+    import textwrap
+
+    wrapped_text = textwrap.wrap(text, width=100, break_long_words=False)
+    fig = plt.figure(figsize=(9.5, 11))
+    plt.axis("off")
+
+    fig.text(0.5, 0.96, title, fontsize=16, weight="bold", ha="center")
+
+    for i, line in enumerate(wrapped_text[:lines_per_page]):
+        y = 0.91 - i * 0.028
+        fig.text(0.06, y, line, fontsize=10, ha="left", va="top")
+
+    return fig
+
+# Later in the script (not indented)
+pdf.savefig(make_text_page("💡 GPT Insights", insights))
+
+
 
 # === After the PDF file is closed ===
 print("DEBUG: PDF file size right after creation:", os.path.getsize(latest_pdf))
