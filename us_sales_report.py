@@ -466,6 +466,34 @@ with open(insight_history_path, "a") as f:
 # === PDF Generation and email sending follow ===
 latest_pdf = os.path.join(output_folder, f"Weekly_Orders_Report_Week_{week_num}_{year}.pdf")
 
+def make_text_pages(title, text, lines_per_page=35):
+    import matplotlib.pyplot as plt
+    import textwrap
+
+    wrapped_text = textwrap.wrap(text, width=100, break_long_words=False)
+    pages = []
+    total_pages = (len(wrapped_text) - 1) // lines_per_page + 1
+
+    for page_num in range(total_pages):
+        fig = plt.figure(figsize=(9.5, 11))
+        plt.axis("off")
+
+        fig.text(0.5, 0.96, title, fontsize=16, weight="bold", ha="center")
+
+        start = page_num * lines_per_page
+        end = start + lines_per_page
+        for i, line in enumerate(wrapped_text[start:end]):
+            y = 0.91 - i * 0.028
+            fig.text(0.06, y, line, fontsize=10, ha="left", va="top")
+
+        if total_pages > 1:
+            fig.text(0.5, 0.03, f"Page {page_num + 1} of {total_pages}", fontsize=8, ha="center")
+
+        pages.append(fig)
+
+    return pages
+
+
 with PdfPages(latest_pdf) as pdf:
     print("DEBUG: Entered PdfPages block")
 
@@ -817,7 +845,9 @@ if inactive_recent_4:
     plt.close(fig)
 
 # --- GPT INSIGHTS PAGE ---
-pdf.savefig(make_text_page("💡 GPT Insights", insights))
+for fig in make_text_pages("💡 GPT Insights", insights):
+    pdf.savefig(fig, bbox_inches="tight")
+    plt.close(fig)
 
 
 # === After the PDF file is closed ===
