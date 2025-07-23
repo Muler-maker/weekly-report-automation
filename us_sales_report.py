@@ -377,7 +377,7 @@ Do not include any questions, follow-ups, or metadata.
 Only provide concise trend summaries using plain text.
 """
 
-insights = exec_response.choices[0].message.content.strip()
+insights = executive_summary
 print("\n💡 GPT Insights:\n", insights)
 
 import re
