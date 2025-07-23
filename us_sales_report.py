@@ -816,31 +816,7 @@ with PdfPages(latest_pdf) as pdf:
             pdf.savefig(fig, bbox_inches="tight")
             plt.close(fig)
 
-        # === ChatGPT Insights Pages ===
-        wrapped_insights = []
-        for line in insight_lines:
-            if len(line) > 100:
-                wrapped_insights.extend(textwrap.wrap(line, width=100, break_long_words=False))
-            else:
-                wrapped_insights.append(line)
-
-        lines_per_page = 35
-        if not wrapped_insights:
-            fig = plt.figure(figsize=(9.5, 11))
-            plt.axis("off")
-            fig.text(0.5, 0.5, "No insights available this week.", ha="center", fontsize=14)
-            pdf.savefig(fig)
-            plt.close(fig)
-        else:
-            for page_start in range(0, len(wrapped_insights), lines_per_page):
-                fig = plt.figure(figsize=(9.5, 11))
-                plt.axis("off")
-                page_lines = wrapped_insights[page_start:page_start + lines_per_page]
-                for i, line in enumerate(page_lines):
-                    y = 1 - (i + 1) * 0.028
-                    fig.text(0.06, y, line, fontsize=10, ha="left", va="top")
-                pdf.savefig(fig)
-                plt.close(fig)
+        pdf.savefig(make_text_page("💡 GPT Insights", insights
 
 # === After the PDF file is closed ===
 print("DEBUG: PDF file size right after creation:", os.path.getsize(latest_pdf))
