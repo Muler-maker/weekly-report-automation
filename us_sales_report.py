@@ -816,7 +816,7 @@ with PdfPages(latest_pdf) as pdf:
             pdf.savefig(fig, bbox_inches="tight")
             plt.close(fig)
 
-        pdf.savefig(make_text_page("💡 GPT Insights", insights
+        pdf.savefig(make_text_page("💡 GPT Insights", insights))
 
 # === After the PDF file is closed ===
 print("DEBUG: PDF file size right after creation:", os.path.getsize(latest_pdf))
