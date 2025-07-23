@@ -583,7 +583,7 @@ with PdfPages(latest_pdf) as pdf:
             num_stopped = sum(1 for name, _ in stopped if customer_to_manager.get(name, "Other") == am)
             am_summary.append([am, num_plus, num_minus, num_inactive, num_stopped])
 
-        am_df = pd.DataFrame(am_summary, columns=["Account Manager", "+ Customers", "– Customers", "Inactive", "Stopped"])
+        am_df = pd.DataFrame(am_summary, columns=["Sales Manager", "+ Customers", "– Customers", "Inactive", "Stopped"])
         fig_height = max(2.5, 0.4 + 0.3 * len(am_df))
         fig, ax = plt.subplots(figsize=(8.5, fig_height))
         ax.axis("off")
@@ -607,7 +607,7 @@ with PdfPages(latest_pdf) as pdf:
                 cell.set_facecolor("#f9f9f9" if row % 2 == 0 else "#ffffff")
                 cell.set_text_props(ha="center")
 
-        ax.set_title("Summary by Account Manager", fontsize=14, weight='bold', pad=10)
+        ax.set_title("Summary by Sales Manager", fontsize=14, weight='bold', pad=10)
         pdf.savefig(fig, bbox_inches="tight")
         plt.close(fig)
   # === Add Top 5 Charts by Product ===
@@ -660,7 +660,7 @@ with PdfPages(latest_pdf) as pdf:
             stopped_df = pd.DataFrame([
                 [name, wrap_text(customer_to_manager.get(name, "Other"))]
                 for name, _ in stopped_sorted
-            ], columns=["Customer", "Account Manager"])
+            ], columns=["Customer", "Sales Manager"])
 
             fig_height = max(4.5, 0.4 + 0.3 * len(stopped_df))
             fig, ax = plt.subplots(figsize=(11, fig_height + 1))
@@ -709,7 +709,7 @@ with PdfPages(latest_pdf) as pdf:
                         (curr - prev) / prev * 100 if prev else 100
                     ]
                     for name, prev, curr, _ in am_rows
-                ], columns=["Customer", "Change (mCi)", "% Change", "Account Manager", "PercentValue"])
+                ], columns=["Customer", "Change (mCi)", "% Change", "Sales Manager", "PercentValue"])
 
                 decreased_df = decreased_df.sort_values("PercentValue", ascending=True).drop(columns="PercentValue")
                 fig_height = max(4.5, 0.4 + 0.3 * len(decreased_df))
@@ -761,7 +761,7 @@ with PdfPages(latest_pdf) as pdf:
                         (curr - prev) / prev * 100 if prev else 100
                     ]
                     for name, prev, curr, _ in am_rows
-                ], columns=["Customer", "Change (mCi)", "% Change", "Account Manager", "PercentValue"])
+                ], columns=["Customer", "Change (mCi)", "% Change", "Sales Manager", "PercentValue"])
 
                 increased_df = increased_df.sort_values("PercentValue", ascending=False).drop(columns="PercentValue")
                 fig_height = max(4.5, 0.4 + 0.3 * len(increased_df))
@@ -806,7 +806,7 @@ with PdfPages(latest_pdf) as pdf:
             inactive_df = pd.DataFrame([
                 [name, wrap_text(customer_to_manager.get(name, "Other"))]
                 for name in inactive_sorted
-            ], columns=["Customer", "Account Manager"])
+            ], columns=["Customer", "Sales Manager"])
 
             fig_height = max(4.5, 0.4 + 0.3 * len(inactive_df))
             fig, ax = plt.subplots(figsize=(11, fig_height + 1))
