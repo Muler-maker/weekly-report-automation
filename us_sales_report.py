@@ -405,14 +405,14 @@ from datetime import datetime
 
 
 # Save executive summary to JSON
-summary_json_path = os.path.join(output_folder, "Executive_Summary.json")
+summary_json_path = os.path.join(output_folder, "US_Executive_Summary.json")
 with open(summary_json_path, "w", encoding="utf-8") as f:
     json.dump({
         "executive_summary": executive_summary
     }, f, ensure_ascii=False, indent=2)
 
 # Upload JSON to Google Drive (replacing existing file if any)
-upload_to_drive(summary_json_path, "Executive_Summary.json", folder_id)
+upload_to_drive(summary_json_path, "US_Executive_Summary.json", folder_id)
 # === Save Executive Summary also into Google Sheet ===
 # Authenticate again if needed
 gsheet_service = build('sheets', 'v4', credentials=creds)
@@ -444,7 +444,7 @@ if "Executive Summary" not in sheet_titles:
 # Clear existing content before writing new one
 gsheet_service.spreadsheets().values().clear(
     spreadsheetId=summary_spreadsheet_id,
-    range="Executive Summary!A1"
+    range="US Executive Summary!A1"
 ).execute()
 
 # Write executive summary into A1
