@@ -817,7 +817,6 @@ with PdfPages(latest_pdf) as pdf:
             plt.close(fig)
 
         # === ChatGPT Insights Pages ===
-        insight_lines = [extract_metadata_from_question(line)[0] for line in insights.split("\n")]
         wrapped_insights = []
         for line in insight_lines:
             if len(line) > 100:
