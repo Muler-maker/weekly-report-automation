@@ -25,39 +25,6 @@ import json
 def wrap_text(text, width=20):
     return '\n'.join(textwrap.wrap(str(text), width=width))
 
-def extract_metadata_from_question(text):
-    metadata_pattern = r"\(\s*Distributor:\s*(.*?)\s*;\s*Country:\s*(.*?)\s*;\s*Customer:\s*(.*?)\s*\)\s*$"
-    match = re.search(metadata_pattern, text)
-
-    if match:
-        distributors = [x.strip() for x in re.split(r",\s*", match.group(1))]
-        countries = [x.strip() for x in re.split(r",\s*", match.group(2))]
-        customers = [x.strip() for x in re.split(r",\s*", match.group(3))]
-
-        # Remove metadata from question
-        question_clean = re.sub(metadata_pattern, "", text).strip()
-        
-        return question_clean, distributors, countries, customers
-
-    metadata_pattern2 = r"\(\s*Distributor:\s*(.*?)\s*;\s*Country:\s*(.*?)\s*\)\s*$"
-    match2 = re.search(metadata_pattern2, text)
-
-    if match2:
-        distributors = [x.strip() for x in re.split(r",\s*", match2.group(1))]
-        countries = [x.strip() for x in re.split(r",\s*", match2.group(2))]
-
-        customers_set = set()
-        for distributor in distributors:
-            for country in countries:
-                customers_set.update(distributor_country_to_customers.get((distributor, country), []))
-        customers = sorted(customers_set)
-
-        question_clean = re.sub(metadata_pattern2, "", text).strip()
-        return question_clean, distributors, countries, customers
-
-    question_clean = re.sub(r"\(.*?\)\s*$", "", text).strip()
-    return question_clean, ["N/A"], ["N/A"], ["N/A"]
-
 
 def build_feedback_context(feedback_df, week_num, year):
     """
@@ -87,14 +54,6 @@ SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1uJAArBkHXgFvY_JPIieKR
 
 import re
 from datetime import datetime
-
-def extract_distributors_from_question(question):
-    match = re.search(r"\(Distributor:\s*([^)]+)\)", question)
-    if not match:
-        return []
-    dist_text = match.group(1)
-    distributors = re.split(r",\s*|\s+and\s+", dist_text, flags=re.I)
-    return [d.strip() for d in distributors if d.strip()]
 
 # === Authenticate Google Sheets (do this before loading sheets) ===
 SERVICE_ACCOUNT_FILE = os.path.join(script_dir, 'credentials.json')
@@ -137,15 +96,9 @@ sheet = gc.open_by_url(SPREADSHEET_URL).worksheet("Airtable Data")
 df = pd.DataFrame(sheet.get_all_records())
 df.columns = [c.strip() for c in df.columns]
 
-# === Add Account Manager mapping ===
-account_manager_map = {
-    "vbeillis@isotopia-global.com": "Vicki Beillis",
-    "naricha@isotopia-global.com": "Noam Aricha",
-    "ndellus@isotopia-global.com": "Noam Dellus",
-    "gbader@isotopia-global.com": "Gilli Bader",
-    "caksoy@isotopia-global.com": "Can Aksoy"
+
 }
-df["Account Manager"] = df["Account Manager Email"].map(account_manager_map).fillna("Other")
+df["Manager"] = df["Sales Manager"]
 
 # === Define email sending function using Resend API ===
 def send_email(subject, body, to_emails, attachment_path):
@@ -239,6 +192,7 @@ df = df[pd.to_numeric(df["Week"], errors="coerce").notnull()]
 df["Week"] = df["Week"].astype(int)
 df = df.dropna(subset=["Total_mCi", "Year", "Week"])
 df["YearWeek"] = list(zip(df["Year"], df["Week"]))
+df = df[df["Region (from Company name)"] == "North America"]  # US team filter
 from collections import defaultdict
 
 # Mapping: distributor & country → customers
@@ -270,7 +224,7 @@ previous_df = df[df["YearWeek"].isin(previous_8)]
 # === Trends Analysis ===
 recent_totals = recent_df.groupby("Customer")["Total_mCi"].sum()
 previous_totals = previous_df.groupby("Customer")["Total_mCi"].sum()
-customer_to_manager = df.set_index("Customer")["Account Manager"].to_dict()
+customer_to_manager = df.set_index("Customer")["Manager"].to_dict()
 
 all_customers = set(df["Customer"])
 increased, decreased, stopped = [], [], []
@@ -316,7 +270,7 @@ gpt_rows = [
     for (name, prev, curr, mgr) in increased + decreased
 ]
 gpt_distributor_section = [
-    "Customer name                     | Change   | % Change | Account Manager | Distributor | Country"
+    "Customer name                     | Change   | % Change | Manager | Distributor | Country"
 ] + gpt_rows
 
 # === Inactive recent 4 weeks ===
@@ -337,7 +291,7 @@ decreased_formatted = sorted([format_row(*x) for x in decreased], key=lambda x: 
 summary_lines = [
     "STOPPED ORDERING:",
     "Customers who stopped ordering in the last 8 weeks but did order in the 8 weeks before.",
-    "Customer Name                     | Account Manager",
+    "Customer Name                     | Manager",
     "---------------------------------------------------"
 ] + [f"{x[0]:<35} | {x[1]}" for x in stopped] if stopped else ["- None"]
 
@@ -345,7 +299,7 @@ summary_lines += [
     "",
     "DECREASED ORDERS:",
     "These customers ordered less in the last 8 weeks compared to the 8 weeks prior.",
-    "Customer Name                     | Change   | % Change | Account Manager",
+    "Customer Name                     | Change   | % Change | Manager",
     "--------------------------------------------------------------------------"
 ] + [x[0] for x in decreased_formatted] if decreased_formatted else ["- None"]
 
@@ -353,7 +307,7 @@ summary_lines += [
     "",
     "INCREASED ORDERS:",
     "These customers increased their order amounts in the last 8 weeks compared to the 8 weeks prior.",
-    "Customer Name                     | Change   | % Change | Account Manager",
+    "Customer Name                     | Change   | % Change | Manager",
     "--------------------------------------------------------------------------"
 ] + [x[0] for x in increased_formatted] if increased_formatted else ["- None"]
 
@@ -407,183 +361,28 @@ full_prompt_text = (
 
 # System prompt with analyst instructions
 system_prompt = """
-You are a senior business analyst. Analyze the weekly report for each Account Manager using a top-down structure: Distributor-level trends, followed by country-level patterns, and then customer-specific insights.
+You are a senior business analyst.
 
-For each Account Manager:
-Start their section with their full name on a line by itself (e.g., Vicki Beillis).
-If there are no significant trends or issues for that week, write: No significant insights or questions for this week.
-Otherwise, provide a concise summary of relevant trends and insights, grouped as follows:
-Distributor-level: Note important patterns, risks, or deviations, including expected order behaviors.
-Country-level: Summarize trends affecting several customers in the same country.
-Customer-specific: Highlight notable changes, spikes, drops, or inactivity at the customer level.
+Analyze the weekly sales report and generate a summary of notable trends for each Sales Manager.
 
-After the insights for each Account Manager, always include a separate section titled exactly as follows:
+Structure the insights in this order:
+1. Distributor-level trends (e.g., deviations from expected order patterns)
+2. Country-level patterns (e.g., regional drops, spikes, or shifts)
+3. Customer-specific observations (e.g., inactivity, growth, or notable behavior)
 
-Questions for [Account Manager Name]:
-Provide up to 2 questions per Account Manager. If fewer than 2 relevant questions exist, include only those.
-[First question] (Distributor: [Distributor Name(s)]; Country: [Country Name(s)]; Customer: [Customer Name(s)])
-[Second question] (Distributor: [Distributor Name(s)]; Country: [Country Name(s)]; Customer: [Customer Name(s)])
-[Third question] (Distributor: [Distributor Name(s)]; Country: [Country Name(s)]; Customer: [Customer Name(s)])
-(Use numbered questions, one per line, and use the AM’s exact name in the heading. Each question must explicitly specify the relevant distributor(s), country or countries, and customer(s) in parentheses exactly as shown.)
+For each Sales Manager:
+- Begin their section with their full name on a line by itself (e.g., John Smith).
+- If no trends are observed, write: "No significant insights for this week."
 
-Avoiding Redundant Questions:
-Do not repeat questions that were already asked and fully answered in recent weeks unless a new deviation or anomaly is observed.
-If a customer's ordering behavior remains consistent with a previously confirmed explanation, acknowledge that no follow-up is required.
-
-Metadata specification instructions:
-- Every question must include a metadata block, exactly as shown:
-  (Distributor: [Distributor Name(s)]; Country: [Country Name(s)]; Customer: [Customer Name(s)])
-- All three fields—Distributor, Country, Customer—must always be filled. Never leave a field blank.
-  If a field is not directly mentioned in the question, infer or expand as follows (using the provided data):
-    - If Distributor and Country are given, but not Customer:
-        List all customers linked to that distributor in that country, separated by commas.
-    - If only Country is given:
-        List all distributors and all customers in that country.
-    - If only Distributor is given:
-        List all countries and all customers for that distributor.
-    - If Customer is missing or matches Distributor:
-        Fill both fields with that value.
-    - If there is no valid value, use "N/A".
-    - Separate multiple values with commas in each field.
-- Use semicolons to separate the three metadata fields.
-- Use this exact metadata format for every question.
-
-Example Formatting:
-
-Question:
-What might explain the decrease in orders from Sinotau Pharmaceutical Group in China?
-Metadata:
-(Distributor: Sinotau Pharmaceutical Group; Country: China; Customer: Sinotau Pharmaceutical Group (Guangdong), Sinotau Pharmaceutical Group (Beijing))
-
-Question:
-Are there general order trends in Germany this month?
-Metadata:
-(Distributor: DSD Pharma GmbH, ABC Distributors; Country: Germany; Customer: University Hospital, Berlin Clinic)
-
-Question:
-Is Sinotau Pharmaceutical Group maintaining order volumes globally?
-Metadata:
-(Distributor: Sinotau Pharmaceutical Group; Country: China, Singapore; Customer: Sinotau (Guangdong), Sinotau (Beijing), Sinotau (Singapore))
-
-Question:
-Is COMISSÃO NACIONAL DE ENERGIA NUCLEAR (CNEN) maintaining their expected schedule?
-Metadata:
-(Distributor: COMISSÃO NACIONAL DE ENERGIA NUCLEAR (CNEN); Country: Brazil; Customer: COMISSÃO NACIONAL DE ENERGIA NUCLEAR (CNEN))
-
-Additional instructions on specifying customers and countries in questions:
-- When a customer is different from the distributor, specify the customer’s name and country in the question body, phrased like:
-  "the [Customer Name] customer in [Country]"
-  followed by "of distributor [Distributor Name(s)]".
-- If the customer and distributor are the same entity, omit the Customer field in the body but always fill it in the metadata.
-- Ensure countries correspond to the customer(s) mentioned.
-
-Guidelines:
-- Base your questions on both the current report and the most recent feedback or answers from previous cycles.
-- For ongoing or unresolved issues, ask clarifying or follow-up questions and reference previous feedback where relevant.
-- For new issues, ask investigative questions to help clarify the root cause or suggest possible next steps.
-- Reference previous reports and feedback to highlight new, ongoing, or resolved issues.
-- Present only insights, trends, and questions—do not include recommendations or action items.
-- Use only plain text. No Markdown, asterisks, or any special formatting.
-- COMISSÃO NACIONAL DE ENERGIA NUCLEAR (CNEN) is expected to order every two weeks on even-numbered weeks. Flag and ask about any deviation from this pattern.
-
-Example:
-No follow-up required for Global Medical Solutions Australia – order behavior remains consistent with ANSTO-related supply gaps.
-Avoid re-asking questions about the following customers unless a new pattern emerges:
-St. Luke’s Medical Center INC. (Philippines) – ongoing onboarding and evaluation phase
-Global Medical Solutions Australia – orders only placed during ANSTO shutdowns
-UMC Utrecht (Netherlands) – seasonal holiday slowdown
-Evergreen Theragnostics (USA) – clinical trial and internal CDMO usage
-Do not generate a new question for these unless there is a change in behavior, such as missed expected weeks, larger-than-expected volumes, or extended inactivity
-
-How to interpret the table of previous questions:
-You are provided with a table containing past questions, feedback, and resolution status.
-Use this table to inform your analysis and avoid repeating previously answered questions.
-
-Follow these rules:
-Only treat rows marked "Close" as resolved. Do not repeat the question unless current behavior contradicts the previous explanation.
-If behavior is consistent with the prior answer, add:
-No follow-up required for [Customer] – behavior remains consistent with previous feedback.
-For rows marked "Open", assume the issue remains unresolved. You may:
-Re-ask the original question
-Ask a follow-up to prompt clarification
-Mention the issue has been open since its feedback date
-Prioritize open issues that have remained unresolved for multiple weeks.
-
-Column meanings:
-Customers – one or more customer names, possibly comma-separated
-Question – the original inquiry
-Comments / Feedback – the response provided by the team
-Status – either “Open” (unresolved) or “Close” (resolved)
-Feedback Date – when the status or answer was last updated
-Week Number – optional; helps track how long issues remain unresolved
+Do not include any questions, follow-ups, or metadata.
+Only provide concise trend summaries using plain text.
 """
-# Call OpenAI chat completion
-response = client.chat.completions.create(
-    model="gpt-4o",
-    messages=[
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": full_prompt_text}
-    ]
-)
 
 insights = response.choices[0].message.content.strip()
 print("\n💡 GPT Insights:\n", insights)
 
 import re
 from datetime import datetime
-
-def extract_questions_by_am(insights):
-    am_sections = re.split(r"\n([A-Z][a-z]+ [A-Z][a-z]+)\n", "\n" + insights)
-    am_data = []
-    for i in range(1, len(am_sections), 2):
-        am_name = am_sections[i].strip()
-        section = am_sections[i + 1]
-        q_match = re.search(r"Questions\s*(for\s*[A-Za-z ]+)?\s*:\s*(.+?)(?=(\n[A-Z][a-z]+ [A-Z][a-z]+\n|$))", section, re.DOTALL)
-        if not q_match:
-            continue
-        questions_text = q_match.group(2)
-        for q_line in re.findall(r"\d+\.\s+(.+)", questions_text):
-            am_data.append({
-                "AM": am_name,
-                "Question": q_line.strip()
-            })
-    return am_data
-
-questions_by_am = extract_questions_by_am(insights)
-customer_names = sorted(df["Customer"].dropna().unique(), key=lambda x: -len(x))  # Longest first
-def extract_customers_from_question(question, customer_names):
-    found = []
-    for cname in customer_names:
-        # Match full customer name as a whole word, case-insensitive
-        pattern = r'\b' + re.escape(cname) + r'\b'
-        if re.search(pattern, question, flags=re.IGNORECASE):
-            found.append(cname)
-    return list(set(found))
-
-new_rows = []
-for q in questions_by_am:
-    question_clean, distributors, countries, customers = extract_metadata_from_question(q['Question'])
-
-    new_rows.append([
-        week_num,
-        year,
-        q['AM'],
-        ", ".join(distributors),
-        ", ".join(countries),
-        ", ".join(customers),
-        question_clean,   # Cleaned question text
-        "",  # Comments / Feedback
-        "Open",
-        datetime.now().strftime("%Y-%m-%d")
-    ])
-
-
-if new_rows:
-    feedback_ws.append_rows(new_rows, value_input_option="USER_ENTERED")
-    print(f"✅ Added {len(new_rows)} new questions to Feedback loop worksheet.")
-else:
-    print("No new questions found to add to the Feedback loop worksheet.")
-
 
 exec_summary_prompt ="""
 You are a senior business analyst. Based on the report below, write a very short executive summary in the form of one or two concise paragraphs, suitable for company leadership.
@@ -689,7 +488,7 @@ with PdfPages(latest_pdf) as pdf:
         fig = plt.figure(figsize=(9.5, 11))
         plt.axis("off")
 
-        fig.text(0.5, 0.80, "Weekly Orders Report", fontsize=26, ha="center", va="center", weight='bold')
+        fig.text(0.5, 0.80, "US Weekly Orders Report", fontsize=26, ha="center", va="center", weight='bold')
         fig.text(0.5, 0.74, f"Week {week_num}, {year}", fontsize=20, ha="center", va="center")
 
         logo_path = os.path.join(script_dir, "Isotopia.jpg")
