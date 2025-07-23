@@ -800,54 +800,56 @@ with PdfPages(latest_pdf) as pdf:
                 )
                 pdf.savefig(fig, bbox_inches="tight")
                 plt.close(fig)
+        # --- INACTIVE IN PAST 4 WEEKS TABLE ---
+        if inactive_recent_4:
+            inactive_sorted = sorted(inactive_recent_4, key=lambda name: customer_to_manager.get(name, "Other"))
+            inactive_df = pd.DataFrame([
+                [name, wrap_text(customer_to_manager.get(name, "Other"))]
+                for name in inactive_sorted
+            ], columns=["Customer", "Account Manager"])
 
-# --- INACTIVE IN PAST 4 WEEKS TABLE ---
-if inactive_recent_4:
-    inactive_sorted = sorted(inactive_recent_4, key=lambda name: customer_to_manager.get(name, "Other"))
-    inactive_df = pd.DataFrame([
-        [name, wrap_text(customer_to_manager.get(name, "Other"))]
-        for name in inactive_sorted
-    ], columns=["Customer", "Account Manager"])
+            fig_height = max(4.5, 0.4 + 0.3 * len(inactive_df))
+            fig, ax = plt.subplots(figsize=(11, fig_height + 1))
+            ax.axis("off")
 
-    fig_height = max(4.5, 0.4 + 0.3 * len(inactive_df))
-    fig, ax = plt.subplots(figsize=(11, fig_height + 1))
-    ax.axis("off")
+            table = ax.table(
+                cellText=inactive_df.values,
+                colLabels=inactive_df.columns,
+                loc="upper left",
+                cellLoc="left",
+                colWidths=[0.8, 0.2]
+            )
 
-    table = ax.table(
-        cellText=inactive_df.values,
-        colLabels=inactive_df.columns,
-        loc="upper left",
-        cellLoc="left",
-        colWidths=[0.8, 0.2]
-    )
+            table.auto_set_font_size(False)
+            table.set_fontsize(7.5)
+            table.scale(1.0, 1.4)
 
-    table.auto_set_font_size(False)
-    table.set_fontsize(7.5)
-    table.scale(1.0, 1.4)
+            for (row, col), cell in table.get_celld().items():
+                cell.PAD = 0.2
+                if row == 0:
+                    cell.set_facecolor("#e6e6fa")
+                    cell.set_text_props(weight='bold', ha="left")
+                else:
+                    cell.set_facecolor("#f9f9f9" if row % 2 == 0 else "#ffffff")
+                    cell.set_text_props(ha="left")
+                    cell._loc = 'left'
 
-    for (row, col), cell in table.get_celld().items():
-        cell.PAD = 0.2
-        if row == 0:
-            cell.set_facecolor("#e6e6fa")
-            cell.set_text_props(weight='bold', ha="left")
-        else:
-            cell.set_facecolor("#f9f9f9" if row % 2 == 0 else "#ffffff")
-            cell.set_text_props(ha="left")
-            cell._loc = 'left'
+            ax.set_title("INACTIVE IN PAST 4 WEEKS", fontsize=14, weight="bold", pad=15)
+            fig.text(
+                0.5, 0.87,
+                "Customers who were active 4–8 weeks ago but not in the most recent 4 weeks.",
+                fontsize=10, ha="center"
+            )
+            pdf.savefig(fig, bbox_inches="tight")
+            plt.close(fig)
 
-    ax.set_title("INACTIVE IN PAST 4 WEEKS", fontsize=14, weight="bold", pad=15)
-    fig.text(
-        0.5, 0.87,
-        "Customers who were active 4–8 weeks ago but not in the most recent 4 weeks.",
-        fontsize=10, ha="center"
-    )
-    pdf.savefig(fig, bbox_inches="tight")
-    plt.close(fig)
+        # --- GPT INSIGHTS PAGE ---
+        for fig in make_text_pages("💡 GPT Insights", insights):
+            pdf.savefig(fig, bbox_inches="tight")
+            plt.close(fig)
 
-# --- GPT INSIGHTS PAGE ---
-for fig in make_text_pages("💡 GPT Insights", insights):
-    pdf.savefig(fig, bbox_inches="tight")
-    plt.close(fig)
+# This closes the `else:` block from the very beginning
+# This also closes the `with PdfPages(...)` block, saving the file
 
 
 # === After the PDF file is closed ===
