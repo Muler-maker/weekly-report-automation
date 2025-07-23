@@ -376,20 +376,6 @@ For each Sales Manager:
 Do not include any questions, follow-ups, or metadata.
 Only provide concise trend summaries using plain text.
 """
-exec_response = client.chat.completions.create(
-    model="gpt-4o",
-    messages=[
-        {"role": "system", "content": exec_summary_prompt},
-        {"role": "user", "content": report_text}
-    ]
-)
-executive_summary = exec_response.choices[0].message.content.strip()
-insights = executive_summary
-print("\n💡 GPT Insights:\n", insights)
-
-import re
-from datetime import datetime
-
 exec_summary_prompt ="""
 You are a senior business analyst. Based on the report below, write a very short executive summary in the form of one or two concise paragraphs, suitable for company leadership.
 
@@ -403,7 +389,19 @@ Guidelines:
 - Avoid technical jargon or formatting (no bullets, bold, etc.)
 - Use an approcheable and simple language
 """
+exec_response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[
+        {"role": "system", "content": exec_summary_prompt},
+        {"role": "user", "content": report_text}
+    ]
+)
+executive_summary = exec_response.choices[0].message.content.strip()
+insights = executive_summary
+print("\n💡 GPT Insights:\n", insights)
 
+import re
+from datetime import datetime
 
 
 # Save executive summary to JSON
