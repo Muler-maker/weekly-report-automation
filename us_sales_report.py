@@ -97,7 +97,6 @@ df = pd.DataFrame(sheet.get_all_records())
 df.columns = [c.strip() for c in df.columns]
 
 
-}
 df["Manager"] = df["Sales Manager"]
 
 # === Define email sending function using Resend API ===
@@ -850,8 +849,8 @@ with PdfPages(latest_pdf) as pdf:
 print("DEBUG: PDF file size right after creation:", os.path.getsize(latest_pdf))
 
 # === Save report with additional filenames ===
-summary_pdf = os.path.join(output_folder, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf")
-latest_copy_path = os.path.join(output_folder, "Latest_Weekly_Report.pdf")
+summary_pdf = os.path.join(output_folder, f"Weekly_US_Orders_Report_Summary_Week_{week_num}_{year}.pdf")
+latest_copy_path = os.path.join(output_folder, "Latest_US_Weekly_Report.pdf")
 copyfile(latest_pdf, summary_pdf)
 copyfile(latest_pdf, latest_copy_path)
 print(f"✅ Report also saved as: {summary_pdf}")
@@ -861,12 +860,6 @@ print(f"✅ Report also saved as: {latest_copy_path}")
 import time
 time.sleep(0.5)
 
-# === Create and save week info file ===
-week_info_path = os.path.join(output_folder, "Week_number.txt")
-with open(week_info_path, "w") as f:
-    f.write(f"{week_num},{year}")
-
 # === Upload PDFs to Google Drive Folder ===
-upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
-upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
-upload_to_drive(week_info_path, f"Week_number.txt", folder_id)
+upload_to_drive(summary_pdf, f"Weekly_US_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
+upload_to_drive(latest_copy_path, "Latest_US_Weekly_Report.pdf", folder_id)
