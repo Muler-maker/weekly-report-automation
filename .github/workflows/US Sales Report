@@ -1,0 +1,30 @@
+name: US Sales Report
+on:
+  schedule:
+    - cron: '0 5 * * 1'  # Every Monday at 05:00 UTC (08:00 Israel time)
+  workflow_dispatch:      # allows manual run for testing
+
+jobs:
+  run-us-sales-report:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Write Google credentials file
+        run: |
+          echo "${{ secrets.GOOGLE_CREDENTIALS }}" | tr -d '\r' > $GITHUB_WORKSPACE/credentials.json
+
+      - name: Run the US sales report script
+        run: python us_sales_report.py
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}    
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
