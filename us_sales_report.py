@@ -97,7 +97,7 @@ df = pd.DataFrame(sheet.get_all_records())
 df.columns = [c.strip() for c in df.columns]
 
 
-df["Manager"] = df["Sales Manager"]
+df["Manager"] = df["Sales Manager (from Company name)"]
 
 # === Define email sending function using Resend API ===
 def send_email(subject, body, to_emails, attachment_path):
