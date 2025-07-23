@@ -418,7 +418,7 @@ upload_to_drive(summary_json_path, "US_Executive_Summary.json", folder_id)
 gsheet_service = build('sheets', 'v4', credentials=creds)
 
 # Spreadsheet ID for your target Google Sheet
-summary_spreadsheet_id = "185PnDw31D0zAYeUzNaSPQlQGTjmVVX1O9C86FC4JxV8"  # <-- Replace this with your Google Sheet ID
+summary_spreadsheet_id = "1otpE-pUer9Hhm3rw0858yh7siIG5VSTmAgvNLUCNujY"  # <-- Replace this with your Google Sheet ID
 
 # Check if the sheet exists, if not create it
 sheet_metadata = gsheet_service.spreadsheets().get(spreadsheetId=summary_spreadsheet_id).execute()
