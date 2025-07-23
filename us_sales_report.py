@@ -376,7 +376,14 @@ For each Sales Manager:
 Do not include any questions, follow-ups, or metadata.
 Only provide concise trend summaries using plain text.
 """
-
+exec_response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[
+        {"role": "system", "content": exec_summary_prompt},
+        {"role": "user", "content": report_text}
+    ]
+)
+executive_summary = exec_response.choices[0].message.content.strip()
 insights = executive_summary
 print("\n💡 GPT Insights:\n", insights)
 
@@ -397,14 +404,7 @@ Guidelines:
 - Use an approcheable and simple language
 """
 
-exec_response = client.chat.completions.create(
-    model="gpt-4o",
-    messages=[
-        {"role": "system", "content": exec_summary_prompt},
-        {"role": "user", "content": report_text}
-    ]
-)
-executive_summary = exec_response.choices[0].message.content.strip()
+
 
 # Save executive summary to JSON
 summary_json_path = os.path.join(output_folder, "Executive_Summary.json")
