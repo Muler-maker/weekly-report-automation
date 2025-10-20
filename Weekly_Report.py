@@ -143,6 +143,7 @@ account_manager_map = {
     "naricha@isotopia-global.com": "Noam Aricha",
     "ndellus@isotopia-global.com": "Noam Dellus",
     "gbader@isotopia-global.com": "Gilli Bader",
+    "yfarchi@isotopia-global.com": "Yosi Farchi",
     "caksoy@isotopia-global.com": "Can Aksoy"
 }
 df["Account Manager"] = df["Account Manager Email"].map(account_manager_map).fillna("Other")
@@ -1071,3 +1072,4 @@ with open(week_info_path, "w") as f:
 upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
 upload_to_drive(week_info_path, f"Week_number.txt", folder_id)
+
