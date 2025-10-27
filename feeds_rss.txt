@@ -1,8 +1,9 @@
-https://ted.europa.eu/TED/rss/en/RSS.xml?searchCriteria.countryList=IT&searchCriteria.freeText=%28Lutetium%20OR%20177Lu%20OR%20Tb-161%20OR%20161Tb%29
-https://ted.europa.eu/TED/rss/en/RSS.xml?searchCriteria.countryList=DE&searchCriteria.freeText=%28Lutetium%20OR%20177Lu%20OR%20Tb-161%20OR%20161Tb%29
-https://ted.europa.eu/TED/rss/en/RSS.xml?searchCriteria.countryList=NL&searchCriteria.freeText=%28Lutetium%20OR%20177Lu%20OR%20Tb-161%20OR%20161Tb%29
-https://ted.europa.eu/TED/rss/en/RSS.xml?searchCriteria.countryList=SE&searchCriteria.freeText=%28Lutetium%20OR%20177Lu%20OR%20Tb-161%20OR%20161Tb%29
-https://ted.europa.eu/TED/rss/en/RSS.xml?searchCriteria.countryList=DK&searchCriteria.freeText=%28Lutetium%20OR%20177Lu%20OR%20Tb-161%20OR%20161Tb%29
-https://ted.europa.eu/TED/rss/en/RSS.xml?searchCriteria.countryList=AT&searchCriteria.freeText=%28Lutetium%20OR%20177Lu%20OR%20Tb-161%20OR%20161Tb%29
-https://www.tenderned.nl/feed/tenders?searchterm=Lutetium%20OR%20177Lu%20OR%20Tb-161%20OR%20161Tb
-https://udbud.dk/Pages/rss?query=Lutetium%20OR%20177Lu%20OR%20Tb-161%20OR%20161Tb
+# Working procurement feeds with Lu-177 or Tb-161 mentions
+https://www.ted.europa.eu/TED/rss/en/RSS.xml?query=Lutetium
+https://www.ted.europa.eu/TED/rss/en/RSS.xml?query=177Lu
+https://www.ted.europa.eu/TED/rss/en/RSS.xml?query=Tb-161
+https://www.ted.europa.eu/TED/rss/en/RSS.xml?query=Terbium
+https://www.tenderned.nl/feed/tenders?searchterm=Lutetium
+https://udbud.dk/Pages/rss?query=Lutetium
+https://findtender.parliament.uk/feed?keyword=Lutetium
+https://www.contractsfinder.service.gov.uk/Published/Notices/Opendata/RSSFeed?keyword=Lutetium
