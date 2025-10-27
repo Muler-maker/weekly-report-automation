@@ -1,0 +1,5 @@
+https://www.tenderned.nl/feed/tenders?searchterm=Lutetium
+https://udbud.dk/Pages/rss?query=Lutetium
+https://ted.europa.eu/TED/rss/en/RSS.xml?searchCriteria.countryList=AT&searchCriteria.freeText=Lutetium
+https://www.upphandlingar.se/rss?query=Lutetium
+https://ted.europa.eu/TED/rss/en/RSS.xml?searchCriteria.countryList=IT&searchCriteria.freeText=Lutetium
