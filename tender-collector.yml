@@ -1,0 +1,34 @@
+name: Tender Collector
+on:
+  schedule:
+    - cron: "10 5 * * *"   # daily 05:10 UTC
+  workflow_dispatch: {}
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    permissions: { contents: write }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - name: Install deps
+        run: pip install --upgrade pip && pip install -r requirements.txt
+      - name: Run collector
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: gpt-5.1-mini
+          OUT_CSV: tenders_lu177_tb161.csv
+          RSS_FILE: feeds_rss.txt
+          HOSPITAL_FILE: hospitals.txt
+          CONF_THRESHOLD: "0.6"
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_CREDENTIALS_TENDERS }}
+          GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
+          GOOGLE_SHEET_TAB: Sheet1
+        run: python run_agent.py
+      - name: Commit CSV if changed
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@users.noreply.github.com"
+          git add tenders_lu177_tb161.csv
+          git diff --quiet || (git commit -m "Update tenders CSV" && git push)
