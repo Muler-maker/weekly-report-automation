@@ -1,5 +1,8 @@
-https://www.tenderned.nl/feed/tenders?searchterm=Lutetium
-https://udbud.dk/Pages/rss?query=Lutetium
-https://ted.europa.eu/TED/rss/en/RSS.xml?searchCriteria.countryList=AT&searchCriteria.freeText=Lutetium
-https://www.upphandlingar.se/rss?query=Lutetium
-https://ted.europa.eu/TED/rss/en/RSS.xml?searchCriteria.countryList=IT&searchCriteria.freeText=Lutetium
+https://ted.europa.eu/TED/rss/en/RSS.xml?searchCriteria.countryList=IT&searchCriteria.freeText=%28Lutetium%20OR%20177Lu%20OR%20Tb-161%20OR%20161Tb%29
+https://ted.europa.eu/TED/rss/en/RSS.xml?searchCriteria.countryList=DE&searchCriteria.freeText=%28Lutetium%20OR%20177Lu%20OR%20Tb-161%20OR%20161Tb%29
+https://ted.europa.eu/TED/rss/en/RSS.xml?searchCriteria.countryList=NL&searchCriteria.freeText=%28Lutetium%20OR%20177Lu%20OR%20Tb-161%20OR%20161Tb%29
+https://ted.europa.eu/TED/rss/en/RSS.xml?searchCriteria.countryList=SE&searchCriteria.freeText=%28Lutetium%20OR%20177Lu%20OR%20Tb-161%20OR%20161Tb%29
+https://ted.europa.eu/TED/rss/en/RSS.xml?searchCriteria.countryList=DK&searchCriteria.freeText=%28Lutetium%20OR%20177Lu%20OR%20Tb-161%20OR%20161Tb%29
+https://ted.europa.eu/TED/rss/en/RSS.xml?searchCriteria.countryList=AT&searchCriteria.freeText=%28Lutetium%20OR%20177Lu%20OR%20Tb-161%20OR%20161Tb%29
+https://www.tenderned.nl/feed/tenders?searchterm=Lutetium%20OR%20177Lu%20OR%20Tb-161%20OR%20161Tb
+https://udbud.dk/Pages/rss?query=Lutetium%20OR%20177Lu%20OR%20Tb-161%20OR%20161Tb
