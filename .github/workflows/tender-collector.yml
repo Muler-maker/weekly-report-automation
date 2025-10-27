@@ -7,18 +7,22 @@ on:
 jobs:
   collect:
     runs-on: ubuntu-latest
-    permissions: { contents: write }
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
-        with: { python-version: "3.11" }
-      - name: Install deps
-        run: pip install --upgrade pip && pip install -r requirements.txt
-      - name: Run collector
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install feedparser requests beautifulsoup4 pandas gspread google-auth openai
+
+      - name: Run tender collector
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          OPENAI_MODEL: gpt-5.1-mini
-          OUT_CSV: tenders_lu177_tb161.csv
+          OPENAI_MODEL: gpt-4o-mini
           RSS_FILE: feeds_rss.txt
           HOSPITAL_FILE: hospitals.txt
           CONF_THRESHOLD: "0.6"
@@ -26,9 +30,3 @@ jobs:
           GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
           GOOGLE_SHEET_TAB: Sheet1
         run: python run_agent.py
-      - name: Commit CSV if changed
-        run: |
-          git config user.name "github-actions"
-          git config user.email "actions@users.noreply.github.com"
-          git add tenders_lu177_tb161.csv
-          git diff --quiet || (git commit -m "Update tenders CSV" && git push)
