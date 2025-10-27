@@ -27,7 +27,7 @@ jobs:
           HOSPITAL_FILE: hospitals.txt
           CONF_THRESHOLD: "0.30"        # start loose; tighten later
           DEBUG: "1"                    # print helpful logs
-          MATCH_ALL: "0"                # set to "1" once to push *all* feed items to the Sheet
+          MATCH_ALL: "1"                # set to "1" once to push *all* feed items to the Sheet
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_CREDENTIALS_TENDERS }}
           GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
           GOOGLE_SHEET_TAB: Sheet1
