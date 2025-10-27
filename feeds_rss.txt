@@ -1,9 +1,6 @@
-# Working procurement feeds with Lu-177 or Tb-161 mentions
-https://www.ted.europa.eu/TED/rss/en/RSS.xml?query=Lutetium
-https://www.ted.europa.eu/TED/rss/en/RSS.xml?query=177Lu
-https://www.ted.europa.eu/TED/rss/en/RSS.xml?query=Tb-161
-https://www.ted.europa.eu/TED/rss/en/RSS.xml?query=Terbium
-https://www.tenderned.nl/feed/tenders?searchterm=Lutetium
-https://udbud.dk/Pages/rss?query=Lutetium
-https://findtender.parliament.uk/feed?keyword=Lutetium
-https://www.contractsfinder.service.gov.uk/Published/Notices/Opendata/RSSFeed?keyword=Lutetium
+# Generic procurement feeds that return entries (for testing end-to-end)
+https://ted.europa.eu/TED/rss/en/RSS.xml?filter=0
+https://tenderned.nl/feed/tenders
+https://www.contractsfinder.service.gov.uk/Published/Notices/Opendata/RSSFeed
+https://findtender.parliament.uk/feed
+https://udbud.dk/Pages/Rss
