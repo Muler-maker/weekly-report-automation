@@ -1,0 +1,63 @@
+name: Sheets Write Smoke Test
+on:
+  workflow_dispatch: {}
+
+jobs:
+  write:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: |
+          pip install --upgrade pip
+          pip install gspread google-auth
+
+      - name: Append a test row to Google Sheet
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_CREDENTIALS_TENDERS }}
+          GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
+          TAB: Sheet1
+        run: |
+          python - <<'PY'
+          import os, json, gspread
+          from google.oauth2.service_account import Credentials
+
+          sa = json.loads(os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"])
+          sheet_id = os.environ["GOOGLE_SHEET_ID"]
+          tab = os.environ.get("TAB", "Sheet1")
+
+          scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+          creds = Credentials.from_service_account_info(sa, scopes=scopes)
+          gc = gspread.authorize(creds)
+
+          sh = gc.open_by_key(sheet_id)
+          print("✅ Opened spreadsheet:", sheet_id)
+          print("Tabs found:", [w.title for w in sh.worksheets()])
+
+          try:
+              ws = sh.worksheet(tab)
+              print(f"Using existing tab: {tab}")
+          except gspread.WorksheetNotFound:
+              ws = sh.add_worksheet(title=tab, rows=1000, cols=20)
+              print(f"Created tab: {tab}")
+
+          headers = ["date_detected","isotope","grade","procurement_type","country","issuer",
+                     "publication_date","deadline_date","estimated_value","confidence",
+                     "title","summary","url","source_type"]
+
+          row1 = ws.row_values(1)
+          if row1 != headers:
+              ws.resize(rows=1, cols=len(headers))
+              ws.update('A1', [headers])
+              print("Wrote/updated headers.")
+
+          ws.append_row(
+              ["TEST_NOW","Lu-177","unspecified","open tender","—","—","","","", "0.99",
+               "Sheet write smoke test","","https://example.com","SmokeTest"],
+              value_input_option="RAW"
+          )
+          print("✅ Appended one test row.")
+          PY
