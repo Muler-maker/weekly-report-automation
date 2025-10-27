@@ -25,7 +25,8 @@ jobs:
           OPENAI_MODEL: gpt-4o-mini
           RSS_FILE: feeds_rss.txt
           HOSPITAL_FILE: hospitals.txt
-          CONF_THRESHOLD: "0.6"
+          CONF_THRESHOLD: "0.3"          # less strict → higher recall for testing
+          DEBUG: "1"                     # print sample titles when no hits
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_CREDENTIALS_TENDERS }}
           GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
           GOOGLE_SHEET_TAB: Sheet1
