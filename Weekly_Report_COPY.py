@@ -299,64 +299,56 @@ else:
 
 # === Executive Summary Generation (with Product Trends) ===
 
-def generate_product_trend_summary(df):
+def generate_product_trend_summary(recent_df, previous_df):
     """
-    Calculates product trends and returns them as a formatted text string.
+    Calculates a stable 8-week vs. 8-week product trend and returns it as a text string.
+    This is much more reliable than comparing single, volatile weeks.
     """
     try:
-        today = datetime.today() + timedelta(days=11)
-        last_week_date = today - timedelta(weeks=1)
-        week_before_last_date = today - timedelta(weeks=2)
-        same_week_ly_date = last_week_date - timedelta(weeks=52)
-        previous_8_weeks = [(d.isocalendar().year, d.isocalendar().week) for d in [today - timedelta(weeks=i) for i in range(1, 9)]]
-        before_previous_8_weeks = [(d.isocalendar().year, d.isocalendar().week) for d in [today - timedelta(weeks=i) for i in range(9, 17)]]
-        
-        df_agg = lambda yw: df[df['YearWeek'].isin(yw)].groupby('Product')['Total_mCi'].sum() if isinstance(yw, list) else df[df['YearWeek'] == yw].groupby('Product')['Total_mCi'].sum()
-        
-        last_week_totals = df_agg((last_week_date.isocalendar().year, last_week_date.isocalendar().week))
-        week_before_last_totals = df_agg((week_before_last_date.isocalendar().year, week_before_last_date.isocalendar().week))
-        same_week_ly_totals = df_agg((same_week_ly_date.isocalendar().year, same_week_ly_date.isocalendar().week))
-        previous_8_weeks_totals = df_agg(previous_8_weeks)
-        before_previous_8_weeks_totals = df_agg(before_previous_8_weeks)
+        # Aggregate sales over the two 8-week periods
+        recent_totals = recent_df.groupby('Product')['Total_mCi'].sum()
+        previous_totals = previous_df.groupby('Product')['Total_mCi'].sum()
 
-        comp1 = pd.concat([last_week_totals.rename('Prev Wk'), week_before_last_totals.rename('Wk Before')], axis=1).fillna(0)
-        comp2 = pd.concat([last_week_totals.rename('Prev Wk'), same_week_ly_totals.rename('Same Wk LY')], axis=1).fillna(0)
-        comp3 = pd.concat([previous_8_weeks_totals.rename('Prev 8 Wks'), before_previous_8_weeks_totals.rename('8 Wks Before')], axis=1).fillna(0)
-
-        calc_pct = lambda p1, p2: ((p1 - p2) / p2 * 100).replace([np.inf, -np.inf], 100).fillna(0)
-        merged = comp1.join(comp2, how='outer').join(comp3, how='outer').fillna(0)
-        wow_change = calc_pct(merged['Prev Wk'], merged['Wk Before'])
-        yoy_change = calc_pct(merged['Prev Wk'], merged['Same Wk LY'])
-        w8_change = calc_pct(merged['Prev 8 Wks'], merged['8 Wks Before'])
-
-        summary_lines = ["### PART 1: PRODUCT-LEVEL DATA ###"]
-        products_with_activity = 0
-        for product, row in merged.iterrows():
-            if row.any(): # Only add products that have some sales data
-                products_with_activity += 1
-                summary_lines.append(f"- {product}: WoW Change: {wow_change.get(product, 0):+.1f}%, YoY Change: {yoy_change.get(product, 0):+.1f}%, 8-Week Trend: {w8_change.get(product, 0):+.1f}%")
+        # Combine into a single DataFrame
+        combined = pd.DataFrame({'Recent 8 Weeks': recent_totals, 'Previous 8 Weeks': previous_totals}).fillna(0)
         
-        if products_with_activity == 0:
+        # Calculate percentage change
+        calc_pct = lambda current, prev: ((current - prev) / prev * 100) if prev != 0 else np.inf
+        combined['% Change'] = combined.apply(lambda row: calc_pct(row['Recent 8 Weeks'], row['Previous 8 Weeks']), axis=1)
+
+        summary_lines = ["### PART 1: PRODUCT-LEVEL DATA (8-Week vs 8-Week Trend) ###"]
+        
+        if combined.empty or combined['Recent 8 Weeks'].sum() == 0 and combined['Previous 8 Weeks'].sum() == 0:
             summary_lines.append("No product sales data was available for the comparison periods.")
+            return "\n".join(summary_lines)
+
+        for product, row in combined.iterrows():
+            change = row['% Change']
+            if change == np.inf:
+                change_str = "New Product/Restarted"
+            else:
+                change_str = f"{change:+.1f}%"
+            
+            summary_lines.append(f"- {product}: Total sales changed by {change_str} over the last 8 weeks.")
             
         return "\n".join(summary_lines)
     except Exception as e:
         return f"### PART 1: PRODUCT-LEVEL DATA ###\nProduct-level trend data could not be generated: {e}"
 
-# 1. Generate the product data as text
-product_trend_summary = generate_product_trend_summary(df)
+# 1. Generate the stable product data as text using the existing DataFrames
+product_trend_summary = generate_product_trend_summary(recent_df, previous_df)
 
-# 2. Define the new, more forceful prompt
+# 2. Define the forceful prompt
 exec_summary_prompt ="""
 You are a senior business analyst writing an executive summary for company leadership. Your summary must be one or two concise paragraphs.
 
 Follow these instructions strictly:
 
 **Task 1: Analyze Product Trends FIRST**
-Your absolute first step is to analyze the data provided under the 'PART 1: PRODUCT-LEVEL DATA' heading. Start your summary by mentioning the most significant product performance trends (e.g., "Product X saw a major year-over-year increase, while Product Y declined...").
+Your absolute first step is to analyze the data provided under the 'PART 1: PRODUCT-LEVEL DATA' heading. Start your summary by stating the most significant product performance trends (e.g., "Over the last eight weeks, key products have shown divergent trends. Lutetium N.C.A saw a significant increase, while...").
 
 **Task 2: Transition to Customer Trends**
-After summarizing the product trends, your second step is to use the data under the 'PART 2: CUSTOMER-LEVEL DATA' heading to provide context or examples for the product trends. Mention significant customer increases, decreases, or stops that support your initial product analysis.
+After summarizing the product trends from PART 1, your second step is to use the data under the 'PART 2: CUSTOMER-LEVEL DATA' heading to provide context or examples for those product trends.
 
 **IMPORTANT RULE:** If 'PART 1' indicates that no product data is available, you MUST skip Task 1 and begin the summary directly with the customer trends from 'PART 2'. Do not mention that product data is missing.
 
@@ -374,7 +366,7 @@ final_exec_prompt_content = (
     raw_report_text_for_exec_summary
 )
 
-# 4. **CRITICAL DIAGNOSTIC STEP**: Print the exact content being sent to the AI
+# 4. Diagnostic Print Statement (Highly Recommended to Keep)
 print("\n" + "="*20 + " DEBUG: Content for Executive Summary " + "="*20)
 print(final_exec_prompt_content)
 print("="*70 + "\n")
