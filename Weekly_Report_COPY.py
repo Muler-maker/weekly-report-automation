@@ -37,7 +37,6 @@ def extract_metadata_from_question(text):
         countries = [x.strip() for x in re.split(r",\s*", match.group(2))]
         customers = [x.strip() for x in re.split(r",\s*", match.group(3))]
         return re.sub(metadata_pattern, "", text).strip(), distributors, countries, customers
-    
     metadata_pattern2 = r"\(\s*Distributor:\s*(.*?)\s*;\s*Country:\s*(.*?)\s*\)\s*$"
     match2 = re.search(metadata_pattern2, text)
     if match2:
@@ -48,7 +47,6 @@ def extract_metadata_from_question(text):
             for c in countries:
                 customers_set.update(distributor_country_to_customers.get((d, c), []))
         return re.sub(metadata_pattern2, "", text).strip(), distributors, countries, sorted(customers_set)
-    
     return re.sub(r"\(.*?\)\s*$", "", text).strip(), ["N/A"], ["N/A"], ["N/A"]
 
 def build_feedback_context(feedback_df, week_num, year):
@@ -65,11 +63,6 @@ def build_feedback_context(feedback_df, week_num, year):
     return "\n".join(context_lines)
 
 def add_comparison_tables_page_to_pdf(pdf, df):
-    """
-    Adds a single page with three separate comparison tables to the PDF.
-    - Compares shifted timeframes (e.g., last week vs. week before).
-    - Colors percentage change values based on performance.
-    """
     def draw_comparison_table(ax, data, title, period1_name, period2_name):
         ax.axis('off'); ax.set_title(title, fontsize=12, weight='bold', pad=15)
         if data.empty:
@@ -92,7 +85,6 @@ def add_comparison_tables_page_to_pdf(pdf, df):
                     color = 'green' if numeric_value > 0.1 else ('red' if numeric_value < -0.1 else 'black')
                     cell.set_text_props(color=color, weight='bold')
                 if col == 0: cell.set_text_props(ha='left')
-
     today = datetime.today() + timedelta(days=11)
     last_week_date = today - timedelta(weeks=1)
     week_before_last_date = today - timedelta(weeks=2)
@@ -204,7 +196,7 @@ customer_to_country = df.set_index("Customer")["Country"].to_dict()
 openai_api_key = os.getenv("OPENAI_API_KEY")
 if not openai_api_key: raise ValueError("OPENAI_API_KEY environment variable not set.")
 client = OpenAI(api_key=openai_api_key)
-summary_path = os.path.join(output_folder, "summary.txt")
+summary_path = os.path.join(output_folder, "summary_test.txt")
 format_row = lambda name, prev, curr, mgr: (f"{name:<30} | {curr - prev:+7.0f} mCi | {(curr - prev) / prev * 100 if prev else 100:+6.1f}% | {mgr}", (curr - prev) / prev * 100 if prev else 100)
 increased_formatted = sorted([format_row(*x) for x in increased], key=lambda x: x[1], reverse=True)
 decreased_formatted = sorted([format_row(*x) for x in decreased], key=lambda x: x[1])
@@ -220,7 +212,7 @@ summary_lines += ["", "INACTIVE IN PAST 4 WEEKS:", "Customers inactive...", "---
 with open(summary_path, "w") as f: f.write("\n".join(summary_lines))
 with open(summary_path, "r", encoding="utf-8") as f: raw_report_text_for_exec_summary = f.read()
 report_text_with_history = raw_report_text_for_exec_summary
-insight_history_path = os.path.join(output_folder, "insight_history.txt")
+insight_history_path = os.path.join(output_folder, "insight_history_test.txt")
 if os.path.exists(insight_history_path):
     with open(insight_history_path, "r", encoding="utf-8") as f: past_insights = f.read()
     report_text_with_history = f"{past_insights}\n\n===== NEW WEEK =====\n\n{report_text_with_history}"
@@ -231,7 +223,7 @@ def format_row_for_gpt(name, prev, curr, mgr):
 gpt_rows = [format_row_for_gpt(name, prev, curr, mgr) for (name, prev, curr, mgr) in increased + decreased]
 gpt_distributor_section = ["Customer name | Change | % Change | AM | Distributor | Country"] + gpt_rows
 full_prompt_text = ( "Previous feedback...\n" + feedback_context + "\n\n==== New Weekly Report Data ====\n\n" + report_text_with_history + "\n\n=== Distributor info... \n" + "\n".join(gpt_distributor_section))
-system_prompt = "You are a senior business analyst..." # The long system prompt is unchanged
+system_prompt = "You are a senior business analyst..."
 response = client.chat.completions.create(model="gpt-4o", messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": full_prompt_text}])
 insights = response.choices[0].message.content.strip()
 print("\n💡 GPT Insights:\n", insights)
@@ -239,16 +231,15 @@ exec_summary_prompt ="You are a senior business analyst..."
 exec_response = client.chat.completions.create(model="gpt-4o", messages=[{"role": "system", "content": exec_summary_prompt}, {"role": "user", "content": raw_report_text_for_exec_summary}])
 executive_summary = exec_response.choices[0].message.content.strip()
 print("\n📝 Generated Executive Summary:\n", executive_summary)
-summary_json_path = os.path.join(output_folder, "Executive_Summary.json")
+summary_json_path = os.path.join(output_folder, "Executive_Summary_test.json")
 with open(summary_json_path, "w", encoding="utf-8") as f: json.dump({"executive_summary": executive_summary}, f, ensure_ascii=False, indent=2)
-upload_to_drive(summary_json_path, "Executive_Summary.json", folder_id)
+upload_to_drive(summary_json_path, "Executive_Summary_test.json", folder_id)
 # ... (rest of Google Sheet update logic is unchanged)
 
 # === PDF Generation ===
-latest_pdf = os.path.join(output_folder, f"Weekly_Orders_Report_Week_{week_num}_{year}.pdf")
+latest_pdf = os.path.join(output_folder, f"Weekly_Orders_Report_Week_{week_num}_{year}_test.pdf")
 with PdfPages(latest_pdf) as pdf:
     print("DEBUG: Entered PdfPages block")
-
     if not any([stopped, decreased, increased, inactive_recent_4]):
         fig = plt.figure(figsize=(8.5, 11)); plt.axis("off")
         fig.text(0.5, 0.5, "No data available for this week's report.", ha="center", va="center", fontsize=18)
@@ -323,11 +314,11 @@ with PdfPages(latest_pdf) as pdf:
             for (row, col), cell in table.get_celld().items():
                 cell.PAD = 0.2; cell.set_facecolor("#e6e6fa" if row == 0 else ("#f9f9f9" if row % 2 == 0 else "#ffffff"))
                 cell.set_text_props(weight='bold' if row == 0 else 'normal', ha="left")
-            ax.set_title("STOPPED ORDERING", fontsize=14, weight="bold", pad=15); fig.text(0.5, 0.87, "Customers who stopped ordering...", fontsize=10, ha="center")
+            ax.set_title("STOPPED ORDERING", fontsize=14, weight="bold", pad=15); fig.text(0.5, 0.87, "Customers who stopped ordering in the last 4 weeks...", fontsize=10, ha="center")
             pdf.savefig(fig, bbox_inches="tight"); plt.close(fig)
         if decreased:
             for am, am_rows in sorted(decreased_by_am.items()):
-                decreased_df = pd.DataFrame([[name, f"{curr - prev:+.0f}", f"{(curr - prev) / prev * 100:+.1f}%" if prev else "+100%", wrap_text(am), (curr - prev) / prev * 100 if prev else 100] for name, prev, curr, _ in am_rows], columns=["Customer", "Change (mCi)", "% Change", "AM", "PercentValue"]).sort_values("PercentValue").drop(columns="PercentValue")
+                decreased_df = pd.DataFrame([[name, f"{curr - prev:+.0f}", f"{(curr - prev) / prev * 100:+.1f}%" if prev else "+100%", wrap_text(am)] for name, prev, curr, am in sorted(am_rows, key=lambda x: (x[2]-x[1])/(x[1] if x[1]!=0 else 1))], columns=["Customer", "Change (mCi)", "% Change", "Account Manager"])
                 fig, ax = plt.subplots(figsize=(11, max(4.5, 0.4 + 0.3 * len(decreased_df)) + 1)); ax.axis("off")
                 table = ax.table(cellText=decreased_df.values, colLabels=["Customer", "Change (mCi)", "% Change", "Account Manager"], loc="upper left", cellLoc="center", colWidths=[0.64, 0.11, 0.11, 0.14])
                 table.auto_set_font_size(False); table.set_fontsize(7.5); table.scale(1.0, 1.4)
@@ -338,7 +329,7 @@ with PdfPages(latest_pdf) as pdf:
                 pdf.savefig(fig, bbox_inches="tight"); plt.close(fig)
         if increased:
             for am, am_rows in sorted(increased_by_am.items()):
-                increased_df = pd.DataFrame([[name, f"{curr - prev:+.0f}", f"{(curr - prev) / prev * 100:+.1f}%" if prev else "+100%", wrap_text(am), (curr - prev) / prev * 100 if prev else 100] for name, prev, curr, _ in am_rows], columns=["Customer", "Change (mCi)", "% Change", "AM", "PercentValue"]).sort_values("PercentValue", ascending=False).drop(columns="PercentValue")
+                increased_df = pd.DataFrame([[name, f"{curr - prev:+.0f}", f"{(curr - prev) / prev * 100:+.1f}%" if prev else "+100%", wrap_text(am)] for name, prev, curr, am in sorted(am_rows, key=lambda x: (x[2]-x[1])/(x[1] if x[1]!=0 else 1), reverse=True)], columns=["Customer", "Change (mCi)", "% Change", "Account Manager"])
                 fig, ax = plt.subplots(figsize=(11, max(4.5, 0.4 + 0.3 * len(increased_df)) + 1)); ax.axis("off")
                 table = ax.table(cellText=increased_df.values, colLabels=["Customer", "Change (mCi)", "% Change", "Account Manager"], loc="upper left", cellLoc="center", colWidths=[0.64, 0.11, 0.11, 0.14])
                 table.auto_set_font_size(False); table.set_fontsize(7.5); table.scale(1.0, 1.4)
@@ -370,9 +361,6 @@ with PdfPages(latest_pdf) as pdf:
                 page_lines = wrapped_insights[page_start:page_start + lines_per_page]
                 fig.text(0.06, 0.95, "\n".join(page_lines), fontsize=10, ha="left", va="top")
                 pdf.savefig(fig); plt.close(fig)
-
-# === PDF Generation ===
-latest_pdf = os.path.join(output_folder, f"Weekly_Orders_Report_Week_{week_num}_{year}_test.pdf")
 
 # --- Finalize and Upload ---
 print("DEBUG: PDF file size right after creation:", os.path.getsize(latest_pdf))
