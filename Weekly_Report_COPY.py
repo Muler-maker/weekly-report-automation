@@ -304,25 +304,22 @@ def generate_product_trend_summary(df):
     Calculates product trends and returns them as a formatted text string.
     """
     try:
+        # ... (all the date and data aggregation logic remains the same) ...
         today = datetime.today() + timedelta(days=11)
         last_week_date = today - timedelta(weeks=1)
         week_before_last_date = today - timedelta(weeks=2)
         same_week_ly_date = last_week_date - timedelta(weeks=52)
         previous_8_weeks = [(d.isocalendar().year, d.isocalendar().week) for d in [today - timedelta(weeks=i) for i in range(1, 9)]]
         before_previous_8_weeks = [(d.isocalendar().year, d.isocalendar().week) for d in [today - timedelta(weeks=i) for i in range(9, 17)]]
-        
         df_agg = lambda yw: df[df['YearWeek'].isin(yw)].groupby('Product')['Total_mCi'].sum() if isinstance(yw, list) else df[df['YearWeek'] == yw].groupby('Product')['Total_mCi'].sum()
-        
         last_week_totals = df_agg((last_week_date.isocalendar().year, last_week_date.isocalendar().week))
         week_before_last_totals = df_agg((week_before_last_date.isocalendar().year, week_before_last_date.isocalendar().week))
         same_week_ly_totals = df_agg((same_week_ly_date.isocalendar().year, same_week_ly_date.isocalendar().week))
         previous_8_weeks_totals = df_agg(previous_8_weeks)
         before_previous_8_weeks_totals = df_agg(before_previous_8_weeks)
-
         comp1 = pd.concat([last_week_totals.rename('Prev Wk'), week_before_last_totals.rename('Wk Before')], axis=1).fillna(0)
         comp2 = pd.concat([last_week_totals.rename('Prev Wk'), same_week_ly_totals.rename('Same Wk LY')], axis=1).fillna(0)
         comp3 = pd.concat([previous_8_weeks_totals.rename('Prev 8 Wks'), before_previous_8_weeks_totals.rename('8 Wks Before')], axis=1).fillna(0)
-
         calc_pct = lambda p1, p2: ((p1 - p2) / p2 * 100).replace([np.inf, -np.inf], 100).fillna(0)
         merged = comp1.join(comp2, how='outer').join(comp3, how='outer').fillna(0)
         wow_change = calc_pct(merged['Prev Wk'], merged['Wk Before'])
@@ -331,7 +328,14 @@ def generate_product_trend_summary(df):
 
         summary_lines = ["Product-Level Performance Summary:"]
         for product, row in merged.iterrows():
-            summary_lines.append(f"- {product}: WoW Change: {wow_change.get(product, 0):+.1f}%, YoY Change: {yoy_change.get(product, 0):+.1f}%, 8-Week Trend: {w8_change.get(product, 0):+.1f}%")
+            # Only add products that have some activity
+            if row.any():
+                summary_lines.append(f"- {product}: WoW Change: {wow_change.get(product, 0):+.1f}%, YoY Change: {yoy_change.get(product, 0):+.1f}%, 8-Week Trend: {w8_change.get(product, 0):+.1f}%")
+        
+        # If no products had any data, return a clear message
+        if len(summary_lines) == 1:
+            return "Product-Level Performance Summary:\nNo product sales data was available for the comparison periods (previous week, last year, etc.)."
+            
         return "\n".join(summary_lines)
     except Exception as e:
         return f"Product-level trend data could not be generated: {e}"
@@ -344,10 +348,11 @@ exec_summary_prompt ="""
 You are a senior business analyst. Based on the data below, write a very short executive summary (one or two concise paragraphs) suitable for company leadership.
 
 **Instructions:**
-1.  **Start by revealing the general trend per product.** Use the "Product-Level Performance Summary" section to identify the most significant week-over-week, year-over-year, or 8-week trends for key products.
-2.  **Then, briefly transition** to the broader customer-level trends from the "Customer Trend Summary" to illustrate your points.
-3.  Focus on major trends. Do not mention Account Managers. Use clear, approachable, business-oriented language.
-4.  Avoid technical jargon and special formatting (no bullets, bold, etc.).
+1.  **Start by revealing the general trend per product.** Use the "Product-Level Performance Summary" section to identify the most significant trends.
+2.  **If the 'Product-Level Performance Summary' section indicates no data is available, skip step 1 and begin directly with the customer-level trends.** Do not mention that the product data is missing.
+3.  **Then, briefly transition** to the broader customer-level trends from the "Customer Trend Summary" to illustrate your points.
+4.  Focus on major trends. Do not mention Account Managers. Use clear, approachable, business-oriented language.
+5.  Avoid technical jargon and special formatting (no bullets, bold, etc.).
 """
 
 # 3. Combine the product summary and customer summary into one block of text for the AI
