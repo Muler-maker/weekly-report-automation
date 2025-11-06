@@ -297,15 +297,98 @@ if new_rows:
 else:
     print("No new questions found to add to the Feedback loop worksheet.")
 
-exec_summary_prompt ="You are a senior business analyst..."
-exec_response = client.chat.completions.create(model="gpt-4o", messages=[{"role": "system", "content": exec_summary_prompt}, {"role": "user", "content": raw_report_text_for_exec_summary}])
+# === Executive Summary Generation (with Product Trends) ===
+
+def generate_product_trend_summary(recent_df, previous_df):
+    """
+    Calculates a stable 8-week vs. 8-week product trend and returns it as a text string.
+    This is much more reliable than comparing single, volatile weeks.
+    """
+    try:
+        # Aggregate sales over the two 8-week periods
+        recent_totals = recent_df.groupby('Product')['Total_mCi'].sum()
+        previous_totals = previous_df.groupby('Product')['Total_mCi'].sum()
+
+        # Combine into a single DataFrame
+        combined = pd.DataFrame({'Recent 8 Weeks': recent_totals, 'Previous 8 Weeks': previous_totals}).fillna(0)
+        
+        # Calculate percentage change
+        calc_pct = lambda current, prev: ((current - prev) / prev * 100) if prev != 0 else np.inf
+        combined['% Change'] = combined.apply(lambda row: calc_pct(row['Recent 8 Weeks'], row['Previous 8 Weeks']), axis=1)
+
+        summary_lines = ["### PART 1: PRODUCT-LEVEL DATA (8-Week vs 8-Week Trend) ###"]
+        
+        if combined.empty or combined['Recent 8 Weeks'].sum() == 0 and combined['Previous 8 Weeks'].sum() == 0:
+            summary_lines.append("No product sales data was available for the comparison periods.")
+            return "\n".join(summary_lines)
+
+        for product, row in combined.iterrows():
+            change = row['% Change']
+            if change == np.inf:
+                change_str = "New Product/Restarted"
+            else:
+                change_str = f"{change:+.1f}%"
+            
+            summary_lines.append(f"- {product}: Total sales changed by {change_str} over the last 8 weeks.")
+            
+        return "\n".join(summary_lines)
+    except Exception as e:
+        return f"### PART 1: PRODUCT-LEVEL DATA ###\nProduct-level trend data could not be generated: {e}"
+
+# 1. Generate the stable product data as text using the existing DataFrames
+product_trend_summary = generate_product_trend_summary(recent_df, previous_df)
+
+# 2. Define the forceful prompt
+exec_summary_prompt ="""
+You are a senior business analyst writing an executive summary for company leadership. Your summary must be one or two concise paragraphs.
+
+Follow these instructions strictly:
+
+**Task 1: Analyze Product Trends FIRST**
+Your absolute first step is to analyze the data provided under the 'PART 1: PRODUCT-LEVEL DATA' heading. Start your summary by stating the most significant product performance trends (e.g., "Over the last eight weeks, key products have shown divergent trends. Lutetium N.C.A saw a significant increase, while...").
+
+**Task 2: Transition to Customer Trends**
+After summarizing the product trends from PART 1, your second step is to use the data under the 'PART 2: CUSTOMER-LEVEL DATA' heading to provide context or examples for those product trends.
+
+**IMPORTANT RULE:** If 'PART 1' indicates that no product data is available, you MUST skip Task 1 and begin the summary directly with the customer trends from 'PART 2'. Do not mention that product data is missing.
+
+**Final Formatting Rules:**
+- Do not mention Account Managers.
+- Use clear, approachable, business-oriented language.
+- Do not use any special formatting like bullets or bold text.
+"""
+
+# 3. Combine the summaries with very clear structural headers
+final_exec_prompt_content = (
+    product_trend_summary +
+    "\n\n-----\n\n" +
+    "### PART 2: CUSTOMER-LEVEL DATA ###\n" +
+    raw_report_text_for_exec_summary
+)
+
+# 4. Diagnostic Print Statement (Highly Recommended to Keep)
+print("\n" + "="*20 + " DEBUG: Content for Executive Summary " + "="*20)
+print(final_exec_prompt_content)
+print("="*70 + "\n")
+
+
+# 5. Call the AI with the new prompt and combined data
+exec_response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[
+        {"role": "system", "content": exec_summary_prompt},
+        {"role": "user", "content": final_exec_prompt_content}
+    ]
+)
 executive_summary = exec_response.choices[0].message.content.strip()
 print("\n📝 Generated Executive Summary:\n", executive_summary)
+
 summary_json_path = os.path.join(output_folder, "Executive_Summary_test.json")
-with open(summary_json_path, "w", encoding="utf-8") as f: json.dump({"executive_summary": executive_summary}, f, ensure_ascii=False, indent=2)
+with open(summary_json_path, "w", encoding="utf-8") as f:
+    json.dump({"executive_summary": executive_summary}, f, ensure_ascii=False, indent=2)
+
 upload_to_drive(summary_json_path, "Executive_Summary_test.json", folder_id)
 
-# ... (rest of Google Sheet update logic is unchanged)
 with open(insight_history_path, "a") as f:
     f.write(f"\n\n===== Week {week_num}, {year} =====\n{insights}")
 
@@ -477,3 +560,4 @@ with open(week_info_path, "w") as f:
 upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
 upload_to_drive(week_info_path, f"Week_number.txt", folder_id)
+
