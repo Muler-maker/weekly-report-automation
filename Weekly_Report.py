@@ -333,49 +333,38 @@ def generate_product_trend_summary(recent_df, previous_df):
 # 1. Generate the stable product data as text
 product_trend_summary = generate_product_trend_summary(recent_df, previous_df)
 
-# 2. **NEW:** Create a highly condensed summary of customer metrics
-customer_metrics_summary = (
-    "### PART 2: KEY CUSTOMER METRICS (Last 8 Weeks vs. Previous 8) ###\n"
-    f"- Customers with Increased Orders: {len(increased)}\n"
-    f"- Customers with Decreased Orders: {len(decreased)}\n"
-    f"- Customers who Stopped Ordering: {len(stopped)}\n"
-    f"- Customers Inactive in last 4 weeks: {len(inactive_recent_4)}"
-)
-
-# 3. Define the final, forceful prompt
+# 2. Define the new, highly-structured prompt
 exec_summary_prompt ="""
-You are a senior business analyst writing a high-level executive summary for company leadership. The summary must be one or two concise paragraphs.
+You are a senior business analyst writing a two-paragraph executive summary for company leadership.
 
-Follow these instructions strictly:
+**Paragraph 1 Instructions:**
+Your first paragraph MUST focus exclusively on the product-level performance outlined in 'PART 1: KEY PRODUCT TRENDS'. Summarize the most important overall product trends. For example, start with "Over the past eight weeks, overall product performance shows a mixed but concerning trend..." and then detail the changes in key products.
 
-**TASK 1: ANALYZE AND REPORT ON PRODUCT TRENDS FIRST.**
-Your first sentence MUST summarize the most important trends from the 'PART 1: KEY PRODUCT TRENDS' data. Use this data to describe the overall business performance from a product perspective.
-
-**TASK 2: USE CUSTOMER METRICS FOR CONTEXT.**
-AFTER you have described the product trends, use the simple numbers from 'PART 2: KEY CUSTOMER METRICS' to add context about the general customer behavior (e.g., "...this product growth was driven by X customers increasing orders, although Y customers stopped.").
+**Paragraph 2 Instructions:**
+Your second paragraph MUST then provide context for the product trends using the specific customer details from 'PART 2: CUSTOMER-LEVEL DATA'. Structure this analysis by first highlighting any significant **country-level or distributor-level patterns**. Then, mention key examples of increasing or decreasing **customers** that are driving the product trends you identified in the first paragraph.
 
 **IMPORTANT RULES:**
-- If 'PART 1' indicates no data is available, you MUST begin the summary directly with the customer metrics from 'PART 2'. Do not mention that product data is missing.
-- Do NOT name specific customers. You are only given high-level numbers.
-- Do NOT mention Account Managers.
+- If 'PART 1' indicates no data is available, you MUST write only ONE paragraph summarizing the customer data from 'PART 2'. Do not mention that product data is missing.
+- Do NOT name Account Managers.
 - Use clear, formal, business-oriented language.
-- Do not use bullets, bolding, or any other special formatting in your final output.
+- Do not use bullets or bolding in your final output.
 """
 
-# 4. Combine the NEW, condensed data into the final prompt content
+# 3. Combine the PRODUCT summary and the full DETAIL of the CUSTOMER summary
 final_exec_prompt_content = (
     product_trend_summary +
-    "\n\n" +
-    customer_metrics_summary
+    "\n\n-----\n\n" +
+    "### PART 2: CUSTOMER-LEVEL DATA ###\n" +
+    raw_report_text_for_exec_summary # Using the original, detailed customer report text
 )
 
-# 5. Diagnostic Print - Check this in your log to see exactly what the AI sees
+# 4. Diagnostic Print
 print("\n" + "="*20 + " DEBUG: Final Content for Executive Summary " + "="*20)
 print(final_exec_prompt_content)
 print("="*75 + "\n")
 
 
-# 6. Call the AI
+# 5. Call the AI
 exec_response = client.chat.completions.create(
     model="gpt-4o",
     messages=[
@@ -390,7 +379,7 @@ summary_json_path = os.path.join(output_folder, "Executive_Summary_test.json")
 with open(summary_json_path, "w", encoding="utf-8") as f:
     json.dump({"executive_summary": executive_summary}, f, ensure_ascii=False, indent=2)
 
-upload_to_drive(summary_json_path, "Executive_Summary_test.json", folder_id)
+upload_to_drive(summary_json_path, "Executive_Summary.json", folder_id)
 
 with open(insight_history_path, "a") as f:
     f.write(f"\n\n===== Week {week_num}, {year} =====\n{insights}")
@@ -562,5 +551,6 @@ with open(week_info_path, "w") as f:
 upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
 upload_to_drive(week_info_path, f"Week_number.txt", folder_id)
+
 
 
