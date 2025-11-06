@@ -297,12 +297,82 @@ if new_rows:
 else:
     print("No new questions found to add to the Feedback loop worksheet.")
 
-exec_summary_prompt ="You are a senior business analyst..."
-exec_response = client.chat.completions.create(model="gpt-4o", messages=[{"role": "system", "content": exec_summary_prompt}, {"role": "user", "content": raw_report_text_for_exec_summary}])
+# === Executive Summary Generation (with Product Trends) ===
+
+def generate_product_trend_summary(df):
+    """
+    Calculates product trends and returns them as a formatted text string.
+    """
+    try:
+        today = datetime.today() + timedelta(days=11)
+        last_week_date = today - timedelta(weeks=1)
+        week_before_last_date = today - timedelta(weeks=2)
+        same_week_ly_date = last_week_date - timedelta(weeks=52)
+        previous_8_weeks = [(d.isocalendar().year, d.isocalendar().week) for d in [today - timedelta(weeks=i) for i in range(1, 9)]]
+        before_previous_8_weeks = [(d.isocalendar().year, d.isocalendar().week) for d in [today - timedelta(weeks=i) for i in range(9, 17)]]
+        
+        df_agg = lambda yw: df[df['YearWeek'].isin(yw)].groupby('Product')['Total_mCi'].sum() if isinstance(yw, list) else df[df['YearWeek'] == yw].groupby('Product')['Total_mCi'].sum()
+        
+        last_week_totals = df_agg((last_week_date.isocalendar().year, last_week_date.isocalendar().week))
+        week_before_last_totals = df_agg((week_before_last_date.isocalendar().year, week_before_last_date.isocalendar().week))
+        same_week_ly_totals = df_agg((same_week_ly_date.isocalendar().year, same_week_ly_date.isocalendar().week))
+        previous_8_weeks_totals = df_agg(previous_8_weeks)
+        before_previous_8_weeks_totals = df_agg(before_previous_8_weeks)
+
+        comp1 = pd.concat([last_week_totals.rename('Prev Wk'), week_before_last_totals.rename('Wk Before')], axis=1).fillna(0)
+        comp2 = pd.concat([last_week_totals.rename('Prev Wk'), same_week_ly_totals.rename('Same Wk LY')], axis=1).fillna(0)
+        comp3 = pd.concat([previous_8_weeks_totals.rename('Prev 8 Wks'), before_previous_8_weeks_totals.rename('8 Wks Before')], axis=1).fillna(0)
+
+        calc_pct = lambda p1, p2: ((p1 - p2) / p2 * 100).replace([np.inf, -np.inf], 100).fillna(0)
+        merged = comp1.join(comp2, how='outer').join(comp3, how='outer').fillna(0)
+        wow_change = calc_pct(merged['Prev Wk'], merged['Wk Before'])
+        yoy_change = calc_pct(merged['Prev Wk'], merged['Same Wk LY'])
+        w8_change = calc_pct(merged['Prev 8 Wks'], merged['8 Wks Before'])
+
+        summary_lines = ["Product-Level Performance Summary:"]
+        for product, row in merged.iterrows():
+            summary_lines.append(f"- {product}: WoW Change: {wow_change.get(product, 0):+.1f}%, YoY Change: {yoy_change.get(product, 0):+.1f}%, 8-Week Trend: {w8_change.get(product, 0):+.1f}%")
+        return "\n".join(summary_lines)
+    except Exception as e:
+        return f"Product-level trend data could not be generated: {e}"
+
+# 1. Generate the product data as text
+product_trend_summary = generate_product_trend_summary(df)
+
+# 2. Define the new prompt that instructs the AI how to use the data
+exec_summary_prompt ="""
+You are a senior business analyst. Based on the data below, write a very short executive summary (one or two concise paragraphs) suitable for company leadership.
+
+**Instructions:**
+1.  **Start by revealing the general trend per product.** Use the "Product-Level Performance Summary" section to identify the most significant week-over-week, year-over-year, or 8-week trends for key products.
+2.  **Then, briefly transition** to the broader customer-level trends from the "Customer Trend Summary" to illustrate your points.
+3.  Focus on major trends. Do not mention Account Managers. Use clear, approachable, business-oriented language.
+4.  Avoid technical jargon and special formatting (no bullets, bold, etc.).
+"""
+
+# 3. Combine the product summary and customer summary into one block of text for the AI
+final_exec_prompt_content = (
+    product_trend_summary +
+    "\n\n-----\n\n" +
+    "Customer Trend Summary:\n" +
+    raw_report_text_for_exec_summary
+)
+
+# 4. Call the AI with the new prompt and combined data
+exec_response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[
+        {"role": "system", "content": exec_summary_prompt},
+        {"role": "user", "content": final_exec_prompt_content}
+    ]
+)
 executive_summary = exec_response.choices[0].message.content.strip()
 print("\n📝 Generated Executive Summary:\n", executive_summary)
+
 summary_json_path = os.path.join(output_folder, "Executive_Summary_test.json")
-with open(summary_json_path, "w", encoding="utf-8") as f: json.dump({"executive_summary": executive_summary}, f, ensure_ascii=False, indent=2)
+with open(summary_json_path, "w", encoding="utf-8") as f:
+    json.dump({"executive_summary": executive_summary}, f, ensure_ascii=False, indent=2)
+
 upload_to_drive(summary_json_path, "Executive_Summary_test.json", folder_id)
 
 # ... (rest of Google Sheet update logic is unchanged)
