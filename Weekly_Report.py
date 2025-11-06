@@ -335,19 +335,19 @@ product_trend_summary = generate_product_trend_summary(recent_df, previous_df)
 
 # 2. Define the new, highly-structured prompt
 exec_summary_prompt ="""
-You are a senior business analyst writing a two-paragraph executive summary for company leadership.
+You are a senior business analyst writing a high-level executive summary for company leadership. Your final output must be a **single, continuous block of text** with no paragraph breaks (no "\\n\\n").
 
-**Paragraph 1 Instructions:**
-Your first paragraph MUST focus exclusively on the product-level performance outlined in 'PART 1: KEY PRODUCT TRENDS'. Summarize the most important overall product trends. For example, start with "Over the past eight weeks, overall product performance shows a mixed but concerning trend..." and then detail the changes in key products.
+**Instructions:**
 
-**Paragraph 2 Instructions:**
-Your second paragraph MUST then provide context for the product trends using the specific customer details from 'PART 2: CUSTOMER-LEVEL DATA'. Structure this analysis by first highlighting any significant **country-level or distributor-level patterns**. Then, mention key examples of increasing or decreasing **customers** that are driving the product trends you identified in the first paragraph.
+1.  **Start with Product Trends:** Your first sentences MUST focus exclusively on the product-level performance outlined in 'PART 1: KEY PRODUCT TRENDS'. Summarize the most important overall product trends.
+
+2.  **Transition to Customer Context:** Immediately after summarizing the product trends, use a transitional phrase like "This performance is reflected in customer-level activity..." or "Drilling down into customer data reveals..." and then provide context using the details from 'PART 2: CUSTOMER-LEVEL DATA'. Structure this analysis by first highlighting any significant **country-level or distributor-level patterns**, then mention key examples of increasing or decreasing **customers** that are driving the product trends.
 
 **IMPORTANT RULES:**
-- If 'PART 1' indicates no data is available, you MUST write only ONE paragraph summarizing the customer data from 'PART 2'. Do not mention that product data is missing.
+- If 'PART 1' indicates no data is available, you MUST begin the summary directly with the customer data from 'PART 2'. Do not mention that product data is missing.
 - Do NOT name Account Managers.
 - Use clear, formal, business-oriented language.
-- Do not use bullets or bolding in your final output.
+- Your entire response MUST be a single block of text. Do not use bullets, bolding, or paragraph breaks.
 """
 
 # 3. Combine the PRODUCT summary and the full DETAIL of the CUSTOMER summary
@@ -380,6 +380,41 @@ with open(summary_json_path, "w", encoding="utf-8") as f:
     json.dump({"executive_summary": executive_summary}, f, ensure_ascii=False, indent=2)
 
 upload_to_drive(summary_json_path, "Executive_Summary.json", folder_id)
+
+# === Save Executive Summary also into Google Sheet ===
+try:
+    gsheet_service = build('sheets', 'v4', credentials=creds)
+
+    # The spreadsheet ID for your target Google Sheet
+    summary_spreadsheet_id = "185PnDw31D0zAYeUzNaSPQlQGTjmVVX1O9C86FC4JxV8"
+
+    # Check if the sheet exists, if not create it
+    sheet_metadata = gsheet_service.spreadsheets().get(spreadsheetId=summary_spreadsheet_id).execute()
+    sheet_titles = [s['properties']['title'] for s in sheet_metadata['sheets']]
+
+    if "Executive Summary" not in sheet_titles:
+        requests_body = { "requests": [{ "addSheet": { "properties": { "title": "Executive Summary" } } }] }
+        gsheet_service.spreadsheets().batchUpdate(spreadsheetId=summary_spreadsheet_id, body=requests_body).execute()
+        print("✅ 'Executive Summary' sheet created.")
+
+    # Clear existing content in cell A1 before writing new summary
+    gsheet_service.spreadsheets().values().clear(
+        spreadsheetId=summary_spreadsheet_id,
+        range="Executive Summary!A1"
+    ).execute()
+
+    # Write the new executive summary into cell A1
+    gsheet_service.spreadsheets().values().update(
+        spreadsheetId=summary_spreadsheet_id,
+        range="Executive Summary!A1",
+        valueInputOption="RAW",
+        body={ "values": [[executive_summary]] }
+    ).execute()
+
+    print("✅ Executive Summary successfully written to Google Sheet.")
+
+except Exception as e:
+    print(f"❌ Failed to write Executive Summary to Google Sheet: {e}")
 
 with open(insight_history_path, "a") as f:
     f.write(f"\n\n===== Week {week_num}, {year} =====\n{insights}")
@@ -551,6 +586,7 @@ with open(week_info_path, "w") as f:
 upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
 upload_to_drive(week_info_path, f"Week_number.txt", folder_id)
+
 
 
 
