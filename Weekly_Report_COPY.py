@@ -423,18 +423,38 @@ with PdfPages(latest_pdf) as pdf:
             ax.set_title("INACTIVE IN PAST 4 WEEKS", fontsize=14, weight="bold", pad=15); fig.text(0.5, 0.87, "Customers who were active 4–8 weeks ago...", fontsize=10, ha="center")
             pdf.savefig(fig, bbox_inches="tight"); plt.close(fig)
 
-        # --- ChatGPT Insights Pages ---
+# --- ChatGPT Insights Pages ---
         insight_lines = [extract_metadata_from_question(line)[0] for line in insights.split("\n")]
-        wrapped_insights = [item for line in insight_lines for item in textwrap.wrap(line, width=100, break_long_words=False)]
-        lines_per_page = 35
+        
+        # This logic handles line wrapping and preserves blank lines for paragraph spacing
+        wrapped_insights = []
+        for line in insight_lines:
+            if not line.strip():
+                wrapped_insights.append("") # Keep the blank line
+            else:
+                wrapped_insights.extend(textwrap.wrap(line, width=100, break_long_words=False))
+
+        lines_per_page = 30  # Reduced from 35 to account for more spacing
+        
         if not wrapped_insights:
-            fig = plt.figure(figsize=(9.5, 11)); plt.axis("off"); fig.text(0.5, 0.5, "No insights available this week.", ha="center", fontsize=14); pdf.savefig(fig); plt.close(fig)
+            fig = plt.figure(figsize=(9.5, 11)); plt.axis("off")
+            fig.text(0.5, 0.5, "No insights available this week.", ha="center", fontsize=14)
+            pdf.savefig(fig); plt.close(fig)
         else:
             for page_start in range(0, len(wrapped_insights), lines_per_page):
                 fig = plt.figure(figsize=(9.5, 11)); plt.axis("off")
                 page_lines = wrapped_insights[page_start:page_start + lines_per_page]
-                fig.text(0.06, 0.95, "\n".join(page_lines), fontsize=10, ha="left", va="top")
-                pdf.savefig(fig); plt.close(fig)
+                
+                # Use a line-by-line drawing method to control spacing
+                y_cursor = 0.95  # Start near the top of the page
+                line_spacing = 0.033 # Increased from ~0.028 for more space
+
+                for line in page_lines:
+                    fig.text(0.06, y_cursor, line, fontsize=10, ha="left", va="top")
+                    y_cursor -= line_spacing # Move the y-cursor down for the next line
+
+                pdf.savefig(fig)
+                plt.close(fig)
 
 # --- Finalize and Upload ---
 print("DEBUG: PDF file size right after creation:", os.path.getsize(latest_pdf))
