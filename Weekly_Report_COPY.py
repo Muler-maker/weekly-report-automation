@@ -205,10 +205,10 @@ previous_4_weeks, recent_4_weeks = last_8_weeks[:4], last_8_weeks[4:]
 active_previous_4 = set(df[df["YearWeek"].isin(previous_4_weeks)]["Customer"])
 active_recent_4 = set(df[df["YearWeek"].isin(recent_4_weeks)]["Customer"])
 inactive_recent_4 = sorted(active_previous_4 - active_recent_4)
-summary_lines = ["STOPPED ORDERING:", "Customers who stopped ordering...", "---"] + [f"{x[0]:<35} | {x[1]}" for x in stopped] if stopped else ["- None"]
-summary_lines += ["", "DECREASED ORDERS:", "Customers who decreased...", "---"] + [x[0] for x in decreased_formatted] if decreased_formatted else ["- None"]
-summary_lines += ["", "INCREASED ORDERS:", "Customers who increased...", "---"] + [x[0] for x in increased_formatted] if increased_formatted else ["- None"]
-summary_lines += ["", "INACTIVE IN PAST 4 WEEKS:", "Customers inactive...", "---"] + inactive_recent_4 if inactive_recent_4 else ["- None"]
+summary_lines = ["STOPPED ORDERING:", "Customers who stopped ordering in the last 8 weeks...", "---"] + [f"{x[0]:<35} | {x[1]}" for x in stopped] if stopped else ["- None"]
+summary_lines += ["", "DECREASED ORDERS:", "These customers ordered less in the last 8 weeks...", "---"] + [x[0] for x in decreased_formatted] if decreased_formatted else ["- None"]
+summary_lines += ["", "INCREASED ORDERS:", "These customers increased their order amounts...", "---"] + [x[0] for x in increased_formatted] if increased_formatted else ["- None"]
+summary_lines += ["", "INACTIVE IN PAST 4 WEEKS:", "Customers who ordered in the previous 4 weeks...", "---"] + inactive_recent_4 if inactive_recent_4 else ["- None"]
 with open(summary_path, "w") as f: f.write("\n".join(summary_lines))
 with open(summary_path, "r", encoding="utf-8") as f: raw_report_text_for_exec_summary = f.read()
 report_text_with_history = raw_report_text_for_exec_summary
@@ -222,11 +222,81 @@ def format_row_for_gpt(name, prev, curr, mgr):
     return (f"{name:<30} | {curr - prev:+7.0f} mCi | {(curr - prev) / prev * 100 if prev else 100:+6.1f}% | {mgr} | {distributor} | {country}")
 gpt_rows = [format_row_for_gpt(name, prev, curr, mgr) for (name, prev, curr, mgr) in increased + decreased]
 gpt_distributor_section = ["Customer name | Change | % Change | AM | Distributor | Country"] + gpt_rows
-full_prompt_text = ( "Previous feedback...\n" + feedback_context + "\n\n==== New Weekly Report Data ====\n\n" + report_text_with_history + "\n\n=== Distributor info... \n" + "\n".join(gpt_distributor_section))
-system_prompt = "You are a senior business analyst..."
+full_prompt_text = ( "Previous feedback from Account Managers (from the Feedback loop sheet):\n" + feedback_context + "\n\n==== New Weekly Report Data ====\n\n" + report_text_with_history + "\n\n=== Distributor info for GPT analysis ===\n" + "\n".join(gpt_distributor_section))
+
+# === CORRECTED SYSTEM PROMPT AND QUESTION HANDLING LOGIC ===
+system_prompt = """
+You are a senior business analyst. Analyze the weekly report for each Account Manager using a top-down structure: Distributor-level trends, followed by country-level patterns, and then customer-specific insights.
+
+For each Account Manager:
+Start their section with their full name on a line by itself (e.g., Vicki Beillis).
+If there are no significant trends or issues for that week, write: No significant insights or questions for this week.
+Otherwise, provide a concise summary of relevant trends and insights, grouped as follows:
+Distributor-level: Note important patterns, risks, or deviations, including expected order behaviors.
+Country-level: Summarize trends affecting several customers in the same country.
+Customer-specific: Highlight notable changes, spikes, drops, or inactivity at the customer level.
+
+After the insights for each Account Manager, always include a separate section titled exactly as follows:
+
+Questions for [Account Manager Name]:
+Provide up to 2 questions per Account Manager. If fewer than 2 relevant questions exist, include only those.
+[First question] (Distributor: [Distributor Name(s)]; Country: [Country Name(s)]; Customer: [Customer Name(s)])
+[Second question] (Distributor: [Distributor Name(s)]; Country: [Country Name(s)]; Customer: [Customer Name(s)])
+[Third question] (Distributor: [Distributor Name(s)]; Country: [Country Name(s)]; Customer: [Customer Name(s)])
+(Use numbered questions, one per line, and use the AM’s exact name in the heading. Each question must explicitly specify the relevant distributor(s), country or countries, and customer(s) in parentheses exactly as shown.)
+
+Avoiding Redundant Questions:
+Do not repeat questions that were already asked and fully answered in recent weeks unless a new deviation or anomaly is observed.
+If a customer's ordering behavior remains consistent with a previously confirmed explanation, acknowledge that no follow-up is required.
+
+Metadata specification instructions:
+- Every question must include a metadata block, exactly as shown:
+  (Distributor: [Distributor Name(s)]; Country: [Country Name(s)]; Customer: [Customer Name(s)])
+- All three fields—Distributor, Country, Customer—must always be filled. Never leave a field blank.
+  If a field is not directly mentioned in the question, infer or expand as follows (using the provided data):
+    - If Distributor and Country are given, but not Customer:
+        List all customers linked to that distributor in that country, separated by commas.
+    - If only Country is given:
+        List all distributors and all customers in that country.
+    - If only Distributor is given:
+        List all countries and all customers for that distributor.
+    - If Customer is missing or matches Distributor:
+        Fill both fields with that value.
+    - If there is no valid value, use "N/A".
+    - Separate multiple values with commas in each field.
+- Use semicolons to separate the three metadata fields.
+- Use this exact metadata format for every question.
+"""
+
 response = client.chat.completions.create(model="gpt-4o", messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": full_prompt_text}])
 insights = response.choices[0].message.content.strip()
 print("\n💡 GPT Insights:\n", insights)
+
+def extract_questions_by_am(insights):
+    am_sections = re.split(r"\n([A-Z][a-z]+ [A-Z][a-z]+)\n", "\n" + insights)
+    am_data = []
+    for i in range(1, len(am_sections), 2):
+        am_name = am_sections[i].strip()
+        section = am_sections[i + 1]
+        q_match = re.search(r"Questions\s*(for\s*[A-Za-z ]+)?\s*:\s*(.+?)(?=(\n[A-Z][a-z]+ [A-Z][a-z]+\n|$))", section, re.DOTALL)
+        if not q_match: continue
+        questions_text = q_match.group(2)
+        for q_line in re.findall(r"\d+\.\s+(.+)", questions_text):
+            am_data.append({"AM": am_name, "Question": q_line.strip()})
+    return am_data
+
+questions_by_am = extract_questions_by_am(insights)
+new_rows = []
+for q in questions_by_am:
+    question_clean, distributors, countries, customers = extract_metadata_from_question(q['Question'])
+    new_rows.append([week_num, year, q['AM'], ", ".join(distributors), ", ".join(countries), ", ".join(customers), question_clean, "", "Open", datetime.now().strftime("%Y-%m-%d")])
+
+if new_rows:
+    feedback_ws.append_rows(new_rows, value_input_option="USER_ENTERED")
+    print(f"✅ Added {len(new_rows)} new questions to Feedback loop worksheet.")
+else:
+    print("No new questions found to add to the Feedback loop worksheet.")
+
 exec_summary_prompt ="You are a senior business analyst..."
 exec_response = client.chat.completions.create(model="gpt-4o", messages=[{"role": "system", "content": exec_summary_prompt}, {"role": "user", "content": raw_report_text_for_exec_summary}])
 executive_summary = exec_response.choices[0].message.content.strip()
@@ -234,7 +304,11 @@ print("\n📝 Generated Executive Summary:\n", executive_summary)
 summary_json_path = os.path.join(output_folder, "Executive_Summary_test.json")
 with open(summary_json_path, "w", encoding="utf-8") as f: json.dump({"executive_summary": executive_summary}, f, ensure_ascii=False, indent=2)
 upload_to_drive(summary_json_path, "Executive_Summary_test.json", folder_id)
+
 # ... (rest of Google Sheet update logic is unchanged)
+with open(insight_history_path, "a") as f:
+    f.write(f"\n\n===== Week {week_num}, {year} =====\n{insights}")
+
 
 # === PDF Generation ===
 latest_pdf = os.path.join(output_folder, f"Weekly_Orders_Report_Week_{week_num}_{year}_test.pdf")
