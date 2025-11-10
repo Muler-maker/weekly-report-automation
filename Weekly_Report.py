@@ -210,35 +210,108 @@ customer_to_country = df.set_index("Customer")["Country"].to_dict()
 
 # --- ChatGPT Insights & Executive Summary Generation ---
 openai_api_key = os.getenv("OPENAI_API_KEY")
-if not openai_api_key: raise ValueError("OPENAI_API_KEY environment variable not set.")
+if not openai_api_key:
+    raise ValueError("OPENAI_API_KEY environment variable not set.")
+
 client = OpenAI(api_key=openai_api_key)
 summary_path = os.path.join(output_folder, "summary_test.txt")
-format_row = lambda name, prev, curr, mgr: (f"{name:<30} | {curr - prev:+7.0f} mCi | {(curr - prev) / prev * 100 if prev else 100:+6.1f}% | {mgr}", (curr - prev) / prev * 100 if prev else 100)
-increased_formatted = sorted([format_row(*x) for x in increased], key=lambda x: x[1], reverse=True)
-decreased_formatted = sorted([format_row(*x) for x in decreased], key=lambda x: x[1])
-last_8_weeks = week_pairs[-8:]
-previous_4_weeks, recent_4_weeks = last_8_weeks[:4], last_8_weeks[4:]
+
+format_row = lambda name, prev, curr, mgr: (
+    f"{name:<30} | {curr - prev:+7.0f} mCi | {(curr - prev) / prev * 100 if prev else 100:+6.1f}% | {mgr}",
+    (curr - prev) / prev * 100 if prev else 100
+)
+
+increased_formatted = sorted(
+    [format_row(*x) for x in increased],
+    key=lambda x: x[1],
+    reverse=True
+)
+decreased_formatted = sorted(
+    [format_row(*x) for x in decreased],
+    key=lambda x: x[1]
+)
+
+# === FIX inactive customers logic to match aligned week windows ===
+# recent_8 already aligned with PDF (oldest → newest)
+# previous_8 same alignment
+
+# Split recent_8 into previous 4 and recent 4 of the aligned window
+previous_4_weeks = recent_8[:4]      # weeks 40–43
+recent_4_weeks   = recent_8[4:]      # weeks 44–47
+
 active_previous_4 = set(df[df["YearWeek"].isin(previous_4_weeks)]["Customer"])
-active_recent_4 = set(df[df["YearWeek"].isin(recent_4_weeks)]["Customer"])
+active_recent_4   = set(df[df["YearWeek"].isin(recent_4_weeks)]["Customer"])
+
 inactive_recent_4 = sorted(active_previous_4 - active_recent_4)
-summary_lines = ["STOPPED ORDERING:", "Customers who stopped ordering in the last 8 weeks...", "---"] + [f"{x[0]:<35} | {x[1]}" for x in stopped] if stopped else ["- None"]
-summary_lines += ["", "DECREASED ORDERS:", "These customers ordered less in the last 8 weeks...", "---"] + [x[0] for x in decreased_formatted] if decreased_formatted else ["- None"]
-summary_lines += ["", "INCREASED ORDERS:", "These customers increased their order amounts...", "---"] + [x[0] for x in increased_formatted] if increased_formatted else ["- None"]
-summary_lines += ["", "INACTIVE IN PAST 4 WEEKS:", "Customers who ordered in the previous 4 weeks...", "---"] + inactive_recent_4 if inactive_recent_4 else ["- None"]
-with open(summary_path, "w") as f: f.write("\n".join(summary_lines))
-with open(summary_path, "r", encoding="utf-8") as f: raw_report_text_for_exec_summary = f.read()
+
+# Build text summary for ChatGPT executive summary input
+summary_lines = (
+    ["STOPPED ORDERING:", "Customers who stopped ordering in the last 8 weeks...", "---"]
+    + [f"{x[0]:<35} | {x[1]}" for x in stopped]
+) if stopped else ["- None"]
+
+summary_lines += (
+    ["", "DECREASED ORDERS:", "These customers ordered less in the last 8 weeks...", "---"]
+    + [x[0] for x in decreased_formatted]
+) if decreased_formatted else ["- None"]
+
+summary_lines += (
+    ["", "INCREASED ORDERS:", "These customers increased their order amounts...", "---"]
+    + [x[0] for x in increased_formatted]
+) if increased_formatted else ["- None"]
+
+summary_lines += (
+    ["", "INACTIVE IN PAST 4 WEEKS:", "Customers who ordered in the previous 4 weeks...", "---"]
+    + inactive_recent_4
+) if inactive_recent_4 else ["- None"]
+
+# Save summary file
+with open(summary_path, "w") as f:
+    f.write("\n".join(summary_lines))
+
+with open(summary_path, "r", encoding="utf-8") as f:
+    raw_report_text_for_exec_summary = f.read()
+
+# Include historical insights if exist
 report_text_with_history = raw_report_text_for_exec_summary
 insight_history_path = os.path.join(output_folder, "insight_history_test.txt")
+
 if os.path.exists(insight_history_path):
-    with open(insight_history_path, "r", encoding="utf-8") as f: past_insights = f.read()
+    with open(insight_history_path, "r", encoding="utf-8") as f:
+        past_insights = f.read()
     report_text_with_history = f"{past_insights}\n\n===== NEW WEEK =====\n\n{report_text_with_history}"
+
 feedback_context = build_feedback_context(feedback_df, week_num, year)
+
+# Prepare distributor metadata for GPT
 def format_row_for_gpt(name, prev, curr, mgr):
-    distributor = customer_to_distributor.get(name, "Unknown"); country = customer_to_country.get(name, "Unknown")
-    return (f"{name:<30} | {curr - prev:+7.0f} mCi | {(curr - prev) / prev * 100 if prev else 100:+6.1f}% | {mgr} | {distributor} | {country}")
-gpt_rows = [format_row_for_gpt(name, prev, curr, mgr) for (name, prev, curr, mgr) in increased + decreased]
-gpt_distributor_section = ["Customer name | Change | % Change | AM | Distributor | Country"] + gpt_rows
-full_prompt_text = ( "Previous feedback from Account Managers (from the Feedback loop sheet):\n" + feedback_context + "\n\n==== New Weekly Report Data ====\n\n" + report_text_with_history + "\n\n=== Distributor info for GPT analysis ===\n" + "\n".join(gpt_distributor_section))
+    distributor = customer_to_distributor.get(name, "Unknown")
+    country = customer_to_country.get(name, "Unknown")
+    return (
+        f"{name:<30} | {curr - prev:+7.0f} mCi | "
+        f"{(curr - prev) / prev * 100 if prev else 100:+6.1f}% | "
+        f"{mgr} | {distributor} | {country}"
+    )
+
+gpt_rows = [
+    format_row_for_gpt(name, prev, curr, mgr)
+    for (name, prev, curr, mgr) in increased + decreased
+]
+
+gpt_distributor_section = (
+    ["Customer name | Change | % Change | AM | Distributor | Country"]
+    + gpt_rows
+)
+
+# Full text sent to GPT
+full_prompt_text = (
+    "Previous feedback from Account Managers (from the Feedback loop sheet):\n"
+    + feedback_context
+    + "\n\n==== New Weekly Report Data ====\n\n"
+    + report_text_with_history
+    + "\n\n=== Distributor info for GPT analysis ===\n"
+    + "\n".join(gpt_distributor_section)
+)
 
 # === CORRECTED SYSTEM PROMPT AND QUESTION HANDLING LOGIC ===
 system_prompt = """
@@ -602,6 +675,7 @@ with open(week_info_path, "w") as f:
 upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
 upload_to_drive(week_info_path, f"Week_number.txt", folder_id)
+
 
 
 
