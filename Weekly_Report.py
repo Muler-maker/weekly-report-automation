@@ -362,30 +362,38 @@ insights = response.choices[0].message.content.strip()
 print("\n💡 GPT Insights:\n", insights)
 
 def extract_questions_by_am(insights):
-    # This version uses the original logic but with a more flexible regex pattern.
+    """
+    Corrected version of the original function. It reliably finds the 'Questions for...'
+    header anywhere within an Account Manager's section of text.
+    """
     am_sections = re.split(r"\n([A-Z][a-z]+ [A-Z][a-z]+)\n", "\n" + insights)
     am_data = []
+    
     for i in range(1, len(am_sections), 2):
         am_name = am_sections[i].strip()
         section = am_sections[i + 1]
         
-        # This pattern is more tolerant of extra spaces and line breaks around the header.
+        # This is the corrected, simpler, and more robust pattern.
+        # It finds "Questions for..." anywhere in the section and captures everything after it.
         q_match = re.search(
-            r"^\s*Questions(?:\s+for\s+.*?)?:\s*\n(.*?)(?=\n\n|\Z)", 
+            r"Questions for.*:\s*\n(.*)", 
             section, 
-            re.MULTILINE | re.DOTALL | re.IGNORECASE
+            re.DOTALL | re.IGNORECASE
         )
         
         if not q_match:
             continue
             
+        # q_match.group(1) now reliably contains the block of numbered questions
         questions_text = q_match.group(1)
-        # Find all numbered questions within the matched block
+        
+        # This part correctly extracts each numbered question from the block
         for q_line in re.findall(r"\d+\.\s+(.+)", questions_text):
             am_data.append({
                 "AM": am_name,
                 "Question": q_line.strip()
             })
+            
     return am_data
 
 questions_by_am = extract_questions_by_am(insights)
@@ -689,6 +697,7 @@ with open(week_info_path, "w") as f:
 upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
 upload_to_drive(week_info_path, f"Week_number.txt", folder_id)
+
 
 
 
