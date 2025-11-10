@@ -184,7 +184,7 @@ recent_8 = [
 
 # Build the 8 weeks before those (Weeks 32–39)
 previous_8 = [
-    (d.isocalendar().year, d.isocalalendar().week)
+    (d.isocalendar().year, d.isocalendar().week)
     for d in [last_week_date - timedelta(weeks=i) for i in range(8, 16)]
 ][::-1]
 
@@ -602,6 +602,7 @@ with open(week_info_path, "w") as f:
 upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
 upload_to_drive(week_info_path, f"Week_number.txt", folder_id)
+
 
 
 
