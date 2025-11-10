@@ -171,10 +171,26 @@ for _, row in df.iterrows():
         distributor_country_to_customers[(distributor, country)].append(customer)
         country_to_distributors[country].add(distributor); country_to_customers[country].add(customer)
         distributor_to_countries[distributor].add(country); distributor_to_customers[distributor].add(customer)
-current = today - timedelta(days=today.weekday())
-week_pairs = [(d.isocalendar().year, d.isocalendar().week) for d in [current - timedelta(weeks=(15 - i)) for i in range(16)]]
-previous_8, recent_8 = week_pairs[:8], week_pairs[8:]
-recent_df = df[df["YearWeek"].isin(recent_8)]; previous_df = df[df["YearWeek"].isin(previous_8)]
+# --- FIXED: Executive Summary Week Calculation (Aligned with PDF) ---
+
+today = datetime.today() + timedelta(days=11)
+last_week_date = today - timedelta(weeks=1)
+
+# Build the last 8 COMPLETED ISO weeks (ending with Week 47)
+recent_8 = [
+    (d.isocalendar().year, d.isocalendar().week)
+    for d in [last_week_date - timedelta(weeks=i) for i in range(0, 8)]
+][::-1]  # reverse to get oldest→newest
+
+# Build the 8 weeks before those (Weeks 32–39)
+previous_8 = [
+    (d.isocalendar().year, d.isocalalendar().week)
+    for d in [last_week_date - timedelta(weeks=i) for i in range(8, 16)]
+][::-1]
+
+# Apply these windows
+recent_df = df[df["YearWeek"].isin(recent_8)]
+previous_df = df[df["YearWeek"].isin(previous_8)]
 recent_totals = recent_df.groupby("Customer")["Total_mCi"].sum()
 previous_totals = previous_df.groupby("Customer")["Total_mCi"].sum()
 customer_to_manager = df.set_index("Customer")["Account Manager"].to_dict()
@@ -586,6 +602,7 @@ with open(week_info_path, "w") as f:
 upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
 upload_to_drive(week_info_path, f"Week_number.txt", folder_id)
+
 
 
 
