@@ -362,16 +362,30 @@ insights = response.choices[0].message.content.strip()
 print("\n💡 GPT Insights:\n", insights)
 
 def extract_questions_by_am(insights):
+    # This version uses the original logic but with a more flexible regex pattern.
     am_sections = re.split(r"\n([A-Z][a-z]+ [A-Z][a-z]+)\n", "\n" + insights)
     am_data = []
     for i in range(1, len(am_sections), 2):
         am_name = am_sections[i].strip()
         section = am_sections[i + 1]
-        q_match = re.search(r"Questions\s*(for\s*[A-Za-z ]+)?\s*:\s*(.+?)(?=(\n[A-Z][a-z]+ [A-Z][a-z]+\n|$))", section, re.DOTALL)
-        if not q_match: continue
-        questions_text = q_match.group(2)
+        
+        # This pattern is more tolerant of extra spaces and line breaks around the header.
+        q_match = re.search(
+            r"^\s*Questions(?:\s+for\s+.*?)?:\s*\n(.*?)(?=\n\n|\Z)", 
+            section, 
+            re.MULTILINE | re.DOTALL | re.IGNORECASE
+        )
+        
+        if not q_match:
+            continue
+            
+        questions_text = q_match.group(1)
+        # Find all numbered questions within the matched block
         for q_line in re.findall(r"\d+\.\s+(.+)", questions_text):
-            am_data.append({"AM": am_name, "Question": q_line.strip()})
+            am_data.append({
+                "AM": am_name,
+                "Question": q_line.strip()
+            })
     return am_data
 
 questions_by_am = extract_questions_by_am(insights)
@@ -675,6 +689,7 @@ with open(week_info_path, "w") as f:
 upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
 upload_to_drive(week_info_path, f"Week_number.txt", folder_id)
+
 
 
 
