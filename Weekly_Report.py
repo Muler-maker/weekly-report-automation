@@ -581,6 +581,68 @@ with PdfPages(latest_pdf) as pdf:
         ax.set_title("Summary by Account Manager", fontsize=14, weight='bold', pad=10)
         pdf.savefig(fig, bbox_inches="tight"); plt.close(fig)
         
+        # --- Top 5 NCA Distributors (NEW) ---
+        nca_product_name = "Lutetium  (177Lu) chloride N.C.A."
+        nca_df = recent_df[recent_df["Product"] == nca_product_name]
+
+        if not nca_df.empty:
+            # Aggregate by Distributor
+            top_distributors = (
+                nca_df.groupby("Distributor")["Total_mCi"]
+                .sum()
+                .nlargest(5)
+                .index
+            )
+
+            dist_plot_df = nca_df[nca_df["Distributor"].isin(top_distributors)].copy()
+            if not dist_plot_df.empty:
+                dist_plot_df["WeekLabel"] = (
+                    dist_plot_df["Year"].astype(str)
+                    + "-W"
+                    + dist_plot_df["Week"].astype(str).str.zfill(2)
+                )
+
+                pivot_dist = (
+                    dist_plot_df.pivot_table(
+                        index="WeekLabel",
+                        columns="Distributor",
+                        values="Total_mCi",
+                        aggfunc="sum",
+                    )
+                    .fillna(0)
+                )
+
+                # Sort weeks chronologically
+                pivot_dist = pivot_dist.reindex(
+                    sorted(
+                        pivot_dist.index,
+                        key=lambda x: (int(x.split("-W")[0]), int(x.split("-W")[1])),
+                    )
+                )
+
+                fig, ax = plt.subplots(figsize=(8, 4.5))
+                pivot_dist.plot(ax=ax, marker="o")
+                ax.set_title("Top 5 N.C.A. Distributors", fontsize=16, weight="bold")
+                ax.set_xlabel("Week of Supply", fontsize=11)
+                ax.set_ylabel("Total mCi Ordered", fontsize=11)
+                ax.tick_params(axis="x", rotation=45)
+                ax.grid(True, linestyle="--", alpha=0.5)
+
+                handles, labels = ax.get_legend_handles_labels()
+                wrapped_labels = ["\n".join(textwrap.wrap(l, 25)) for l in labels]
+                ax.legend(
+                    handles,
+                    wrapped_labels,
+                    title="Distributor",
+                    bbox_to_anchor=(1.02, 1),
+                    loc="upper left",
+                    fontsize=8,
+                )
+
+                fig.tight_layout(pad=2.0)
+                pdf.savefig(fig)
+                plt.close(fig)
+ 
         # --- Top 5 Charts by Product ---
         products = {"Lutetium  (177Lu) chloride N.C.A.": "Top 5 N.C.A. Customers", "Lutetium (177Lu) chloride C.A": "Top 5 C.A. Customers", "Terbium-161 chloride n.c.a": "Top 5 Terbium Customers"}
         for product_name, title in products.items():
@@ -697,6 +759,7 @@ with open(week_info_path, "w") as f:
 upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
 upload_to_drive(week_info_path, f"Week_number.txt", folder_id)
+
 
 
 
