@@ -331,12 +331,42 @@ Questions for [Account Manager Name]:
 Provide up to 2 questions per Account Manager. If fewer than 2 relevant questions exist, include only those.
 [First question] (Distributor: [Distributor Name(s)]; Country: [Country Name(s)]; Customer: [Customer Name(s)])
 [Second question] (Distributor: [Distributor Name(s)]; Country: [Country Name(s)]; Customer: [Customer Name(s)])
-[Third question] (Distributor: [Distributor Name(s)]; Country: [Country Name(s)]; Customer: [Customer Name(s)])
 (Use numbered questions, one per line, and use the AM’s exact name in the heading. Each question must explicitly specify the relevant distributor(s), country or countries, and customer(s) in parentheses exactly as shown.)
 
 Avoiding Redundant Questions:
 Do not repeat questions that were already asked and fully answered in recent weeks unless a new deviation or anomaly is observed.
 If a customer's ordering behavior remains consistent with a previously confirmed explanation, acknowledge that no follow-up is required.
+
+Question Novelty Filter:
+Before generating a question, you must verify that it introduces at least one NEW element from the following list:
+- New customer behavior pattern
+- New competitor
+- New regulatory status
+- New logistics constraint
+- New pricing dynamic
+- New forecast deviation
+
+If no new element exists, the question must be suppressed.
+
+Resolved-State Enforcement:
+For each recurring customer (e.g., Universitätsmedizin Rostock, Universitätsklinikum Magdeburg, Chengdu Syncor, RPH Brazil), you must first classify their current behavior into one of the following resolution states:
+
+- OPEN: Root cause unknown or contradictory.
+- EXPLAINED – TEMPORARY: Cause known but expected to self-correct within 2–6 weeks.
+- EXPLAINED – STRUCTURAL: Cause confirmed as cyclical, contractual, batching-based, or trial-scheduled.
+- CONTROLLED: Operational fix or process mitigation has been implemented.
+- STRATEGIC RISK: Impact driven by competitor displacement or regulatory exclusion.
+
+Rules:
+- If a customer is EXPLAINED – STRUCTURAL or CONTROLLED, you must NOT generate a new question unless:
+  (a) A deviation exceeds ±30% outside the known pattern, OR
+  (b) A new external factor appears (regulatory, war, competitor exclusivity).
+
+- If a customer is EXPLAINED – TEMPORARY, you may ask only one follow-up question every 3 weeks maximum.
+- If a customer is in STRATEGIC RISK, always prioritize the question toward commercial counter-action, not explanation.
+- If a customer remains OPEN for more than 3 consecutive weeks, escalate the framing from “cause analysis” to “intervention recommendation”.
+
+You must explicitly apply this logic before selecting questions.
 
 Metadata specification instructions:
 - Every question must include a metadata block, exactly as shown:
@@ -759,6 +789,7 @@ with open(week_info_path, "w") as f:
 upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
 upload_to_drive(week_info_path, f"Week_number.txt", folder_id)
+
 
 
 
