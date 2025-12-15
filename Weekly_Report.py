@@ -464,53 +464,52 @@ if "**" in insights or "\n- " in insights:
     )
 
 # Ensure every question line has metadata
-question_lines = re.findall(r"^\d+\.\s+.*$", insights, flags=re.MULTILINE)
-bad = [
-    q for q in question_lines
-    if not re.search(
-        r"\(Distributor:.*; Country:.*; Customer:.*\)\s*$",
-        q
-    )
-]
-if bad:
-    raise ValueError(
-        f"GPT produced questions without metadata: {bad[:2]}"
-    )
+# Ensure every extracted question has metadata
+questions_by_am = extract_questions_by_am(insights)
 
+bad = [q["Question"] for q in questions_by_am
+       if not re.search(r"\(Distributor:.*; Country:.*; Customer:.*\)\s*$", q["Question"])]
+
+if bad:
+    raise ValueError(f"GPT produced questions without metadata: {bad[:2]}")
 # ================== END VALIDATION ==================
-def extract_questions_by_am(insights):
+def extract_questions_by_am(insights: str):
     """
-    Corrected version of the original function. It reliably finds the 'Questions for...'
-    header anywhere within an Account Manager's section of text.
+    Extracts questions per AM even when questions wrap across multiple lines.
+    Captures each numbered question as a block until the next numbered question
+    or until a new AM header starts.
     """
+    # Split into AM sections based on "Full Name" line (plain text names)
     am_sections = re.split(r"\n([A-Z][a-z]+ [A-Z][a-z]+)\n", "\n" + insights)
     am_data = []
-    
+
     for i in range(1, len(am_sections), 2):
         am_name = am_sections[i].strip()
         section = am_sections[i + 1]
-        
-        # This is the corrected, simpler, and more robust pattern.
-        # It finds "Questions for..." anywhere in the section and captures everything after it.
-        q_match = re.search(
-            r"Questions for.*:\s*\n(.*)", 
-            section, 
-            re.DOTALL | re.IGNORECASE
-        )
-        
+
+        # Find the Questions block for this AM
+        q_match = re.search(r"Questions for .*?:\s*\n(.*)", section, re.DOTALL | re.IGNORECASE)
         if not q_match:
             continue
-            
-        # q_match.group(1) now reliably contains the block of numbered questions
-        questions_text = q_match.group(1)
-        
-        # This part correctly extracts each numbered question from the block
-        for q_line in re.findall(r"\d+\.\s+(.+)", questions_text):
-            am_data.append({
-                "AM": am_name,
-                "Question": q_line.strip()
-            })
-            
+
+        questions_text = q_match.group(1).strip()
+        if not questions_text:
+            continue
+
+        # Stop if next AM header appears inside the questions_text
+        # (paranoia guard in case model output drifts)
+        questions_text = re.split(r"\n[A-Z][a-z]+ [A-Z][a-z]+\n", "\n" + questions_text)[0].strip()
+
+        # Capture question blocks: from "1." to before next "2." etc.
+        blocks = re.findall(r"(?ms)^\s*\d+\.\s+.*?(?=^\s*\d+\.\s+|\Z)", questions_text)
+
+        for block in blocks:
+            # Remove leading number and flatten whitespace/newlines
+            block = re.sub(r"^\s*\d+\.\s+", "", block.strip())
+            block = " ".join(block.split())  # flatten to one line for Sheets + dedupe
+            if block:
+                am_data.append({"AM": am_name, "Question": block})
+
     return am_data
 
 questions_by_am = extract_questions_by_am(insights)
@@ -928,6 +927,7 @@ with open(week_info_path, "w") as f:
 upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
 upload_to_drive(week_info_path, f"Week_number.txt", folder_id)
+
 
 
 
