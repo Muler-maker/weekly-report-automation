@@ -472,15 +472,21 @@ CRITICAL OUTPUT CONSTRAINTS (must follow exactly):
 - Do NOT use markdown (no **bold**, no bullets with "-", no headings with "###"). Plain text only.
 - Each AM section MUST appear in this exact order:
   (1) AM full name on its own line (plain text, no punctuation).
-  (2) Either exactly: No significant insights or questions for this week.
+  (2) Either exactly: No significant insights for this week.
       OR three plain-text lines starting exactly with:
       Distributor-level:
       Country-level:
       Customer-specific:
   (3) A line titled exactly: Questions for <AM Name>:
       Then EITHER:
-        - nothing (no extra text) if there are zero questions, OR
-        - 1–2 numbered questions ("1. ...", "2. ...") with NO blank questions.
+        - 1–2 numbered questions ("1. ...", "2. ...") with NO blank questions, OR
+        - if the AM truly has insufficient data to ask even one question, leave it empty.
+
+MANDATORY QUESTIONS RULE:
+- You MUST ask questions for every AM whenever there is sufficient data.
+- Default behavior: produce exactly 2 questions per AM.
+- If there is not enough data for 2, produce exactly 1.
+- Only produce zero questions if there is truly insufficient data (e.g., the AM has no customers/orders in the input).
 
 QUESTION FORMAT (strict):
 - Each numbered question must be a single line.
@@ -488,26 +494,27 @@ QUESTION FORMAT (strict):
   (Distributor: <comma-separated>; Country: <comma-separated>; Customer: <comma-separated>)
 - Distributor/Country/Customer must never be blank. If unknown, use N/A.
 
-REDUNDANCY AND NOVELTY RULES:
-Do not repeat questions already asked and fully answered in recent weeks unless a new deviation/anomaly exists.
-A question is allowed only if it introduces at least one NEW element:
-- new customer behavior pattern
-- new competitor
-- new regulatory status
-- new logistics constraint
-- new pricing dynamic
-- new forecast deviation
-If no new element exists, suppress the question.
+ANTI-REPETITION RULE (highest priority):
+- Do not repeat questions already asked and answered in recent weeks for the same AM and the same scope.
+- If a question would be repetitive, DO NOT suppress it; instead, replace it with a different angle on the same scope.
 
-RESOLUTION STATE CLASSIFICATION (required before questioning):
+ALLOWED NON-REPETITIVE QUESTION ANGLES (use these to avoid repetition):
+- Forward-looking: expected ordering behavior for the next 2–4 weeks and why.
+- Intervention: what commercial or operational action should we take this week.
+- Constraint check: capacity, lead times, shutdowns, logistics bottlenecks, documentation.
+- Competitive displacement: tender status, competitor exclusivity, pricing pressure, substitution.
+- Product mix: shift between products (NCA vs CA vs Tb-161), trial vs routine demand.
+- Forecast integrity: whether current pattern matches known batching schedules or planned activity.
+
+RESOLUTION STATE CLASSIFICATION (internal reasoning; do NOT print the state):
 For recurring customers, classify the current situation as one of:
 OPEN; EXPLAINED–TEMPORARY; EXPLAINED–STRUCTURAL; CONTROLLED; STRATEGIC RISK.
 
-STATE-BASED QUESTION RULES:
-- If EXPLAINED–STRUCTURAL or CONTROLLED: do not ask unless (a) deviation exceeds ±30% outside known pattern, or (b) a new external factor appears (regulatory, war, competitor exclusivity).
-- If EXPLAINED–TEMPORARY: ask at most one follow-up question every 3 weeks.
-- If STRATEGIC RISK: prioritize commercial counter-action questions, not explanation.
-- If OPEN for >3 consecutive weeks: escalate from cause analysis to intervention recommendation.
+STATE-BASED QUESTION SELECTION (do NOT suppress questions; change angle instead):
+- If EXPLAINED–STRUCTURAL or CONTROLLED: avoid “why did it change” questions; ask forward-looking or intervention questions unless deviation exceeds ±30% outside the known pattern or a new external factor appears.
+- If EXPLAINED–TEMPORARY: ask at most one follow-up “cause” question; the second question should be intervention/forecast.
+- If STRATEGIC RISK: prioritize counter-action questions (pricing, coverage, tender, substitution), not explanation.
+- If OPEN for >3 consecutive weeks: shift from “cause” to “what is the plan / next action”.
 
 METADATA INFERENCE (use provided data):
 - If Distributor and Country given, Customer missing: list all customers linked to that distributor in that country.
@@ -594,19 +601,25 @@ if re.search(r"(^|\n)\s*#{1,6}\s+", insights):
 
 # 2) Extract questions ONCE (must happen before any validation that iterates questions_by_am)
 questions_by_am = extract_questions_by_am(insights)
-# --- ENFORCE: No questions allowed if AM declared "No significant insights..." ---
-am_no_insights = set(
-    re.findall(
-        r"(?m)^([A-Za-z]+(?: [A-Za-z]+){1,3})\s*\nNo significant insights or questions for this week\.",
-        insights
-    )
-)
+# ================== MANDATORY QUESTIONS VALIDATION ==================
 
-if am_no_insights:
-    questions_by_am = [
-        q for q in questions_by_am
-        if q["AM"] not in am_no_insights
-    ]
+# Extract AM names exactly as your parser splits them (same regex)
+am_sections = re.split(r"\n([A-Za-z]+(?: [A-Za-z]+){1,3})\n", "\n" + insights)
+am_names_in_output = []
+for i in range(1, len(am_sections), 2):
+    am_names_in_output.append(am_sections[i].strip())
+
+# Count questions per AM
+counts = defaultdict(int)
+for q in questions_by_am:
+    counts[q["AM"]] += 1
+
+# Require at least 1 question per AM (unless you later decide to allow exceptions)
+missing = [am for am in am_names_in_output if counts.get(am, 0) == 0]
+if missing:
+    raise ValueError(f"Mandatory questions violation: no questions produced for AM(s): {missing}")
+
+# ================== END MANDATORY QUESTIONS VALIDATION ==================
 
 # 3) Guard: if GPT wrote "Questions for ..." but parser extracted none, fail early
 if re.search(r"\bQuestions for\b", insights) and not questions_by_am:
@@ -1136,6 +1149,7 @@ with open(week_info_path, "w") as f:
 upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
 upload_to_drive(week_info_path, f"Week_number.txt", folder_id)
+
 
 
 
