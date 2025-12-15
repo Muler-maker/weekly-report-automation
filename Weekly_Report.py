@@ -501,43 +501,53 @@ def extract_questions_by_am(insights: str):
     Captures each numbered question as a block until the next numbered question
     or until a new AM header starts.
     """
-# Split into AM sections based on "Full Name" line (plain text names)
-am_sections = re.split(
-    r"\n([A-Za-z]+(?: [A-Za-z]+){1,3})\n",  # 2–4 words, letters only
-    "\n" + insights
-)
 
-am_data = []
+    # Split into AM sections based on AM full-name lines (2–4 words)
+    am_sections = re.split(
+        r"\n([A-Za-z]+(?: [A-Za-z]+){1,3})\n",
+        "\n" + insights
+    )
 
-for i in range(1, len(am_sections), 2):
-    am_name = am_sections[i].strip()
-    section = am_sections[i + 1]
+    am_data = []
 
-    # Find the Questions block for this AM
-    q_match = re.search(r"Questions for .*?:\s*\n(.*)", section, re.DOTALL | re.IGNORECASE)
-    if not q_match:
-        continue
+    for i in range(1, len(am_sections), 2):
+        am_name = am_sections[i].strip()
+        section = am_sections[i + 1]
 
-    questions_text = q_match.group(1).strip()
-    if not questions_text:
-        continue
+        # Find the Questions block for this AM
+        q_match = re.search(
+            r"Questions for .*?:\s*\n(.*)",
+            section,
+            re.DOTALL | re.IGNORECASE
+        )
+        if not q_match:
+            continue
 
-    # Stop if next AM header appears inside the questions_text
-    # (paranoia guard in case model output drifts)
-    questions_text = re.split(
-        r"\n[A-Za-z]+(?: [A-Za-z]+){1,3}\n",
-        "\n" + questions_text
-    )[0].strip()
+        questions_text = q_match.group(1).strip()
+        if not questions_text:
+            continue
 
-        # Capture question blocks: from "1." to before next "2." etc.
-        blocks = re.findall(r"(?ms)^\s*\d+\.\s+.*?(?=^\s*\d+\.\s+|\Z)", questions_text)
+        # Stop if another AM header appears inside the questions block
+        questions_text = re.split(
+            r"\n[A-Za-z]+(?: [A-Za-z]+){1,3}\n",
+            "\n" + questions_text
+        )[0].strip()
+
+        # Capture numbered question blocks
+        blocks = re.findall(
+            r"(?ms)^\s*\d+\.\s+.*?(?=^\s*\d+\.\s+|\Z)",
+            questions_text
+        )
 
         for block in blocks:
-            # Remove leading number and flatten whitespace/newlines
             block = re.sub(r"^\s*\d+\.\s+", "", block.strip())
-            block = " ".join(block.split())  # flatten to one line for Sheets + dedupe
+            block = " ".join(block.split())  # flatten to single line
+
             if block:
-                am_data.append({"AM": am_name, "Question": block})
+                am_data.append({
+                    "AM": am_name,
+                    "Question": block
+                })
 
     return am_data
 # ================== HARD VALIDATION (ADD THIS BLOCK) ==================
@@ -1025,6 +1035,7 @@ with open(week_info_path, "w") as f:
 upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
 upload_to_drive(week_info_path, f"Week_number.txt", folder_id)
+
 
 
 
