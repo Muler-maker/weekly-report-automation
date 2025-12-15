@@ -50,16 +50,39 @@ def extract_metadata_from_question(text):
     return re.sub(r"\(.*?\)\s*$", "", text).strip(), ["N/A"], ["N/A"], ["N/A"]
 
 def build_feedback_context(feedback_df, week_num, year):
+    """
+    TPM-safe: only include Feedback-loop rows from the last 16 ISO weeks.
+    Keeps semantics (what was asked/answered, status, entities), but avoids
+    huge multi-line blocks.
+    """
+    # Match your report's anchor (same logic you use elsewhere)
+    anchor = datetime.today() + timedelta(days=11)
+    allowed_yw = last_n_iso_yearweeks(16, anchor_date=anchor)
+
     context_lines = []
-    for idx, row in feedback_df.iterrows():
-        if ((str(row['Status']).lower() != 'done') or (str(row['Week']) == str(week_num) and str(row['Year']) == str(year))):
-            line = (f"Account Manager: {row['AM']}\n"
-                    f"Distributor: {row['Distributor']} | Country: {row['Country/Countries']} | Customers: {row['Customers']}\n"
-                    f"Last question: {row['Question']}\n"
-                    f"AM answer: {row['Comments / Feedback']}\n"
-                    f"Status: {row['Status']}, Date: {row['Feedback Date']}\n"
-                    "------")
-            context_lines.append(line)
+    for _, row in feedback_df.iterrows():
+        row_week = int(pd.to_numeric(row.get("Week"), errors="coerce") or 0)
+        row_year = int(pd.to_numeric(row.get("Year"), errors="coerce") or 0)
+
+        # Keep ONLY last 16 ISO weeks
+        if (row_year, row_week) not in allowed_yw:
+            continue
+
+        am = _clean_one_line(row.get("AM"))
+        status = _clean_one_line(row.get("Status"))
+        dist = _clean_one_line(row.get("Distributor"))
+        country = _clean_one_line(row.get("Country/Countries"))
+        cust = _clean_one_line(row.get("Customers"))
+        q = _clean_one_line(row.get("Question"))
+        ans = _clean_one_line(row.get("Comments / Feedback"))
+
+        # Single-line dense format (much smaller token footprint)
+        context_lines.append(
+            f"Week {row_week}/{row_year} | AM={am} | Status={status} | "
+            f"Distributor={dist} | Country={country} | Customers={cust} | "
+            f"Q={q} | A={ans}"
+        )
+
     return "\n".join(context_lines)
 def load_last_n_weeks_history(insight_history_path: str, n_weeks: int = 16) -> str:
     """
@@ -148,6 +171,23 @@ df = pd.DataFrame(sheet.get_all_records())
 df.columns = [c.strip() for c in df.columns]
 account_manager_map = {"vbeillis@isotopia-global.com": "Vicki Beillis", "naricha@isotopia-global.com": "Noam Aricha", "ndellus@isotopia-global.com": "Noam Dellus", "gbader@isotopia-global.com": "Gilli Bader", "yfarchi@isotopia-global.com": "Yosi Farchi", "caksoy@isotopia-global.com": "Can Aksoy"}
 df["Account Manager"] = df["Account Manager Email"].map(account_manager_map).fillna("Other")
+def last_n_iso_yearweeks(n_weeks: int, anchor_date: datetime) -> set[tuple[int, int]]:
+    """
+    Returns a set of (ISO_year, ISO_week) for the last n_weeks,
+    anchored to anchor_date.
+    """
+    yws = set()
+    for i in range(n_weeks):
+        d = anchor_date - timedelta(weeks=i)
+        iso = d.isocalendar()
+        yws.add((iso.year, iso.week))
+    return yws
+
+def _clean_one_line(s: str) -> str:
+    """Collapses whitespace so history lines are token-efficient."""
+    if s is None:
+        return ""
+    return " ".join(str(s).split())
 
 # --- Helper Functions ---
 def send_email(subject, body, to_emails, attachment_path):
@@ -293,14 +333,9 @@ with open(summary_path, "w") as f:
 with open(summary_path, "r", encoding="utf-8") as f:
     raw_report_text_for_exec_summary = f.read()
 
-# Include historical insights if exist
-# Include historical insights (last 16 weeks only)
+# Include historical insights if exist (DO NOT inject into GPT prompt; archive only)
 report_text_with_history = raw_report_text_for_exec_summary
 insight_history_path = os.path.join(output_folder, "insight_history_test.txt")
-
-past_insights = load_last_n_weeks_history(insight_history_path, n_weeks=16)
-if past_insights:
-    report_text_with_history = f"{past_insights}\n\n===== NEW WEEK =====\n\n{report_text_with_history}"
 
 feedback_context = build_feedback_context(feedback_df, week_num, year)
 
@@ -809,6 +844,7 @@ with open(week_info_path, "w") as f:
 upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
 upload_to_drive(week_info_path, f"Week_number.txt", folder_id)
+
 
 
 
