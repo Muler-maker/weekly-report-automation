@@ -30,14 +30,14 @@ def wrap_text(text, width=20):
     return '\n'.join(textwrap.wrap(str(text), width=width))
 
 def extract_metadata_from_question(text):
-    metadata_pattern = r"\(\s*Distributor:\s*(.*?)\s*;\s*Country:\s*(.*?)\s*;\s*Customer:\s*(.*?)\s*\)\s*$"
+    metadata_pattern = r"\(\s*Distributor:\s*(.*?)\s*;\s*Country:\s*(.*?)\s*;\s*Customer:\s*(.*)\)\s*$"
     match = re.search(metadata_pattern, text)
     if match:
         distributors = [x.strip() for x in re.split(r",\s*", match.group(1))]
         countries = [x.strip() for x in re.split(r",\s*", match.group(2))]
         customers = [x.strip() for x in re.split(r",\s*", match.group(3))]
         return re.sub(metadata_pattern, "", text).strip(), distributors, countries, customers
-    metadata_pattern2 = r"\(\s*Distributor:\s*(.*?)\s*;\s*Country:\s*(.*?)\s*\)\s*$"
+    metadata_pattern2 = r"\(\s*Distributor:\s*(.*?)\s*;\s*Country:\s*(.*)\)\s*$"
     match2 = re.search(metadata_pattern2, text)
     if match2:
         distributors = [x.strip() for x in re.split(r",\s*", match2.group(1))]
@@ -567,7 +567,7 @@ if re.search(r"\bQuestions for\b", insights) and not questions_by_am:
 bad = [
     q["Question"] for q in questions_by_am
     if not re.search(
-        r"\(Distributor:\s*[^;]*;\s*Country:\s*[^;]*;\s*Customer:\s*[^)]*\)\s*$",
+        r"\(Distributor:\s*.*?;\s*Country:\s*.*?;\s*Customer:\s*.*\)\s*$",
         q["Question"]
     )
 ]
@@ -1035,6 +1035,7 @@ with open(week_info_path, "w") as f:
 upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
 upload_to_drive(week_info_path, f"Week_number.txt", folder_id)
+
 
 
 
