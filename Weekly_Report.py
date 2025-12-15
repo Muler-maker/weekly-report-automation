@@ -61,6 +61,27 @@ def build_feedback_context(feedback_df, week_num, year):
                     "------")
             context_lines.append(line)
     return "\n".join(context_lines)
+def load_last_n_weeks_history(insight_history_path: str, n_weeks: int = 16) -> str:
+    """
+    Returns only the last N weekly insight blocks from insight_history_path.
+    Relies on the delimiter:
+      ===== Week {week_num}, {year} =====
+    """
+    if not os.path.exists(insight_history_path):
+        return ""
+
+    with open(insight_history_path, "r", encoding="utf-8") as f:
+        txt = f.read()
+
+    parts = re.split(r"(===== Week\s+\d+,\s+\d+\s+=====)", txt)
+
+    blocks = []
+    for i in range(1, len(parts), 2):
+        header = parts[i]
+        body = parts[i + 1] if (i + 1) < len(parts) else ""
+        blocks.append(header + body)
+
+    return "\n".join(blocks[-n_weeks:]).strip()
 
 def add_comparison_tables_page_to_pdf(pdf, df):
     def draw_comparison_table(ax, data, title, period1_name, period2_name):
@@ -273,12 +294,12 @@ with open(summary_path, "r", encoding="utf-8") as f:
     raw_report_text_for_exec_summary = f.read()
 
 # Include historical insights if exist
+# Include historical insights (last 16 weeks only)
 report_text_with_history = raw_report_text_for_exec_summary
 insight_history_path = os.path.join(output_folder, "insight_history_test.txt")
 
-if os.path.exists(insight_history_path):
-    with open(insight_history_path, "r", encoding="utf-8") as f:
-        past_insights = f.read()
+past_insights = load_last_n_weeks_history(insight_history_path, n_weeks=16)
+if past_insights:
     report_text_with_history = f"{past_insights}\n\n===== NEW WEEK =====\n\n{report_text_with_history}"
 
 feedback_context = build_feedback_context(feedback_df, week_num, year)
@@ -789,6 +810,7 @@ with open(week_info_path, "w") as f:
 upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
 upload_to_drive(week_info_path, f"Week_number.txt", folder_id)
+
 
 
 
