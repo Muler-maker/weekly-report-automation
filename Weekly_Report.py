@@ -151,6 +151,26 @@ def add_comparison_tables_page_to_pdf(pdf, df):
     draw_comparison_table(ax3, comp3, 'Previous 8 Weeks vs. 8 Weeks Before', 'Prev 8 Wks', '8 Wks Before')
     fig.tight_layout(rect=[0, 0.03, 1, 0.95]); pdf.savefig(fig); plt.close(fig)
 
+def normalize_text(s: str) -> str:
+    """Normalize text for robust matching."""
+    if s is None:
+        return ""
+    s = " ".join(str(s).split()).strip().lower()
+    return s
+
+def make_question_key(week: int, year: int, am: str, distributors: str, countries: str, customers: str, question: str) -> tuple:
+    """
+    A stable fingerprint for deduping. We intentionally do NOT include week/year
+    in the key so the same question won't be re-added in a later week.
+    """
+    return (
+        normalize_text(am),
+        normalize_text(distributors),
+        normalize_text(countries),
+        normalize_text(customers),
+        normalize_text(question),
+    )
+
 # --- Setup and Authentication ---
 script_dir = os.path.dirname(os.path.abspath(__file__)) if '__file__' in globals() else os.getcwd()
 SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1uJAArBkHXgFvY_JPIieKRjiOYd9-Ys7Ii9nXT3fWbUg"
@@ -494,10 +514,62 @@ def extract_questions_by_am(insights):
     return am_data
 
 questions_by_am = extract_questions_by_am(insights)
+# --- DEDUPE GUARD: prevent repeated questions from being added again ---
+anchor = datetime.today() + timedelta(days=11)
+allowed_yw = last_n_iso_yearweeks(16, anchor_date=anchor)
+
+existing_keys = set()
+for _, row in feedback_df.iterrows():
+    row_week = int(pd.to_numeric(row.get("Week"), errors="coerce") or 0)
+    row_year = int(pd.to_numeric(row.get("Year"), errors="coerce") or 0)
+
+    # Only compare against last 16 ISO weeks of existing rows
+    if (row_year, row_week) not in allowed_yw:
+        continue
+
+    existing_keys.add(
+        make_question_key(
+            row_week,
+            row_year,
+            row.get("AM", ""),
+            row.get("Distributor", ""),
+            row.get("Country/Countries", ""),
+            row.get("Customers", ""),
+            row.get("Question", ""),
+        )
+    )
+
 new_rows = []
+skipped_dupes = 0
+
 for q in questions_by_am:
-    question_clean, distributors, countries, customers = extract_metadata_from_question(q['Question'])
-    new_rows.append([week_num, year, q['AM'], ", ".join(distributors), ", ".join(countries), ", ".join(customers), question_clean, "", "Open", datetime.now().strftime("%Y-%m-%d")])
+    question_clean, distributors, countries, customers = extract_metadata_from_question(q["Question"])
+
+    dist_str = ", ".join(distributors)
+    country_str = ", ".join(countries)
+    cust_str = ", ".join(customers)
+
+    key = make_question_key(week_num, year, q["AM"], dist_str, country_str, cust_str, question_clean)
+
+    if key in existing_keys:
+        skipped_dupes += 1
+        continue
+
+    new_rows.append([
+        week_num,
+        year,
+        q["AM"],
+        dist_str,
+        country_str,
+        cust_str,
+        question_clean,
+        "",
+        "Open",
+        datetime.now().strftime("%Y-%m-%d"),
+    ])
+
+# Optional debug
+print(f"DEDUP: skipped {skipped_dupes} duplicate questions.")
 
 if new_rows:
     feedback_ws.append_rows(new_rows, value_input_option="USER_ENTERED")
@@ -856,6 +928,7 @@ with open(week_info_path, "w") as f:
 upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
 upload_to_drive(week_info_path, f"Week_number.txt", folder_id)
+
 
 
 
