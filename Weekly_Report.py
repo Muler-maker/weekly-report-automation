@@ -107,50 +107,112 @@ def load_last_n_weeks_history(insight_history_path: str, n_weeks: int = 16) -> s
 
     return "\n".join(blocks[-n_weeks:]).strip()
 
-def add_comparison_tables_page_to_pdf(pdf, df):
+def add_comparison_tables_page_to_pdf(pdf, df, recent_8, previous_8, last_week_date):
+    """
+    Generates the product comparison tables page using the SAME week windows
+    as the rest of the report.
+
+    Inputs:
+      - recent_8: list[(iso_year, iso_week)] for the last 8 COMPLETED weeks
+      - previous_8: list[(iso_year, iso_week)] for the 8 weeks before recent_8
+      - last_week_date: datetime corresponding to the last completed week anchor
+    """
+
     def draw_comparison_table(ax, data, title, period1_name, period2_name):
-        ax.axis('off'); ax.set_title(title, fontsize=12, weight='bold', pad=15)
+        ax.axis('off')
+        ax.set_title(title, fontsize=12, weight='bold', pad=15)
+
         if data.empty:
-            ax.text(0.5, 0.5, 'No data for this comparison', ha='center', va='center'); return
-        data['% Change'] = ((data[period1_name] - data[period2_name]) / data[period2_name] * 100).replace([np.inf, -np.inf], 100).fillna(0)
+            ax.text(0.5, 0.5, 'No data for this comparison', ha='center', va='center')
+            return
+
+        data = data.copy()
+
+        # Keep your existing behavior: if denom is 0, show 100 (instead of inf)
+        data['% Change'] = (
+            ((data[period1_name] - data[period2_name]) / data[period2_name] * 100)
+            .replace([np.inf, -np.inf], 100)
+            .fillna(0)
+        )
+
         display_data = data.copy()
         display_data[period1_name] = display_data[period1_name].apply(lambda x: f'{x:,.0f}')
         display_data[period2_name] = display_data[period2_name].apply(lambda x: f'{x:,.0f}')
         display_data['% Change'] = display_data['% Change'].apply(lambda x: f'{x:+.1f}%')
         display_data = display_data.reset_index()
-        table = ax.table(cellText=display_data.values, colLabels=['Product', period1_name, period2_name, '% Change'], loc='center', cellLoc='center')
-        table.auto_set_font_size(False); table.set_fontsize(8); table.scale(1, 1.5)
+
+        table = ax.table(
+            cellText=display_data.values,
+            colLabels=['Product', period1_name, period2_name, '% Change'],
+            loc='center',
+            cellLoc='center'
+        )
+        table.auto_set_font_size(False)
+        table.set_fontsize(8)
+        table.scale(1, 1.5)
+
         for (row, col), cell in table.get_celld().items():
             cell.PAD = 0.04
-            if row == 0: cell.set_facecolor("#e6e6fa"); cell.set_text_props(weight='bold')
+            if row == 0:
+                cell.set_facecolor("#e6e6fa")
+                cell.set_text_props(weight='bold')
             else:
                 cell.set_facecolor("#f9f9f9" if row % 2 == 0 else "#ffffff")
                 if col == 3:
                     numeric_value = data.iloc[row - 1]['% Change']
                     color = 'green' if numeric_value > 0.1 else ('red' if numeric_value < -0.1 else 'black')
                     cell.set_text_props(color=color, weight='bold')
-                if col == 0: cell.set_text_props(ha='left')
-    today = datetime.today() + timedelta(days=11)
-    last_week_date = today - timedelta(weeks=1)
-    week_before_last_date = today - timedelta(weeks=2)
+                if col == 0:
+                    cell.set_text_props(ha='left')
+
+    # --- Week anchors (aligned with your global windows) ---
+    week_before_last_date = last_week_date - timedelta(weeks=1)
     same_week_ly_date = last_week_date - timedelta(weeks=52)
-    previous_8_weeks = [(d.isocalendar().year, d.isocalendar().week) for d in [today - timedelta(weeks=i) for i in range(1, 9)]]
-    before_previous_8_weeks = [(d.isocalendar().year, d.isocalendar().week) for d in [today - timedelta(weeks=i) for i in range(9, 17)]]
-    df_agg = lambda yw: df[df['YearWeek'].isin(yw)].groupby('Product')['Total_mCi'].sum() if isinstance(yw, list) else df[df['YearWeek'] == yw].groupby('Product')['Total_mCi'].sum()
+
+    # Use the SAME 8v8 windows used for customer tables
+    previous_8_weeks = recent_8
+    before_previous_8_weeks = previous_8
+
+    def df_agg(yw):
+        if isinstance(yw, list):
+            return df[df['YearWeek'].isin(yw)].groupby('Product')['Total_mCi'].sum()
+        else:
+            return df[df['YearWeek'] == yw].groupby('Product')['Total_mCi'].sum()
+
+    # --- Aggregations ---
     last_week_totals = df_agg((last_week_date.isocalendar().year, last_week_date.isocalendar().week))
     week_before_last_totals = df_agg((week_before_last_date.isocalendar().year, week_before_last_date.isocalendar().week))
     same_week_ly_totals = df_agg((same_week_ly_date.isocalendar().year, same_week_ly_date.isocalendar().week))
+
     previous_8_weeks_totals = df_agg(previous_8_weeks)
     before_previous_8_weeks_totals = df_agg(before_previous_8_weeks)
-    comp1 = pd.concat([last_week_totals.rename('Prev Wk'), week_before_last_totals.rename('Wk Before')], axis=1).fillna(0)
-    comp2 = pd.concat([last_week_totals.rename('Prev Wk'), same_week_ly_totals.rename('Same Wk LY')], axis=1).fillna(0)
-    comp3 = pd.concat([previous_8_weeks_totals.rename('Prev 8 Wks'), before_previous_8_weeks_totals.rename('8 Wks Before')], axis=1).fillna(0)
+
+    # --- Comparison tables ---
+    comp1 = pd.concat(
+        [last_week_totals.rename('Prev Wk'), week_before_last_totals.rename('Wk Before')],
+        axis=1
+    ).fillna(0)
+
+    comp2 = pd.concat(
+        [last_week_totals.rename('Prev Wk'), same_week_ly_totals.rename('Same Wk LY')],
+        axis=1
+    ).fillna(0)
+
+    comp3 = pd.concat(
+        [previous_8_weeks_totals.rename('Prev 8 Wks'), before_previous_8_weeks_totals.rename('8 Wks Before')],
+        axis=1
+    ).fillna(0)
+
     fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(8.5, 11))
     fig.suptitle('Product Performance Summary', fontsize=16, weight='bold')
+
     draw_comparison_table(ax1, comp1, 'Previous Week vs. Week Before', 'Prev Wk', 'Wk Before')
     draw_comparison_table(ax2, comp2, 'Previous Week vs. Same Week Last Year', 'Prev Wk', 'Same Wk LY')
     draw_comparison_table(ax3, comp3, 'Previous 8 Weeks vs. 8 Weeks Before', 'Prev 8 Wks', '8 Wks Before')
-    fig.tight_layout(rect=[0, 0.03, 1, 0.95]); pdf.savefig(fig); plt.close(fig)
+
+    fig.tight_layout(rect=[0, 0.03, 1, 0.95])
+    pdf.savefig(fig)
+    plt.close(fig)
 
 def canonicalize_list_field(s: str) -> str:
     """
@@ -277,6 +339,25 @@ def last_n_iso_yearweeks(n_weeks: int, anchor_date: datetime) -> set[tuple[int, 
         iso = d.isocalendar()
         yws.add((iso.year, iso.week))
     return yws
+def get_8v8_windows(anchor: datetime):
+    """
+    Returns consistent ISO-week windows:
+    - recent_8: last 8 COMPLETED weeks
+    - previous_8: the 8 weeks before those
+    """
+    last_week_date = anchor - timedelta(weeks=1)
+
+    recent_8 = [
+        (d.isocalendar().year, d.isocalendar().week)
+        for d in [last_week_date - timedelta(weeks=i) for i in range(0, 8)]
+    ][::-1]
+
+    previous_8 = [
+        (d.isocalendar().year, d.isocalendar().week)
+        for d in [last_week_date - timedelta(weeks=i) for i in range(8, 16)]
+    ][::-1]
+
+    return last_week_date, recent_8, previous_8
 
 def _clean_one_line(s: str) -> str:
     """Collapses whitespace so history lines are token-efficient."""
@@ -329,20 +410,12 @@ for _, row in df.iterrows():
         distributor_to_countries[distributor].add(country); distributor_to_customers[distributor].add(customer)
 # --- FIXED: Executive Summary Week Calculation (Aligned with PDF) ---
 
-today = datetime.today() + timedelta(days=11)
-last_week_date = today - timedelta(weeks=1)
+anchor = datetime.today() + timedelta(days=11)
+last_week_date, recent_8, previous_8 = get_8v8_windows(anchor)
 
-# Build the last 8 COMPLETED ISO weeks (ending with Week 47)
-recent_8 = [
-    (d.isocalendar().year, d.isocalendar().week)
-    for d in [last_week_date - timedelta(weeks=i) for i in range(0, 8)]
-][::-1]  # reverse to get oldest→newest
+recent_df = df[df["YearWeek"].isin(recent_8)]
+previous_df = df[df["YearWeek"].isin(previous_8)]
 
-# Build the 8 weeks before those (Weeks 32–39)
-previous_8 = [
-    (d.isocalendar().year, d.isocalendar().week)
-    for d in [last_week_date - timedelta(weeks=i) for i in range(8, 16)]
-][::-1]
 
 # Apply these windows
 recent_df = df[df["YearWeek"].isin(recent_8)]
@@ -1200,8 +1273,8 @@ with PdfPages(latest_pdf) as pdf:
         pdf.savefig(fig, bbox_inches="tight"); plt.close(fig)
 
         # --- SECOND PAGE: Product Comparison Tables ---
-        add_comparison_tables_page_to_pdf(pdf, df)
-        
+        add_comparison_tables_page_to_pdf(pdf, df, recent_8, previous_8, last_week_date)
+
         # --- Summary Table: Overall Categories ---
         total_decreased = sum(curr - prev for v in decreased_by_am.values() for _, prev, curr, _ in v)
         total_increased = sum(curr - prev for v in increased_by_am.values() for _, prev, curr, _ in v)
@@ -1413,6 +1486,7 @@ with open(week_info_path, "w") as f:
 upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
 upload_to_drive(week_info_path, f"Week_number.txt", folder_id)
+
 
 
 
