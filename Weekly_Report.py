@@ -153,6 +153,25 @@ def add_comparison_tables_page_to_pdf(pdf, df):
     fig.tight_layout(rect=[0, 0.03, 1, 0.95]); pdf.savefig(fig); plt.close(fig)
 
 def normalize_text(s: str) -> str:
+    def canonicalize_list_field(s: str) -> str:
+    """
+    Canonicalizes comma-separated list fields (Distributor / Country / Customer):
+    - trims whitespace
+    - removes duplicates
+    - sorts case-insensitively
+    - returns "N/A" if empty
+    """
+    if s is None:
+        return "N/A"
+
+    s = str(s).strip()
+    if not s or s.lower() == "n/a":
+        return "N/A"
+
+    parts = [p.strip() for p in s.split(",") if p.strip()]
+    parts = sorted(set(parts), key=lambda x: x.lower())
+    return ", ".join(parts) if parts else "N/A"
+
     """Normalize text for robust matching."""
     if s is None:
         return ""
@@ -1117,6 +1136,7 @@ with open(week_info_path, "w") as f:
 upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
 upload_to_drive(week_info_path, f"Week_number.txt", folder_id)
+
 
 
 
