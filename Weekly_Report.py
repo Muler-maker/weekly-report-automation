@@ -170,6 +170,47 @@ def make_question_key(week: int, year: int, am: str, distributors: str, countrie
         normalize_text(customers),
         normalize_text(question),
     )
+def canonicalize_question(text: str) -> str:
+    """
+    Canonical form: remove numbers/% and punctuation, drop filler words,
+    keep domain words to detect paraphrase repeats.
+    """
+    if not text:
+        return ""
+
+    s = text.lower()
+    s = re.sub(r"\b\d+(\.\d+)?%?\b", " ", s)     # remove numbers/percents
+    s = re.sub(r"[^a-z\s]", " ", s)             # remove punctuation
+    s = " ".join(s.split())
+
+    stop = {
+        "can","could","would","please","provide","details","more","clarify","explain",
+        "why","what","how","are","is","the","a","an","to","of","and","or","in","on",
+        "for","with","this","that","there","any","plans","plan","address","considering"
+    }
+    tokens = [t for t in s.split() if t not in stop]
+    return " ".join(tokens)
+
+def token_set(text: str) -> set:
+    return set(canonicalize_question(text).split())
+
+def jaccard(a: set, b: set) -> float:
+    if not a and not b:
+        return 1.0
+    if not a or not b:
+        return 0.0
+    return len(a & b) / len(a | b)
+
+def scope_key(am: str, distributor: str, country: str, customers: str) -> tuple:
+    """
+    Scope key: repeats are only meaningful if they refer to the same entity scope.
+    """
+    return (
+        normalize_text(am),
+        normalize_text(distributor),
+        normalize_text(country),
+        normalize_text(customers),
+    )
 
 # --- Setup and Authentication ---
 script_dir = os.path.dirname(os.path.abspath(__file__)) if '__file__' in globals() else os.getcwd()
@@ -454,51 +495,39 @@ response = client.chat.completions.create(
 
 insights = response.choices[0].message.content.strip()
 print("\n💡 GPT Insights:\n", insights)
-
-# ================== HARD VALIDATION (ADD THIS BLOCK) ==================
-
-# Hard fail if GPT violates critical constraints
-if "**" in insights or "\n- " in insights:
-    raise ValueError(
-        "GPT output contains markdown. Plain text only is allowed."
-    )
-
-# Ensure every question line has metadata
-# Ensure every extracted question has metadata
-questions_by_am = extract_questions_by_am(insights)
-
-bad = [q["Question"] for q in questions_by_am
-       if not re.search(r"\(Distributor:.*; Country:.*; Customer:.*\)\s*$", q["Question"])]
-
-if bad:
-    raise ValueError(f"GPT produced questions without metadata: {bad[:2]}")
-# ================== END VALIDATION ==================
 def extract_questions_by_am(insights: str):
     """
     Extracts questions per AM even when questions wrap across multiple lines.
     Captures each numbered question as a block until the next numbered question
     or until a new AM header starts.
     """
-    # Split into AM sections based on "Full Name" line (plain text names)
-    am_sections = re.split(r"\n([A-Z][a-z]+ [A-Z][a-z]+)\n", "\n" + insights)
-    am_data = []
+# Split into AM sections based on "Full Name" line (plain text names)
+am_sections = re.split(
+    r"\n([A-Za-z]+(?: [A-Za-z]+){1,3})\n",  # 2–4 words, letters only
+    "\n" + insights
+)
 
-    for i in range(1, len(am_sections), 2):
-        am_name = am_sections[i].strip()
-        section = am_sections[i + 1]
+am_data = []
 
-        # Find the Questions block for this AM
-        q_match = re.search(r"Questions for .*?:\s*\n(.*)", section, re.DOTALL | re.IGNORECASE)
-        if not q_match:
-            continue
+for i in range(1, len(am_sections), 2):
+    am_name = am_sections[i].strip()
+    section = am_sections[i + 1]
 
-        questions_text = q_match.group(1).strip()
-        if not questions_text:
-            continue
+    # Find the Questions block for this AM
+    q_match = re.search(r"Questions for .*?:\s*\n(.*)", section, re.DOTALL | re.IGNORECASE)
+    if not q_match:
+        continue
 
-        # Stop if next AM header appears inside the questions_text
-        # (paranoia guard in case model output drifts)
-        questions_text = re.split(r"\n[A-Z][a-z]+ [A-Z][a-z]+\n", "\n" + questions_text)[0].strip()
+    questions_text = q_match.group(1).strip()
+    if not questions_text:
+        continue
+
+    # Stop if next AM header appears inside the questions_text
+    # (paranoia guard in case model output drifts)
+    questions_text = re.split(
+        r"\n[A-Za-z]+(?: [A-Za-z]+){1,3}\n",
+        "\n" + questions_text
+    )[0].strip()
 
         # Capture question blocks: from "1." to before next "2." etc.
         blocks = re.findall(r"(?ms)^\s*\d+\.\s+.*?(?=^\s*\d+\.\s+|\Z)", questions_text)
@@ -511,13 +540,44 @@ def extract_questions_by_am(insights: str):
                 am_data.append({"AM": am_name, "Question": block})
 
     return am_data
+# ================== HARD VALIDATION (ADD THIS BLOCK) ==================
 
+# 1) Hard fail if GPT violates critical constraints (avoid false positives)
+if re.search(r"(^|\n)\s*[-*]\s+", insights) or re.search(r"\*\*.+\*\*", insights):
+    raise ValueError("GPT output contains markdown-like bullets/bold. Plain text only is allowed.")
+
+# 2) Extract questions ONCE (must happen before any validation that iterates questions_by_am)
 questions_by_am = extract_questions_by_am(insights)
-# --- DEDUPE GUARD: prevent repeated questions from being added again ---
+
+# 3) Guard: if GPT wrote "Questions for ..." but parser extracted none, fail early
+if re.search(r"\bQuestions for\b", insights) and not questions_by_am:
+    raise ValueError("Found 'Questions for' in GPT output, but parser extracted zero questions. Check formatting drift.")
+
+# 4) Ensure every extracted question ends with the required metadata block
+bad = [
+    q["Question"] for q in questions_by_am
+    if not re.search(
+        r"\(Distributor:\s*[^;]*;\s*Country:\s*[^;]*;\s*Customer:\s*[^)]*\)\s*$",
+        q["Question"]
+    )
+]
+
+if bad:
+    raise ValueError(f"GPT produced questions without metadata: {bad[:2]}")
+
+# ================== END VALIDATION ==================
+
+# ================== DEDUPE (EXACT + PARAPHRASE) ==================
 anchor = datetime.today() + timedelta(days=11)
 allowed_yw = last_n_iso_yearweeks(16, anchor_date=anchor)
 
-existing_keys = set()
+# 1) Exact-key dedupe (same AM+scope+question text)
+existing_exact_keys = set()
+
+# 2) Paraphrase dedupe index (same AM+scope, similar meaning)
+#    maps scope_key -> list of token sets (canonicalized)
+existing_semantic_index = {}
+
 for _, row in feedback_df.iterrows():
     row_week = int(pd.to_numeric(row.get("Week"), errors="coerce") or 0)
     row_year = int(pd.to_numeric(row.get("Year"), errors="coerce") or 0)
@@ -526,34 +586,68 @@ for _, row in feedback_df.iterrows():
     if (row_year, row_week) not in allowed_yw:
         continue
 
-    existing_keys.add(
+    am = row.get("AM", "")
+    dist = row.get("Distributor", "")
+    country = row.get("Country/Countries", "")
+    cust = row.get("Customers", "")
+    q_text = row.get("Question", "")
+
+    # Build exact-key
+    existing_exact_keys.add(
         make_question_key(
             row_week,
             row_year,
-            row.get("AM", ""),
-            row.get("Distributor", ""),
-            row.get("Country/Countries", ""),
-            row.get("Customers", ""),
-            row.get("Question", ""),
+            am,
+            dist,
+            country,
+            cust,
+            q_text,
         )
     )
 
+    # Build semantic index key + tokens
+    sk = scope_key(am, dist, country, cust)
+    toks = token_set(q_text)
+    if toks:
+        existing_semantic_index.setdefault(sk, []).append(toks)
+
 new_rows = []
-skipped_dupes = 0
+skipped_exact = 0
+skipped_semantic = 0
+
+# Similarity threshold (0.70–0.85 typical). 0.78 is a good starting point.
+SEMANTIC_JACCARD_THRESHOLD = 0.78
 
 for q in questions_by_am:
+    # Extract metadata and clean question
     question_clean, distributors, countries, customers = extract_metadata_from_question(q["Question"])
 
-    dist_str = ", ".join(distributors)
-    country_str = ", ".join(countries)
-    cust_str = ", ".join(customers)
+    dist_str = ", ".join([d.strip() for d in distributors]) if distributors else "N/A"
+    country_str = ", ".join([c.strip() for c in countries]) if countries else "N/A"
+    cust_str = ", ".join([c.strip() for c in customers]) if customers else "N/A"
 
+    # Exact key check (text-identical)
     key = make_question_key(week_num, year, q["AM"], dist_str, country_str, cust_str, question_clean)
-
-    if key in existing_keys:
-        skipped_dupes += 1
+    if key in existing_exact_keys:
+        skipped_exact += 1
         continue
 
+    # Semantic (paraphrase) check within same scope
+    sk = scope_key(q["AM"], dist_str, country_str, cust_str)
+    new_toks = token_set(question_clean)
+
+    is_semantic_dupe = False
+    if new_toks and sk in existing_semantic_index:
+        for old_toks in existing_semantic_index[sk]:
+            if jaccard(new_toks, old_toks) >= SEMANTIC_JACCARD_THRESHOLD:
+                is_semantic_dupe = True
+                break
+
+    if is_semantic_dupe:
+        skipped_semantic += 1
+        continue
+
+    # If we accept it, add it to output AND to the indices
     new_rows.append([
         week_num,
         year,
@@ -567,14 +661,18 @@ for q in questions_by_am:
         datetime.now().strftime("%Y-%m-%d"),
     ])
 
-# Optional debug
-print(f"DEDUP: skipped {skipped_dupes} duplicate questions.")
+    existing_exact_keys.add(key)
+    if new_toks:
+        existing_semantic_index.setdefault(sk, []).append(new_toks)
+
+print(f"DEDUP: skipped {skipped_exact} exact duplicates, {skipped_semantic} semantic duplicates.")
 
 if new_rows:
     feedback_ws.append_rows(new_rows, value_input_option="USER_ENTERED")
     print(f"✅ Added {len(new_rows)} new questions to Feedback loop worksheet.")
 else:
     print("No new questions found to add to the Feedback loop worksheet.")
+
 
 # === Executive Summary Generation (with Product Trends) ===
 
@@ -927,6 +1025,7 @@ with open(week_info_path, "w") as f:
 upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
 upload_to_drive(week_info_path, f"Week_number.txt", folder_id)
+
 
 
 
