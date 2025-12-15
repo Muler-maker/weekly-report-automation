@@ -615,23 +615,100 @@ if re.search(r"(^|\n)\s*#{1,6}\s+", insights):
 
 # 2) Extract questions ONCE (must happen before any validation that iterates questions_by_am)
 questions_by_am = extract_questions_by_am(insights)
-# ================== MANDATORY QUESTIONS VALIDATION ==================
+# === SMART MANDATORY QUESTIONS LOGIC ===
+# Goal: Ask 2 questions per AM when data exists.
+#       Allow 0 questions if AM has no meaningful data.
+#       Never allow questions to be repetitive.
 
-# Extract AM names exactly as your parser splits them (same regex)
-am_sections = re.split(r"\n([A-Za-z]+(?: [A-Za-z]+){1,3})\n", "\n" + insights)
-am_names_in_output = []
-for i in range(1, len(am_sections), 2):
-    am_names_in_output.append(am_sections[i].strip())
+final_counts = defaultdict(int)
+for am, qs in accepted_questions_by_am.items():
+    final_counts[am] = len(qs)
 
-# Count questions per AM
-counts = defaultdict(int)
-for q in questions_by_am:
-    counts[q["AM"]] += 1
+print(f"DEBUG: Question counts by AM after dedupe: {dict(final_counts)}")
 
-# Require at least 1 question per AM (unless you later decide to allow exceptions)
-missing = [am for am in am_names_in_output if counts.get(am, 0) == 0]
-if missing:
-    raise ValueError(f"Mandatory questions violation: no questions produced for AM(s): {missing}")
+# Determine which AMs should be required to have questions
+# (Only AMs who actually appear in the data with customers/orders)
+ams_with_any_data = set()
+for am in eligible_ams_for_questions:
+    am_rows_recent = recent_df[recent_df["Account Manager"] == am]
+    am_rows_previous = previous_df[previous_df["Account Manager"] == am]
+    
+    if len(am_rows_recent) > 0 or len(am_rows_previous) > 0:
+        ams_with_any_data.add(am)
+        print(f"  ✅ {am} has data ({len(am_rows_recent)} recent rows, {len(am_rows_previous)} previous rows)")
+    else:
+        print(f"  ⊘ {am} has NO data; zero questions is acceptable")
+
+# Now validate: AMs with data should have at least 1 question
+# (We wanted 2, but dedupe may have eliminated repetitive ones; 1+ is the floor)
+ams_with_data_but_no_questions = [
+    am for am in sorted(ams_with_any_data) 
+    if final_counts.get(am, 0) == 0
+]
+
+if ams_with_data_but_no_questions:
+    print(f"\n⚠️  AMs with data but zero questions (attempting fallback): {ams_with_data_but_no_questions}")
+    
+    for am in ams_with_data_but_no_questions:
+        fallback_full = build_fallback_question(am)
+        
+        # Parse the fallback question
+        question_clean, distributors, countries, customers = extract_metadata_from_question(fallback_full)
+        
+        dist_str_fb = canonicalize_list_field(", ".join(distributors) if distributors else "N/A")
+        country_str_fb = canonicalize_list_field(", ".join(countries) if countries else "N/A")
+        cust_str_fb = canonicalize_list_field(", ".join(customers) if customers else "N/A")
+        
+        # Add to accepted questions
+        accepted_questions_by_am[am].append(fallback_full)
+        final_counts[am] += 1
+        
+        # Add to new_rows for Feedback loop persistence
+        new_rows.append([
+            week_num,
+            year,
+            am,
+            dist_str_fb,
+            country_str_fb,
+            cust_str_fb,
+            question_clean,
+            "",
+            "Open",
+            datetime.now().strftime("%Y-%m-%d"),
+        ])
+        
+        # Update indices
+        key_fb = make_question_key(week_num, year, am, dist_str_fb, country_str_fb, cust_str_fb, question_clean)
+        existing_exact_keys.add(key_fb)
+        
+        fb_toks = token_set(question_clean)
+        sk_fb = scope_key(am, dist_str_fb, country_str_fb, cust_str_fb)
+        if fb_toks:
+            existing_semantic_index.setdefault(sk_fb, []).append(fb_toks)
+        
+        print(f"    ✅ Added fallback for {am}")
+
+# Final summary
+print(f"\n📊 Final question distribution:")
+for am in sorted(eligible_ams_for_questions):
+    q_count = final_counts.get(am, 0)
+    has_data = "✅ has data" if am in ams_with_any_data else "⊘ no data"
+    print(f"  {am}: {q_count} questions ({has_data})")
+
+# PERMISSIVE VALIDATION: Only fail if an AM with data has zero questions after fallback
+still_missing = [
+    am for am in sorted(ams_with_any_data) 
+    if final_counts.get(am, 0) == 0
+]
+
+if still_missing:
+    raise ValueError(
+        f"Failed to generate any questions for AMs with data: {still_missing}. "
+        f"Check GPT output or fallback logic."
+    )
+
+print(f"\n✅ SUCCESS: All AMs with data have at least 1 question (target was 2).")
+print(f"✅ AMs with no data are allowed to have zero questions.")
 
 # ================== END MANDATORY QUESTIONS VALIDATION ==================
 
@@ -1224,6 +1301,7 @@ with open(week_info_path, "w") as f:
 upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
 upload_to_drive(week_info_path, f"Week_number.txt", folder_id)
+
 
 
 
