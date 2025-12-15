@@ -152,8 +152,7 @@ def add_comparison_tables_page_to_pdf(pdf, df):
     draw_comparison_table(ax3, comp3, 'Previous 8 Weeks vs. 8 Weeks Before', 'Prev 8 Wks', '8 Wks Before')
     fig.tight_layout(rect=[0, 0.03, 1, 0.95]); pdf.savefig(fig); plt.close(fig)
 
-def normalize_text(s: str) -> str:
-    def canonicalize_list_field(s: str) -> str:
+def canonicalize_list_field(s: str) -> str:
     """
     Canonicalizes comma-separated list fields (Distributor / Country / Customer):
     - trims whitespace
@@ -172,11 +171,12 @@ def normalize_text(s: str) -> str:
     parts = sorted(set(parts), key=lambda x: x.lower())
     return ", ".join(parts) if parts else "N/A"
 
+
+def normalize_text(s: str) -> str:
     """Normalize text for robust matching."""
     if s is None:
         return ""
-    s = " ".join(str(s).split()).strip().lower()
-    return s
+    return " ".join(str(s).split()).strip().lower()
 
 def make_question_key(week: int, year: int, am: str, distributors: str, countries: str, customers: str, question: str) -> tuple:
     """
@@ -1136,6 +1136,7 @@ with open(week_info_path, "w") as f:
 upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
 upload_to_drive(week_info_path, f"Week_number.txt", folder_id)
+
 
 
 
