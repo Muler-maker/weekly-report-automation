@@ -399,7 +399,15 @@ Use this exact metadata format for every question.
 """
 
 
-response = client.chat.completions.create(model="gpt-4o", messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": full_prompt_text}])
+response = client.chat.completions.create(
+    model="gpt-4o",
+    max_tokens=900,          # <-- add this (700–1200 are all fine)
+    temperature=0.2,         # optional but recommended for consistency
+    messages=[
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": full_prompt_text}
+    ]
+)
 insights = response.choices[0].message.content.strip()
 print("\n💡 GPT Insights:\n", insights)
 
@@ -801,6 +809,7 @@ with open(week_info_path, "w") as f:
 upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
 upload_to_drive(week_info_path, f"Week_number.txt", folder_id)
+
 
 
 
