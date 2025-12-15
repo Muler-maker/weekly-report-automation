@@ -347,6 +347,20 @@ previous_8 = [
 # Apply these windows
 recent_df = df[df["YearWeek"].isin(recent_8)]
 previous_df = df[df["YearWeek"].isin(previous_8)]
+def get_ams_with_data(recent_df: pd.DataFrame, previous_df: pd.DataFrame) -> set[str]:
+    """
+    AMs are eligible for mandatory questions only if they have at least one row
+    in the current comparison window (recent_8 OR previous_8).
+    """
+    ams = set()
+    for _df in (recent_df, previous_df):
+        if _df is not None and not _df.empty and "Account Manager" in _df.columns:
+            ams.update([a for a in _df["Account Manager"].dropna().astype(str).unique() if a and a != "Other"])
+    return ams
+
+eligible_ams_for_questions = get_ams_with_data(recent_df, previous_df)
+print("DEBUG eligible_ams_for_questions:", sorted(eligible_ams_for_questions))
+
 recent_totals = recent_df.groupby("Customer")["Total_mCi"].sum()
 previous_totals = previous_df.groupby("Customer")["Total_mCi"].sum()
 customer_to_manager = df.set_index("Customer")["Account Manager"].to_dict()
@@ -739,21 +753,82 @@ for q in questions_by_am:
         datetime.now().strftime("%Y-%m-%d"),
     ])
 
-    # Update indices (your existing code)
-    key = make_question_key(week_num, year, q["AM"], dist_str, country_str, cust_str, question_clean)
-    existing_exact_keys.add(key)
-    new_toks = token_set(question_clean)
-    sk = scope_key(q["AM"], dist_str, country_str, cust_str)
-    if new_toks:
-        existing_semantic_index.setdefault(sk, []).append(new_toks)
-        
+# --- After accepting a non-duplicate question (inside your loop) ---
+# Update indices so we don't accept the same (or near-same) question again in this run
+key = make_question_key(week_num, year, q["AM"], dist_str, country_str, cust_str, question_clean)
+existing_exact_keys.add(key)
+
+new_toks = token_set(question_clean)
+sk = scope_key(q["AM"], dist_str, country_str, cust_str)
+if new_toks:
+    existing_semantic_index.setdefault(sk, []).append(new_toks)
+
 print(f"DEDUP: skipped {skipped_duplicates} duplicate questions.")
+
+
+def build_fallback_question(am_name: str) -> str:
+    """
+    Deterministic fallback question (non-repetitive angle).
+    Keep it concise and action-oriented.
+    """
+    return (
+        "What is the expected ordering behavior for the next 2–4 weeks, and is any proactive action required this week?"
+        " (Distributor: N/A; Country: N/A; Customer: N/A)"
+    )
+
+
+# Enforce: at least 1 question for eligible AMs (AFTER dedupe)
+missing_after_dedupe = [
+    am for am in sorted(eligible_ams_for_questions)
+    if len(accepted_questions_by_am.get(am, [])) == 0
+]
+
+if missing_after_dedupe:
+    for am in missing_after_dedupe:
+        fallback_full = build_fallback_question(am)
+
+        # 1) Ensure it shows up in the final report output
+        accepted_questions_by_am[am].append(fallback_full)
+
+        # 2) ALSO persist it into the Feedback loop sheet so it is tracked next week
+        #    (prevents asking the same fallback repeatedly if you later make it smarter)
+        question_clean, distributors, countries, customers = extract_metadata_from_question(fallback_full)
+
+        dist_str_fb = canonicalize_list_field(", ".join(distributors) if distributors else "N/A")
+        country_str_fb = canonicalize_list_field(", ".join(countries) if countries else "N/A")
+        cust_str_fb = canonicalize_list_field(", ".join(customers) if customers else "N/A")
+
+        new_rows.append([
+            week_num,
+            year,
+            am,
+            dist_str_fb,
+            country_str_fb,
+            cust_str_fb,
+            question_clean,
+            "",
+            "Open",
+            datetime.now().strftime("%Y-%m-%d"),
+        ])
+
+        # 3) Update indices so we don't duplicate within this run
+        key_fb = make_question_key(week_num, year, am, dist_str_fb, country_str_fb, cust_str_fb, question_clean)
+        existing_exact_keys.add(key_fb)
+
+        fb_toks = token_set(question_clean)
+        sk_fb = scope_key(am, dist_str_fb, country_str_fb, cust_str_fb)
+        if fb_toks:
+            existing_semantic_index.setdefault(sk_fb, []).append(fb_toks)
+
+    print("MANDATORY Q: Added fallback question(s) for:", missing_after_dedupe)
+
 
 if new_rows:
     feedback_ws.append_rows(new_rows, value_input_option="USER_ENTERED")
     print(f"✅ Added {len(new_rows)} new questions to Feedback loop worksheet.")
 else:
     print("No new questions found to add to the Feedback loop worksheet.")
+
 
 # ================== REBUILD INSIGHTS (SHOW ONLY ACCEPTED QUESTIONS) ==================
 final_insights_lines = []
@@ -1149,6 +1224,7 @@ with open(week_info_path, "w") as f:
 upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
 upload_to_drive(week_info_path, f"Week_number.txt", folder_id)
+
 
 
 
