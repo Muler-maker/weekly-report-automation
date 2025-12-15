@@ -373,25 +373,28 @@ full_prompt_text = (
 system_prompt = """
 You are a senior business analyst. For each Account Manager (AM), analyze the weekly report using a top-down structure: distributor-level trends, then country-level patterns, then customer-specific insights.
 
-OUTPUT FORMAT (strict):
-For each AM, output in this exact order:
-1. The AM’s full name on its own line.
-2. Either:
-   - "No significant insights or questions for this week."
-   OR
-   - A concise summary grouped exactly as:
-     - Distributor-level: key patterns, risks, deviations, and expected order behavior.
-     - Country-level: trends affecting multiple customers in the same country.
-     - Customer-specific: notable increases, decreases, spikes, drops, or inactivity.
-3. A section titled exactly:
-   "Questions for <AM Name>:"
-   - Include 0–2 numbered questions.
-   - Each question must be on one line and end with a metadata block exactly in this format:
-     (Distributor: ...; Country: ...; Customer: ...)
+CRITICAL OUTPUT CONSTRAINTS (must follow exactly):
+- Do NOT use markdown (no **bold**, no bullets with "-", no headings with "###"). Plain text only.
+- Each AM section MUST appear in this exact order:
+  (1) AM full name on its own line (plain text, no punctuation).
+  (2) Either exactly: No significant insights or questions for this week.
+      OR three plain-text lines starting exactly with:
+      Distributor-level:
+      Country-level:
+      Customer-specific:
+  (3) A line titled exactly: Questions for <AM Name>:
+      Then EITHER:
+        - nothing (no extra text) if there are zero questions, OR
+        - 1–2 numbered questions ("1. ...", "2. ...") with NO blank questions.
+
+QUESTION FORMAT (strict):
+- Each numbered question must be a single line.
+- Each question line MUST end with a metadata block exactly like:
+  (Distributor: <comma-separated>; Country: <comma-separated>; Customer: <comma-separated>)
+- Distributor/Country/Customer must never be blank. If unknown, use N/A.
 
 REDUNDANCY AND NOVELTY RULES:
-Do not repeat questions that were already asked and fully answered in recent weeks unless a new deviation or anomaly exists.
-If a customer's ordering behavior remains consistent with a previously confirmed explanation, state that no follow-up is required.
+Do not repeat questions already asked and fully answered in recent weeks unless a new deviation/anomaly exists.
 A question is allowed only if it introduces at least one NEW element:
 - new customer behavior pattern
 - new competitor
@@ -399,53 +402,62 @@ A question is allowed only if it introduces at least one NEW element:
 - new logistics constraint
 - new pricing dynamic
 - new forecast deviation
-If no new element exists, the question must be suppressed.
+If no new element exists, suppress the question.
 
 RESOLUTION STATE CLASSIFICATION (required before questioning):
-For recurring customers, classify the current situation as one of the following:
-- OPEN: root cause unknown or contradictory.
-- EXPLAINED–TEMPORARY: cause known and expected to self-correct within 2–6 weeks.
-- EXPLAINED–STRUCTURAL: cause confirmed as cyclical, contractual, batching-based, or trial-scheduled.
-- CONTROLLED: operational fix or mitigation has been implemented.
-- STRATEGIC RISK: impact driven by competitor displacement or regulatory exclusion.
+For recurring customers, classify the current situation as one of:
+OPEN; EXPLAINED–TEMPORARY; EXPLAINED–STRUCTURAL; CONTROLLED; STRATEGIC RISK.
 
 STATE-BASED QUESTION RULES:
-If a customer is EXPLAINED–STRUCTURAL or CONTROLLED, do not generate a question unless:
-(a) the deviation exceeds ±30% outside the known pattern, or
-(b) a new external factor appears (regulatory, war, competitor exclusivity).
-If a customer is EXPLAINED–TEMPORARY, ask at most one follow-up question every 3 weeks.
-If a customer is in STRATEGIC RISK, prioritize questions toward commercial counter-action, not explanation.
-If a customer remains OPEN for more than 3 consecutive weeks, escalate from cause analysis to intervention recommendation.
+- If EXPLAINED–STRUCTURAL or CONTROLLED: do not ask unless (a) deviation exceeds ±30% outside known pattern, or (b) a new external factor appears (regulatory, war, competitor exclusivity).
+- If EXPLAINED–TEMPORARY: ask at most one follow-up question every 3 weeks.
+- If STRATEGIC RISK: prioritize commercial counter-action questions, not explanation.
+- If OPEN for >3 consecutive weeks: escalate from cause analysis to intervention recommendation.
 
-You must explicitly apply this logic before selecting questions.
-
-METADATA RULES (strict):
-Every question must include all three fields in the metadata block:
-(Distributor: <comma-separated>; Country: <comma-separated>; Customer: <comma-separated>)
-Never leave a field blank.
-If values are missing, infer using the provided data:
-- Distributor and Country given, Customer missing: list all customers linked to that distributor in that country.
-- Only Country given: list all distributors and customers in that country.
-- Only Distributor given: list all countries and customers for that distributor.
-- Customer missing or equal to Distributor: fill both fields with that value.
+METADATA INFERENCE (use provided data):
+- If Distributor and Country given, Customer missing: list all customers linked to that distributor in that country.
+- If only Country given: list all distributors and customers in that country.
+- If only Distributor given: list all countries and customers for that distributor.
+- If Customer missing or equal to Distributor: fill both fields with that value.
 - If no valid value exists, use N/A.
 Use semicolons between fields and commas within fields.
-Use this exact metadata format for every question.
 """
-
-
 response = client.chat.completions.create(
     model="gpt-4o",
-    max_tokens=900,          # <-- add this (700–1200 are all fine)
-    temperature=0.2,         # optional but recommended for consistency
+    max_tokens=900,
+    temperature=0.2,
     messages=[
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": full_prompt_text}
     ]
 )
+
 insights = response.choices[0].message.content.strip()
 print("\n💡 GPT Insights:\n", insights)
 
+# ================== HARD VALIDATION (ADD THIS BLOCK) ==================
+
+# Hard fail if GPT violates critical constraints
+if "**" in insights or "\n- " in insights:
+    raise ValueError(
+        "GPT output contains markdown. Plain text only is allowed."
+    )
+
+# Ensure every question line has metadata
+question_lines = re.findall(r"^\d+\.\s+.*$", insights, flags=re.MULTILINE)
+bad = [
+    q for q in question_lines
+    if not re.search(
+        r"\(Distributor:.*; Country:.*; Customer:.*\)\s*$",
+        q
+    )
+]
+if bad:
+    raise ValueError(
+        f"GPT produced questions without metadata: {bad[:2]}"
+    )
+
+# ================== END VALIDATION ==================
 def extract_questions_by_am(insights):
     """
     Corrected version of the original function. It reliably finds the 'Questions for...'
@@ -844,6 +856,7 @@ with open(week_info_path, "w") as f:
 upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
 upload_to_drive(week_info_path, f"Week_number.txt", folder_id)
+
 
 
 
