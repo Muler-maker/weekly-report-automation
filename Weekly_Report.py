@@ -605,8 +605,7 @@ def extract_questions_by_am(insights: str):
                 })
 
     return am_data
-# ================== HARD VALIDATION (ADD THIS BLOCK) ==================
-
+# ================== HARD VALIDATION ==================
 # 1) Hard fail if GPT violates critical constraints (avoid false positives)
 if re.search(r"(^|\n)\s*[-*]\s+", insights) or re.search(r"\*\*.+\*\*", insights):
     raise ValueError("GPT output contains markdown-like bullets/bold. Plain text only is allowed.")
@@ -615,7 +614,142 @@ if re.search(r"(^|\n)\s*#{1,6}\s+", insights):
 
 # 2) Extract questions ONCE (must happen before any validation that iterates questions_by_am)
 questions_by_am = extract_questions_by_am(insights)
-# === SMART MANDATORY QUESTIONS LOGIC ===
+
+# 3) Guard: if GPT wrote "Questions for ..." but parser extracted none, fail early
+if re.search(r"\bQuestions for\b", insights) and not questions_by_am:
+    raise ValueError("Found 'Questions for' in GPT output, but parser extracted zero questions. Check formatting drift.")
+
+# 4) Ensure every extracted question ends with the required metadata block
+bad = [
+    q["Question"] for q in questions_by_am
+    if not re.search(
+        r"\(Distributor:\s*.*?;\s*Country:\s*.*?;\s*Customer:\s*.*\)\s*$",
+        q["Question"]
+    )
+]
+
+if bad:
+    raise ValueError(f"GPT produced questions without metadata: {bad[:2]}")
+
+# ================== END HARD VALIDATION ==================
+
+
+# ================== DEDUPE (EXACT + PARAPHRASE) ==================
+anchor = datetime.today() + timedelta(days=11)
+allowed_yw = last_n_iso_yearweeks(16, anchor_date=anchor)
+
+# 1) Exact-key dedupe (same AM+scope+question text)
+existing_exact_keys = set()
+
+# 2) Paraphrase dedupe index (same AM+scope, similar meaning)
+#    maps scope_key -> list of token sets (canonicalized)
+existing_semantic_index = {}
+
+for _, row in feedback_df.iterrows():
+    row_week = int(pd.to_numeric(row.get("Week"), errors="coerce") or 0)
+    row_year = int(pd.to_numeric(row.get("Year"), errors="coerce") or 0)
+
+    # Only compare against last 16 ISO weeks of existing rows
+    if (row_year, row_week) not in allowed_yw:
+        continue
+
+    am = row.get("AM", "")
+    dist = row.get("Distributor", "")
+    country = row.get("Country/Countries", "")
+    cust = row.get("Customers", "")
+    q_text = row.get("Question", "")
+
+    # Build exact-key
+    existing_exact_keys.add(
+        make_question_key(
+            row_week,
+            row_year,
+            am,
+            dist,
+            country,
+            cust,
+            q_text,
+        )
+    )
+
+    # Build semantic index key + tokens
+    sk = scope_key(am, dist, country, cust)
+    toks = token_set(q_text)
+    if toks:
+        existing_semantic_index.setdefault(sk, []).append(toks)
+
+new_rows = []
+
+# Single duplicate counter (exact + semantic combined)
+skipped_duplicates = 0
+
+# Similarity threshold (0.70–0.85 typical). 0.78 is a good starting point.
+SEMANTIC_JACCARD_THRESHOLD = 0.78
+
+accepted_questions_by_am = defaultdict(list)
+for q in questions_by_am:
+    question_clean, distributors, countries, customers = extract_metadata_from_question(q["Question"])
+    
+    dist_str = canonicalize_list_field(
+        ", ".join([str(d).strip() for d in distributors if str(d).strip()]) if distributors else "N/A"
+    )
+    country_str = canonicalize_list_field(
+        ", ".join([str(c).strip() for c in countries if str(c).strip()]) if countries else "N/A"
+    )
+    cust_str = canonicalize_list_field(
+        ", ".join([str(c).strip() for c in customers if str(c).strip()]) if customers else "N/A"
+    )
+
+    if is_duplicate_question(
+        am=q["AM"],
+        dist_str=dist_str,
+        country_str=country_str,
+        cust_str=cust_str,
+        question_clean=question_clean,
+        existing_exact_keys=existing_exact_keys,
+        existing_semantic_index=existing_semantic_index,
+        week_num=week_num,
+        year=year,
+        threshold=SEMANTIC_JACCARD_THRESHOLD
+    ):
+        skipped_duplicates += 1
+        continue
+
+    # ACCEPTED question (for both append + final output)
+    accepted_questions_by_am[q["AM"]].append(
+        f"{question_clean} (Distributor: {dist_str}; Country: {country_str}; Customer: {cust_str})"
+    )
+
+    # Append row (your existing code)
+    new_rows.append([
+        week_num,
+        year,
+        q["AM"],
+        dist_str,
+        country_str,
+        cust_str,
+        question_clean,
+        "",
+        "Open",
+        datetime.now().strftime("%Y-%m-%d"),
+    ])
+
+# --- After accepting a non-duplicate question (inside your loop) ---
+# Update indices so we don't accept the same (or near-same) question again in this run
+key = make_question_key(week_num, year, q["AM"], dist_str, country_str, cust_str, question_clean)
+existing_exact_keys.add(key)
+
+new_toks = token_set(question_clean)
+sk = scope_key(q["AM"], dist_str, country_str, cust_str)
+if new_toks:
+    existing_semantic_index.setdefault(sk, []).append(new_toks)
+
+print(f"DEDUP: skipped {skipped_duplicates} duplicate questions.")
+
+# ================== END DEDUPE ==================
+
+
+# ================== SMART MANDATORY QUESTIONS LOGIC ===
 # Goal: Ask 2 questions per AM when data exists.
 #       Allow 0 questions if AM has no meaningful data.
 #       Never allow questions to be repetitive.
@@ -710,25 +844,7 @@ if still_missing:
 print(f"\n✅ SUCCESS: All AMs with data have at least 1 question (target was 2).")
 print(f"✅ AMs with no data are allowed to have zero questions.")
 
-# ================== END MANDATORY QUESTIONS VALIDATION ==================
-
-# 3) Guard: if GPT wrote "Questions for ..." but parser extracted none, fail early
-if re.search(r"\bQuestions for\b", insights) and not questions_by_am:
-    raise ValueError("Found 'Questions for' in GPT output, but parser extracted zero questions. Check formatting drift.")
-
-# 4) Ensure every extracted question ends with the required metadata block
-bad = [
-    q["Question"] for q in questions_by_am
-    if not re.search(
-        r"\(Distributor:\s*.*?;\s*Country:\s*.*?;\s*Customer:\s*.*\)\s*$",
-        q["Question"]
-    )
-]
-
-if bad:
-    raise ValueError(f"GPT produced questions without metadata: {bad[:2]}")
-
-# ================== END VALIDATION ==================
+# ================== END SMART MANDATORY QUESTIONS LOGIC ==================
 
 # ================== DEDUPE (EXACT + PARAPHRASE) ==================
 anchor = datetime.today() + timedelta(days=11)
@@ -1301,6 +1417,7 @@ with open(week_info_path, "w") as f:
 upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
 upload_to_drive(week_info_path, f"Week_number.txt", folder_id)
+
 
 
 
