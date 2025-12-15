@@ -579,13 +579,19 @@ if re.search(r"(^|\n)\s*#{1,6}\s+", insights):
 
 # 2) Extract questions ONCE (must happen before any validation that iterates questions_by_am)
 questions_by_am = extract_questions_by_am(insights)
-# If an AM section says "No significant insights...", it must not have questions.
-no_sig_with_questions = re.findall(
-    r"(?ms)^\s*([A-Za-z]+(?: [A-Za-z]+){1,3})\s*\n\s*No significant insights or questions for this week\.\s*\n.*?^\s*Questions for \1:\s*\n\s*\d+\.",
-    insights
+# --- ENFORCE: No questions allowed if AM declared "No significant insights..." ---
+am_no_insights = set(
+    re.findall(
+        r"(?m)^([A-Za-z]+(?: [A-Za-z]+){1,3})\s*\nNo significant insights or questions for this week\.",
+        insights
+    )
 )
-if no_sig_with_questions:
-    raise ValueError(f"AM section(s) claim no significant insights but include questions: {no_sig_with_questions}")
+
+if am_no_insights:
+    questions_by_am = [
+        q for q in questions_by_am
+        if q["AM"] not in am_no_insights
+    ]
 
 # 3) Guard: if GPT wrote "Questions for ..." but parser extracted none, fail early
 if re.search(r"\bQuestions for\b", insights) and not questions_by_am:
@@ -1109,4 +1115,5 @@ with open(week_info_path, "w") as f:
 upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
 upload_to_drive(week_info_path, f"Week_number.txt", folder_id)
+
 
