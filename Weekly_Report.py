@@ -57,7 +57,7 @@ def build_feedback_context(feedback_df, week_num, year):
     huge multi-line blocks.
     """
     # Match your report's anchor (same logic you use elsewhere)
-    anchor = datetime.today() + timedelta(days=11)
+    anchor = datetime.today() + timedelta(days=11)  # OK but duplicated; consider passing anchor in
     allowed_yw = last_n_iso_yearweeks(16, anchor_date=anchor)
 
     context_lines = []
@@ -660,10 +660,10 @@ SEMANTIC_JACCARD_THRESHOLD = 0.78
 accepted_questions_by_am = defaultdict(list)
 for q in questions_by_am:
     question_clean, distributors, countries, customers = extract_metadata_from_question(q["Question"])
-
-    dist_str = ", ".join([d.strip() for d in distributors]) if distributors else "N/A"
-    country_str = ", ".join([c.strip() for c in countries]) if countries else "N/A"
-    cust_str = ", ".join([c.strip() for c in customers]) if customers else "N/A"
+    
+    dist_str = ", ".join(distributors) if distributors and distributors != ["N/A"] else "N/A"
+    country_str = ", ".join(countries) if countries and countries != ["N/A"] else "N/A"
+    cust_str = ", ".join(customers) if customers and customers != ["N/A"] else "N/A"
 
     if is_duplicate_question(
         am=q["AM"],
@@ -679,7 +679,6 @@ for q in questions_by_am:
     ):
         skipped_duplicates += 1
         continue
-
 
     # ACCEPTED question (for both append + final output)
     accepted_questions_by_am[q["AM"]].append(
@@ -708,7 +707,7 @@ for q in questions_by_am:
     if new_toks:
         existing_semantic_index.setdefault(sk, []).append(new_toks)
         
-print(f"DEDUP: skipped {skipped_exact} exact duplicates, {skipped_semantic} semantic duplicates.")
+print(f"DEDUP: skipped {skipped_duplicates} duplicate questions.")
 
 if new_rows:
     feedback_ws.append_rows(new_rows, value_input_option="USER_ENTERED")
@@ -1110,3 +1109,4 @@ with open(week_info_path, "w") as f:
 upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
 upload_to_drive(week_info_path, f"Week_number.txt", folder_id)
+
