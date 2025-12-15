@@ -747,7 +747,15 @@ if new_toks:
 print(f"DEDUP: skipped {skipped_duplicates} duplicate questions.")
 
 # ================== END DEDUPE ==================
-
+def build_fallback_question(am_name: str) -> str:
+    """
+    Deterministic fallback question (non-repetitive angle).
+    Keep it concise and action-oriented.
+    """
+    return (
+        "What is the expected ordering behavior for the next 2–4 weeks, and is any proactive action required this week?"
+        " (Distributor: N/A; Country: N/A; Customer: N/A)"
+    )
 
 # ================== SMART MANDATORY QUESTIONS LOGIC ===
 # Goal: Ask 2 questions per AM when data exists.
@@ -957,18 +965,6 @@ if new_toks:
     existing_semantic_index.setdefault(sk, []).append(new_toks)
 
 print(f"DEDUP: skipped {skipped_duplicates} duplicate questions.")
-
-
-def build_fallback_question(am_name: str) -> str:
-    """
-    Deterministic fallback question (non-repetitive angle).
-    Keep it concise and action-oriented.
-    """
-    return (
-        "What is the expected ordering behavior for the next 2–4 weeks, and is any proactive action required this week?"
-        " (Distributor: N/A; Country: N/A; Customer: N/A)"
-    )
-
 
 # Enforce: at least 1 question for eligible AMs (AFTER dedupe)
 missing_after_dedupe = [
@@ -1417,6 +1413,7 @@ with open(week_info_path, "w") as f:
 upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
 upload_to_drive(week_info_path, f"Week_number.txt", folder_id)
+
 
 
 
