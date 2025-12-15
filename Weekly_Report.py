@@ -203,14 +203,10 @@ def jaccard(a: set, b: set) -> float:
     return len(a & b) / len(a | b)
 
 def scope_key(am: str, distributor: str, country: str, customers: str) -> tuple:
-    """
-    Scope key: repeats are only meaningful if they refer to the same entity scope.
-    """
     return (
         normalize_text(am),
         normalize_text(distributor),
         normalize_text(country),
-        normalize_text(customers),
     )
 
 def is_duplicate_question(am: str, dist_str: str, country_str: str, cust_str: str, question_clean: str,
@@ -667,9 +663,15 @@ accepted_questions_by_am = defaultdict(list)
 for q in questions_by_am:
     question_clean, distributors, countries, customers = extract_metadata_from_question(q["Question"])
     
-    dist_str = ", ".join(distributors) if distributors and distributors != ["N/A"] else "N/A"
-    country_str = ", ".join(countries) if countries and countries != ["N/A"] else "N/A"
-    cust_str = ", ".join(customers) if customers and customers != ["N/A"] else "N/A"
+    dist_str = canonicalize_list_field(
+        ", ".join([str(d).strip() for d in distributors if str(d).strip()]) if distributors else "N/A"
+    )
+    country_str = canonicalize_list_field(
+        ", ".join([str(c).strip() for c in countries if str(c).strip()]) if countries else "N/A"
+    )
+    cust_str = canonicalize_list_field(
+        ", ".join([str(c).strip() for c in customers if str(c).strip()]) if customers else "N/A"
+    )
 
     if is_duplicate_question(
         am=q["AM"],
@@ -1115,5 +1117,6 @@ with open(week_info_path, "w") as f:
 upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
 upload_to_drive(week_info_path, f"Week_number.txt", folder_id)
+
 
 
