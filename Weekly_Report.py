@@ -43,9 +43,10 @@ def extract_metadata_from_question(text):
         distributors = [x.strip() for x in re.split(r",\s*", match2.group(1))]
         countries = [x.strip() for x in re.split(r",\s*", match2.group(2))]
         customers_set = set()
+        mapping = globals().get("distributor_country_to_customers", {})
         for d in distributors:
             for c in countries:
-                customers_set.update(distributor_country_to_customers.get((d, c), []))
+                customers_set.update(mapping.get((d, c), []))
         return re.sub(metadata_pattern2, "", text).strip(), distributors, countries, sorted(customers_set)
     return re.sub(r"\(.*?\)\s*$", "", text).strip(), ["N/A"], ["N/A"], ["N/A"]
 
@@ -211,6 +212,24 @@ def scope_key(am: str, distributor: str, country: str, customers: str) -> tuple:
         normalize_text(country),
         normalize_text(customers),
     )
+
+def is_duplicate_question(am: str, dist_str: str, country_str: str, cust_str: str, question_clean: str,
+                          existing_exact_keys: set, existing_semantic_index: dict,
+                          week_num: int, year: int, threshold: float) -> bool:
+    # Exact
+    key = make_question_key(week_num, year, am, dist_str, country_str, cust_str, question_clean)
+    if key in existing_exact_keys:
+        return True
+
+    # Semantic within same scope
+    sk = scope_key(am, dist_str, country_str, cust_str)
+    new_toks = token_set(question_clean)
+    if new_toks and sk in existing_semantic_index:
+        for old_toks in existing_semantic_index[sk]:
+            if jaccard(new_toks, old_toks) >= threshold:
+                return True
+
+    return False
 
 # --- Setup and Authentication ---
 script_dir = os.path.dirname(os.path.abspath(__file__)) if '__file__' in globals() else os.getcwd()
@@ -494,7 +513,7 @@ response = client.chat.completions.create(
 )
 
 insights = response.choices[0].message.content.strip()
-print("\n💡 GPT Insights:\n", insights)
+print("\n💡 GPT Insights (raw):\n", insights)
 def extract_questions_by_am(insights: str):
     """
     Extracts questions per AM even when questions wrap across multiple lines.
@@ -555,9 +574,18 @@ def extract_questions_by_am(insights: str):
 # 1) Hard fail if GPT violates critical constraints (avoid false positives)
 if re.search(r"(^|\n)\s*[-*]\s+", insights) or re.search(r"\*\*.+\*\*", insights):
     raise ValueError("GPT output contains markdown-like bullets/bold. Plain text only is allowed.")
+if re.search(r"(^|\n)\s*#{1,6}\s+", insights):
+    raise ValueError("GPT output contains markdown headings. Plain text only is allowed.")
 
 # 2) Extract questions ONCE (must happen before any validation that iterates questions_by_am)
 questions_by_am = extract_questions_by_am(insights)
+# If an AM section says "No significant insights...", it must not have questions.
+no_sig_with_questions = re.findall(
+    r"(?ms)^\s*([A-Za-z]+(?: [A-Za-z]+){1,3})\s*\n\s*No significant insights or questions for this week\.\s*\n.*?^\s*Questions for \1:\s*\n\s*\d+\.",
+    insights
+)
+if no_sig_with_questions:
+    raise ValueError(f"AM section(s) claim no significant insights but include questions: {no_sig_with_questions}")
 
 # 3) Guard: if GPT wrote "Questions for ..." but parser extracted none, fail early
 if re.search(r"\bQuestions for\b", insights) and not questions_by_am:
@@ -622,42 +650,43 @@ for _, row in feedback_df.iterrows():
         existing_semantic_index.setdefault(sk, []).append(toks)
 
 new_rows = []
-skipped_exact = 0
-skipped_semantic = 0
+
+# Single duplicate counter (exact + semantic combined)
+skipped_duplicates = 0
 
 # Similarity threshold (0.70–0.85 typical). 0.78 is a good starting point.
 SEMANTIC_JACCARD_THRESHOLD = 0.78
 
+accepted_questions_by_am = defaultdict(list)
 for q in questions_by_am:
-    # Extract metadata and clean question
     question_clean, distributors, countries, customers = extract_metadata_from_question(q["Question"])
 
     dist_str = ", ".join([d.strip() for d in distributors]) if distributors else "N/A"
     country_str = ", ".join([c.strip() for c in countries]) if countries else "N/A"
     cust_str = ", ".join([c.strip() for c in customers]) if customers else "N/A"
 
-    # Exact key check (text-identical)
-    key = make_question_key(week_num, year, q["AM"], dist_str, country_str, cust_str, question_clean)
-    if key in existing_exact_keys:
-        skipped_exact += 1
+    if is_duplicate_question(
+        am=q["AM"],
+        dist_str=dist_str,
+        country_str=country_str,
+        cust_str=cust_str,
+        question_clean=question_clean,
+        existing_exact_keys=existing_exact_keys,
+        existing_semantic_index=existing_semantic_index,
+        week_num=week_num,
+        year=year,
+        threshold=SEMANTIC_JACCARD_THRESHOLD
+    ):
+        skipped_duplicates += 1
         continue
 
-    # Semantic (paraphrase) check within same scope
-    sk = scope_key(q["AM"], dist_str, country_str, cust_str)
-    new_toks = token_set(question_clean)
 
-    is_semantic_dupe = False
-    if new_toks and sk in existing_semantic_index:
-        for old_toks in existing_semantic_index[sk]:
-            if jaccard(new_toks, old_toks) >= SEMANTIC_JACCARD_THRESHOLD:
-                is_semantic_dupe = True
-                break
+    # ACCEPTED question (for both append + final output)
+    accepted_questions_by_am[q["AM"]].append(
+        f"{question_clean} (Distributor: {dist_str}; Country: {country_str}; Customer: {cust_str})"
+    )
 
-    if is_semantic_dupe:
-        skipped_semantic += 1
-        continue
-
-    # If we accept it, add it to output AND to the indices
+    # Append row (your existing code)
     new_rows.append([
         week_num,
         year,
@@ -671,10 +700,14 @@ for q in questions_by_am:
         datetime.now().strftime("%Y-%m-%d"),
     ])
 
+    # Update indices (your existing code)
+    key = make_question_key(week_num, year, q["AM"], dist_str, country_str, cust_str, question_clean)
     existing_exact_keys.add(key)
+    new_toks = token_set(question_clean)
+    sk = scope_key(q["AM"], dist_str, country_str, cust_str)
     if new_toks:
         existing_semantic_index.setdefault(sk, []).append(new_toks)
-
+        
 print(f"DEDUP: skipped {skipped_exact} exact duplicates, {skipped_semantic} semantic duplicates.")
 
 if new_rows:
@@ -683,40 +716,77 @@ if new_rows:
 else:
     print("No new questions found to add to the Feedback loop worksheet.")
 
+# ================== REBUILD INSIGHTS (SHOW ONLY ACCEPTED QUESTIONS) ==================
+final_insights_lines = []
+am_sections = re.split(r"\n([A-Za-z]+(?: [A-Za-z]+){1,3})\n", "\n" + insights)
+
+for i in range(1, len(am_sections), 2):
+    am_name = am_sections[i].strip()
+    section = am_sections[i + 1].strip("\n")
+
+    # Keep everything up to the "Questions for ..." line (or entire section if missing)
+    m = re.search(r"(?ms)^(.*?)(^\s*Questions for .*?:\s*$).*", section)
+    if not m:
+        final_insights_lines.append(am_name)
+        final_insights_lines.append(section.strip())
+        continue
+
+    pre = m.group(1).rstrip()
+    final_insights_lines.append(am_name)
+    if pre:
+        final_insights_lines.append(pre)
+
+    final_insights_lines.append(f"Questions for {am_name}:")
+    qs = accepted_questions_by_am.get(am_name, [])
+    for idx, qline in enumerate(qs[:2], start=1):
+        final_insights_lines.append(f"{idx}. {qline}")
+
+final_insights = "\n".join(final_insights_lines).strip()
+
+# IMPORTANT: overwrite insights from here on
+insights = final_insights
+print("\n💡 FINAL Insights (accepted questions only):\n", insights)
+# ================== END REBUILD ==================
+
 
 # === Executive Summary Generation (with Product Trends) ===
 
 def generate_product_trend_summary(recent_df, previous_df):
     """
-    Calculates a stable 8-week vs. 8-week product trend and returns it as a text string.
+    Calculates a stable 8-week vs. 8-week product trend and returns plain text only.
+    NO markdown, NO bullets.
     """
     try:
         recent_totals = recent_df.groupby('Product')['Total_mCi'].sum()
         previous_totals = previous_df.groupby('Product')['Total_mCi'].sum()
-        combined = pd.DataFrame({'Recent 8 Weeks': recent_totals, 'Previous 8 Weeks': previous_totals}).fillna(0)
-        
-        calc_pct = lambda current, prev: ((current - prev) / prev * 100) if prev != 0 else np.inf
-        combined['% Change'] = combined.apply(lambda row: calc_pct(row['Recent 8 Weeks'], row['Previous 8 Weeks']), axis=1)
+        combined = pd.DataFrame({
+            'Recent 8 Weeks': recent_totals,
+            'Previous 8 Weeks': previous_totals
+        }).fillna(0)
 
-        summary_lines = ["### PART 1: KEY PRODUCT TRENDS (8-Week vs. 8-Week) ###"]
-        
+        def pct_change(curr, prev):
+            return ((curr - prev) / prev * 100) if prev != 0 else None
+
+        lines = []
+
         if combined.empty or (combined['Recent 8 Weeks'].sum() == 0 and combined['Previous 8 Weeks'].sum() == 0):
-            summary_lines.append("No significant product sales activity was recorded in the last 16 weeks.")
-            return "\n".join(summary_lines)
+            return "No significant product sales activity was recorded in the last 16 weeks."
 
         for product, row in combined.iterrows():
-            change = row['% Change']
-            if change == np.inf:
-                change_str = "which had no sales in the prior period."
+            change = pct_change(row['Recent 8 Weeks'], row['Previous 8 Weeks'])
+            if change is None:
+                change_str = "which had no sales in the prior period"
             else:
-                change_str = f"representing a change of {change:+.1f}%."
-            
-            summary_lines.append(f"- Sales for '{product}' in the last 8 weeks were {row['Recent 8 Weeks']:,.0f} mCi, {change_str}")
-            
-        return "\n".join(summary_lines)
-    except Exception as e:
-        return f"### PART 1: KEY PRODUCT TRENDS ###\nProduct-level trend data could not be generated: {e}"
+                change_str = f"representing a change of {change:+.1f}%"
+            lines.append(
+                f"Sales for {product} in the last 8 weeks were {row['Recent 8 Weeks']:,.0f} mCi, {change_str}."
+            )
 
+        return " ".join(lines)
+
+    except Exception as e:
+        return f"Product-level trend data could not be generated due to an error: {e}"
+        
 # 1. Generate the stable product data as text
 product_trend_summary = generate_product_trend_summary(recent_df, previous_df)
 
@@ -982,7 +1052,12 @@ with PdfPages(latest_pdf) as pdf:
             pdf.savefig(fig, bbox_inches="tight"); plt.close(fig)
 
 # --- ChatGPT Insights Pages ---
-        insight_lines = [extract_metadata_from_question(line)[0] for line in insights.split("\n")]
+        insight_lines = []
+        for line in insights.split("\n"):
+            if re.match(r"^\s*\d+\.\s+", line):
+                insight_lines.append(extract_metadata_from_question(line)[0])
+            else:
+                insight_lines.append(line)
         
         # This logic handles line wrapping and preserves blank lines for paragraph spacing
         wrapped_insights = []
@@ -1035,24 +1110,3 @@ with open(week_info_path, "w") as f:
 upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
 upload_to_drive(week_info_path, f"Week_number.txt", folder_id)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
