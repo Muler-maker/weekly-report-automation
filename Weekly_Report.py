@@ -460,7 +460,7 @@ client = OpenAI(api_key=openai_api_key)
 summary_path = os.path.join(output_folder, "summary_test.txt")
 
 format_row = lambda name, prev, curr, mgr: (
-    f"{name:<30} | {curr - prev:+7.0f} mCi | {(curr - prev) / prev * 100 if prev else 100:+6.1f}% | {mgr}",
+    f"{name:<30} | {curr - prev:+7.0f} mCi | {(curr - prev) / prev * 100 if prev else 100:+6.1f}%",
     (curr - prev) / prev * 100 if prev else 100
 )
 
@@ -490,7 +490,7 @@ inactive_recent_4 = sorted(active_previous_4 - active_recent_4)
 # Build text summary for ChatGPT executive summary input
 summary_lines = (
     ["STOPPED ORDERING:", "Customers who stopped ordering in the last 8 weeks...", "---"]
-    + [f"{x[0]:<35} | {x[1]}" for x in stopped]
+    + [f"{x[0]:<35}" for x in stopped]
 ) if stopped else ["- None"]
 
 summary_lines += (
@@ -1486,6 +1486,7 @@ with open(week_info_path, "w") as f:
 upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
 upload_to_drive(week_info_path, f"Week_number.txt", folder_id)
+
 
 
 
