@@ -1186,7 +1186,6 @@ IMPORTANT RULES:
 - Use clear, formal, business-oriented language.
 - Your entire response MUST be a single block of text. Do not use bullets, bolding, or paragraph breaks.
 """
-
 # 3. Combine the PRODUCT summary and the full DETAIL of the CUSTOMER summary
 final_exec_prompt_content = (
     product_trend_summary +
@@ -1490,6 +1489,7 @@ with open(week_info_path, "w") as f:
 upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
 upload_to_drive(week_info_path, f"Week_number.txt", folder_id)
+
 
 
 
