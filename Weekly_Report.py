@@ -1176,11 +1176,14 @@ Instructions:
 Your first sentences MUST focus exclusively on the product-level performance outlined in 'PART 1: KEY PRODUCT TRENDS'. Summarize the most important overall product trends.
 
 2. Transition to Customer Context:
-Immediately after summarizing the product trends, use a transitional phrase like "This performance is reflected in customer-level activity..." or "Drilling down into customer data reveals..." and then provide context using the details from 'PART 2: CUSTOMER-LEVEL DATA'. Structure this analysis by first highlighting any significant country-level patterns, and only mention distributor-level patterns if they are explicitly supported by distributor-level data in the input, then mention key examples of increasing or decreasing customers that are driving the product trends.
+Immediately after summarizing the product trends, use a transitional phrase such as "This performance is reflected in customer-level activity..." or "Drilling down into customer data reveals..." and then provide context using the details from 'PART 2: CUSTOMER-LEVEL DATA'. Structure this analysis by first highlighting any significant country-level patterns. Mention distributor-level patterns only if they are explicitly supported by distributor-level data in the input. Then reference a small number of representative examples of increasing or decreasing customers that are driving the observed trends.
 
 IMPORTANT RULES:
 - When referring to distributors, only name entities explicitly identified as distributors in the input data. Do not infer distributor-level trends from customer-level data.
-- If distributor-level aggregation is not explicitly provided, describe changes as customer-level or country-level observations only.
+- If distributor-level aggregation is not explicitly provided, describe changes strictly as customer-level or country-level observations.
+- Do not contradict yourself: a customer or entity mentioned as decreased or stopped must not be cited as increased within the same summary.
+- When providing examples, ensure each named customer appears in only one category (increased OR decreased/stopped) within the summary.
+- Do not speculate about causes or motivations (e.g., retention, project completion, programmatic needs). Describe only observable changes and patterns present in the data.
 - If 'PART 1' indicates no data is available, you MUST begin the summary directly with the customer data from 'PART 2'. Do not mention that product data is missing.
 - Do NOT name Account Managers.
 - Use clear, formal, business-oriented language.
@@ -1489,6 +1492,7 @@ with open(week_info_path, "w") as f:
 upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
 upload_to_drive(week_info_path, f"Week_number.txt", folder_id)
+
 
 
 
