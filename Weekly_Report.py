@@ -1168,15 +1168,19 @@ product_trend_summary = generate_product_trend_summary(recent_df, previous_df)
 
 # 2. Define the new, highly-structured prompt
 exec_summary_prompt ="""
-You are a senior business analyst writing a high-level executive summary for company leadership. Your final output must be a **single, continuous block of text** with no paragraph breaks (no "\\n\\n").
+You are a senior business analyst writing a high-level executive summary for company leadership. Your final output must be a single, continuous block of text with no paragraph breaks (no "\\n\\n").
 
-**Instructions:**
+Instructions:
 
-1.  **Start with Product Trends:** Your first sentences MUST focus exclusively on the product-level performance outlined in 'PART 1: KEY PRODUCT TRENDS'. Summarize the most important overall product trends.
+1. Start with Product Trends:
+Your first sentences MUST focus exclusively on the product-level performance outlined in 'PART 1: KEY PRODUCT TRENDS'. Summarize the most important overall product trends.
 
-2.  **Transition to Customer Context:** Immediately after summarizing the product trends, use a transitional phrase like "This performance is reflected in customer-level activity..." or "Drilling down into customer data reveals..." and then provide context using the details from 'PART 2: CUSTOMER-LEVEL DATA'. Structure this analysis by first highlighting any significant **country-level or distributor-level patterns**, then mention key examples of increasing or decreasing **customers** that are driving the product trends.
+2. Transition to Customer Context:
+Immediately after summarizing the product trends, use a transitional phrase like "This performance is reflected in customer-level activity..." or "Drilling down into customer data reveals..." and then provide context using the details from 'PART 2: CUSTOMER-LEVEL DATA'. Structure this analysis by first highlighting any significant country-level patterns, and only mention distributor-level patterns if they are explicitly supported by distributor-level data in the input, then mention key examples of increasing or decreasing customers that are driving the product trends.
 
-**IMPORTANT RULES:**
+IMPORTANT RULES:
+- When referring to distributors, only name entities explicitly identified as distributors in the input data. Do not infer distributor-level trends from customer-level data.
+- If distributor-level aggregation is not explicitly provided, describe changes as customer-level or country-level observations only.
 - If 'PART 1' indicates no data is available, you MUST begin the summary directly with the customer data from 'PART 2'. Do not mention that product data is missing.
 - Do NOT name Account Managers.
 - Use clear, formal, business-oriented language.
@@ -1486,6 +1490,7 @@ with open(week_info_path, "w") as f:
 upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
 upload_to_drive(week_info_path, f"Week_number.txt", folder_id)
+
 
 
 
