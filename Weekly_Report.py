@@ -326,7 +326,7 @@ SPREADSHEET_URL_DATA = "https://docs.google.com/spreadsheets/d/1WNW4IqAG6W_6XVSa
 sheet = gc.open_by_url(SPREADSHEET_URL_DATA).worksheet("Airtable Data")
 df = pd.DataFrame(sheet.get_all_records())
 df.columns = [c.strip() for c in df.columns]
-account_manager_map = {"vbeillis@isotopia-global.com": "Vicki Beillis", "naricha@isotopia-global.com": "Noam Aricha", "ndellus@isotopia-global.com": "Noam Dellus", "gbader@isotopia-global.com": "Gilli Bader", "yfarchi@isotopia-global.com": "Yosi Farchi", "caksoy@isotopia-global.com": "Can Aksoy"}
+account_manager_map = {"vbeillis@isotopia-global.com": "Vicki Beillis", "naricha@isotopia-global.com": "Noam Aricha", "iaraki@isotopia-global.com": "Iftah Araki", "gbader@isotopia-global.com": "Gilli Bader", "yfarchi@isotopia-global.com": "Yosi Farchi", "caksoy@isotopia-global.com": "Can Aksoy"}
 df["Account Manager"] = df["Account Manager Email"].map(account_manager_map).fillna("Other")
 def last_n_iso_yearweeks(n_weeks: int, anchor_date: datetime) -> set[tuple[int, int]]:
     """
@@ -1492,6 +1492,7 @@ with open(week_info_path, "w") as f:
 upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
 upload_to_drive(week_info_path, f"Week_number.txt", folder_id)
+
 
 
 
