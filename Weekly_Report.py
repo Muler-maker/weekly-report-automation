@@ -678,6 +678,55 @@ def extract_questions_by_am(insights: str):
                 })
 
     return am_data
+def infer_am_from_question_metadata(distributors, countries, customers, customer_to_manager):
+    """
+    Infer the correct AM using majority vote over customers listed in metadata.
+    Returns None if it cannot infer confidently.
+    """
+    votes = []
+    for cust in (customers or []):
+        cust = str(cust).strip()
+        if not cust:
+            continue
+        am = customer_to_manager.get(cust)
+        if am and am != "Other":
+            votes.append(am)
+
+    if not votes:
+        return None
+
+    # Majority vote
+    return max(set(votes), key=votes.count)
+
+
+def reassign_questions_to_correct_am(questions_by_am, customer_to_manager):
+    """
+    If a question is listed under AM X but its metadata customers belong to AM Y,
+    reassign it to AM Y.
+    """
+    fixed = []
+    moved = []
+
+    for q in questions_by_am:
+        q_text = q.get("Question", "")
+        _, distributors, countries, customers = extract_metadata_from_question(q_text)
+
+        inferred = infer_am_from_question_metadata(distributors, countries, customers, customer_to_manager)
+        if inferred and inferred != q.get("AM"):
+            moved.append((q.get("AM"), inferred, q_text))
+            q = dict(q)          # copy
+            q["AM"] = inferred   # reassign
+
+        fixed.append(q)
+
+    if moved:
+        print("⚠️ Reassigned GPT questions to correct AM based on metadata customer ownership:")
+        for src, dst, text in moved[:10]:
+            # keep log readable
+            print(f"  {src} -> {dst}: {text[:160]}")
+
+    return fixed
+
 # ================== HARD VALIDATION ==================
 # 1) Hard fail if GPT violates critical constraints (avoid false positives)
 if re.search(r"(^|\n)\s*[-*]\s+", insights) or re.search(r"\*\*.+\*\*", insights):
@@ -687,24 +736,7 @@ if re.search(r"(^|\n)\s*#{1,6}\s+", insights):
 
 # 2) Extract questions ONCE (must happen before any validation that iterates questions_by_am)
 questions_by_am = extract_questions_by_am(insights)
-def infer_am_from_metadata(distributors, countries, customers, customer_to_manager):
-    """
-    Choose AM by majority vote of customers in metadata.
-    If no usable customers, return None.
-    """
-    votes = []
-    for cust in customers or []:
-        am = customer_to_manager.get(cust)
-        if am and am != "Other":
-            votes.append(am)
-
-    if not votes:
-        return None
-
-    # majority vote
-    return max(set(votes), key=votes.count)
-
-
+questions_by_am = reassign_questions_to_correct_am(questions_by_am, customer_to_manager)
 def reassign_questions_to_correct_am(questions_by_am, customer_to_manager):
     """
     Reassign questions whose metadata implies a different AM than the section AM.
@@ -1534,6 +1566,7 @@ with open(week_info_path, "w") as f:
 upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
 upload_to_drive(week_info_path, f"Week_number.txt", folder_id)
+
 
 
 
