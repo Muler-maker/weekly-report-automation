@@ -687,7 +687,49 @@ if re.search(r"(^|\n)\s*#{1,6}\s+", insights):
 
 # 2) Extract questions ONCE (must happen before any validation that iterates questions_by_am)
 questions_by_am = extract_questions_by_am(insights)
+def infer_am_from_metadata(distributors, countries, customers, customer_to_manager):
+    """
+    Choose AM by majority vote of customers in metadata.
+    If no usable customers, return None.
+    """
+    votes = []
+    for cust in customers or []:
+        am = customer_to_manager.get(cust)
+        if am and am != "Other":
+            votes.append(am)
 
+    if not votes:
+        return None
+
+    # majority vote
+    return max(set(votes), key=votes.count)
+
+
+def reassign_questions_to_correct_am(questions_by_am, customer_to_manager):
+    """
+    Reassign questions whose metadata implies a different AM than the section AM.
+    """
+    fixed = []
+    moved = []
+
+    for q in questions_by_am:
+        q_text = q["Question"]
+        question_clean, distributors, countries, customers = extract_metadata_from_question(q_text)
+
+        inferred = infer_am_from_metadata(distributors, countries, customers, customer_to_manager)
+        if inferred and inferred != q["AM"]:
+            moved.append((q["AM"], inferred, question_clean))
+            q = dict(q)  # copy
+            q["AM"] = inferred
+
+        fixed.append(q)
+
+    if moved:
+        print("⚠️ Reassigned questions to correct AM based on customer ownership:")
+        for src, dst, text in moved[:10]:
+            print(f"  {src} -> {dst}: {text[:120]}")
+
+    return fixed
 # 3) Guard: if GPT wrote "Questions for ..." but parser extracted none, fail early
 if re.search(r"\bQuestions for\b", insights) and not questions_by_am:
     raise ValueError("Found 'Questions for' in GPT output, but parser extracted zero questions. Check formatting drift.")
@@ -1492,6 +1534,7 @@ with open(week_info_path, "w") as f:
 upload_to_drive(summary_pdf, f"Weekly_Orders_Report_Summary_Week_{week_num}_{year}.pdf", folder_id)
 upload_to_drive(latest_copy_path, "Latest_Weekly_Report.pdf", folder_id)
 upload_to_drive(week_info_path, f"Week_number.txt", folder_id)
+
 
 
 
